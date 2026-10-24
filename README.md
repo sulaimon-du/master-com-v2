@@ -47,4 +47,4 @@ Schema and rules: [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md). Reference data liv
 
 ## Staging
 
-Render free web service (Docker) + Neon free Postgres; see [`render.yaml`](render.yaml). Pushing to `main` deploys automatically; migrations and the seed run on start.
+Render free web service (Docker) + Neon free Postgres; details in [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md) and [`render.yaml`](render.yaml). Pushing to `main` deploys automatically; migrations and the seed run on start.
