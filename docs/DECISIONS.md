@@ -105,6 +105,11 @@ Supersedes the old 14_DECISIONS.md. The new brief is `redefinition/BRIEF.md`. Nu
 - The number is visible to signed-in users only, like all contacts.
 - Taps are counted and shown to the master on claiming; a "wrong number" report hides the profile until admin review.
 
+## R-017 Staging live (2026-10-24)
+- Staging: Render free web service (Docker, Frankfurt) + Neon free Postgres (Frankfurt), from `render.yaml`. URL: https://master-com-staging.onrender.com
+- Push to `main` deploys automatically; migrations run on start. Free service sleeps after 15 minutes idle.
+- Week 1 (walking skeleton) done: CI green on GitHub (lint, tests, audit, Docker build), `/health/ready` returns ok with the database.
+
 ## Open
 - Final name and positioning (round 6): postponed by the owner; working name Master COM stays.
 - Visual direction: tentative pick in R-014; final confirmation pending.
