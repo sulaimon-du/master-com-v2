@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+node_modules/
+.env
+# Built assets (produced by `npm run build` and in the Docker image)
+app/static/css/*.css
+app/static/js/*.js
+app/static/fonts/

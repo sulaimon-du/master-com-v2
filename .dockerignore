@@ -1,0 +1,16 @@
+.git
+.venv
+node_modules
+app/static/css/*.css
+app/static/js/*.js
+app/static/fonts
+**/__pycache__
+.pytest_cache
+.ruff_cache
+.env
+*.md
+!README.md
+docs
+tests
+.github
+.claude

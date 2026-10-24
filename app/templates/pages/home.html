@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="grid gap-6">
+  <h1 class="text-5xl sm:text-7xl">Мастера Таджикистана</h1>
+  <p class="max-w-prose text-lg text-muted">
+    Ищите мастеров по специальности и району, смотрите их работы и размещайте заявки.
+  </p>
+  <p class="text-muted" lang="tg">Ҷустуҷӯи устои сохтмонӣ: ғишткор, қубуркаш, барқчӣ.</p>
+  <div class="flex flex-wrap gap-3">
+    <a class="btn btn-primary no-underline" href="/">Найти мастера</a>
+    <a class="btn btn-secondary no-underline" href="/">Разместить заявку</a>
+  </div>
+  <p class="text-sm text-muted">Скоро здесь будет сервис. Окружение: {{ env }}.</p>
+</section>
+{% endblock %}

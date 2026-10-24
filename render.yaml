@@ -1,0 +1,23 @@
+# Staging on Render: free web service built from the Dockerfile.
+# Database: Neon free Postgres (Render's free Postgres is deleted 30 days after creation).
+# Free web services sleep after 15 minutes without traffic; the first request then takes about a minute.
+services:
+  - type: web
+    name: master-com-staging
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: RUN_MIGRATIONS
+        value: "1"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false # paste the Neon connection string in the Render dashboard
+      - key: FORWARDED_ALLOW_IPS
+        value: "*" # traffic reaches the container only through Render's proxy

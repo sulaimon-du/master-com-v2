@@ -1,0 +1,19 @@
+{
+  "name": "master-com-frontend",
+  "private": true,
+  "description": "Builds static assets: Tailwind CSS, vendored htmx and Alpine (CSP build), self-hosted fonts.",
+  "scripts": {
+    "build": "npm run build:css && npm run build:vendor",
+    "build:css": "tailwindcss -i assets/css/app.css -o app/static/css/app.css --minify",
+    "watch:css": "tailwindcss -i assets/css/app.css -o app/static/css/app.css --watch",
+    "build:vendor": "node scripts/vendor.mjs"
+  },
+  "devDependencies": {
+    "@alpinejs/csp": "3.17.4",
+    "@fontsource-variable/inter": "5.3.0",
+    "@fontsource/cormorant-garamond": "5.3.0",
+    "@tailwindcss/cli": "4.3.3",
+    "htmx.org": "2.0.11",
+    "tailwindcss": "4.3.3"
+  }
+}

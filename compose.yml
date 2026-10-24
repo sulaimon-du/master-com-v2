@@ -1,0 +1,32 @@
+# Local stack in one command: docker compose up --build
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mc
+      POSTGRES_PASSWORD: mc
+      POSTGRES_DB: mastercom
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mc -d mastercom"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  web:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://mc:mc@db:5432/mastercom
+      RUN_MIGRATIONS: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+
+volumes:
+  db-data:

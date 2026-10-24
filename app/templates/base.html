@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="{{ lang | default('ru') }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "selfRequestsOnly": true}'>
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='css/fonts.css').path }}">
+  <link rel="stylesheet" href="{{ url_for('static', path='css/app.css').path }}">
+  <script src="{{ url_for('static', path='js/htmx.min.js').path }}" defer></script>
+  <script src="{{ url_for('static', path='js/alpine-csp.min.js').path }}" defer></script>
+</head>
+<body class="min-h-dvh">
+  <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 btn btn-secondary">Перейти к содержимому</a>
+  <header class="border-b border-line bg-surface">
+    <div class="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
+      <a href="/" class="text-lg font-bold no-underline">{{ app_name }}</a>
+    </div>
+  </header>
+  <main id="main" class="mx-auto max-w-6xl px-4 py-8">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
