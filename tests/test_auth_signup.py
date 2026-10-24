@@ -106,3 +106,22 @@ def test_resend_sends_a_new_link_to_an_unconfirmed_account(client: TestClient, o
     make_user("ana@example.com", confirmed=False)
     post(client, "/confirm/resend", {"email": "ana@example.com"})
     assert [m.to for m in outbox.sent] == ["ana@example.com"]
+
+
+def test_registration_emails_to_one_address_are_capped(client: TestClient, outbox) -> None:
+    make_user("ana@example.com")
+    pages = [_register(client) for _ in range(5)]
+    # Same answer every time, but the inbox gets at most three reminders an hour.
+    assert {p.status_code for p in pages} == {200}
+    assert len({p.text.split("<main")[1].split("</main>")[0] for p in pages}) == 1
+    assert len(outbox.sent) == 3
+
+
+def test_confirming_kills_the_older_confirmation_links(client: TestClient, outbox) -> None:
+    make_user("ana@example.com", confirmed=False)
+    post(client, "/confirm/resend", {"email": "ana@example.com"})
+    older = link_from(outbox)
+    post(client, "/confirm/resend", {"email": "ana@example.com"})
+    newer = link_from(outbox)
+    assert post(client, "/confirm", {"token": newer}).status_code == 200
+    assert post(client, "/confirm", {"token": older}).status_code == 400

@@ -28,8 +28,8 @@
   </main>
   <footer class="mx-auto max-w-6xl px-4 pb-8">
     <nav aria-label="{{ t('footer.lang') }}" class="flex gap-4 text-sm text-muted">
-      <a href="{{ url_for('set_lang', code='ru') }}" {% if lang == 'ru' %}aria-current="true" class="font-semibold text-ink"{% endif %}>{{ t('lang.ru') }}</a>
-      <a href="{{ url_for('set_lang', code='tg') }}" {% if lang == 'tg' %}aria-current="true" class="font-semibold text-ink"{% endif %} lang="tg">{{ t('lang.tg') }}</a>
+      <a href="{{ url_for('set_lang', code='ru') }}?next={{ request.url.path | urlencode }}" {% if lang == 'ru' %}aria-current="true" class="font-semibold text-ink"{% endif %}>{{ t('lang.ru') }}</a>
+      <a href="{{ url_for('set_lang', code='tg') }}?next={{ request.url.path | urlencode }}" {% if lang == 'tg' %}aria-current="true" class="font-semibold text-ink"{% endif %} lang="tg">{{ t('lang.tg') }}</a>
     </nav>
   </footer>
 </body>

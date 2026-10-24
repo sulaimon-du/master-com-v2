@@ -98,3 +98,22 @@ def test_reset_does_not_work_for_a_blocked_account(client: TestClient, outbox) -
     make_user(blocked=True)
     post(client, "/password/forgot", {"email": "ana@example.com"})
     assert outbox.sent == []
+
+
+def test_using_one_reset_link_kills_the_older_ones(client: TestClient, outbox) -> None:
+    make_user()
+    post(client, "/password/forgot", {"email": "ana@example.com"})
+    older = link_from(outbox)
+    post(client, "/password/forgot", {"email": "ana@example.com"})
+    newer = link_from(outbox)
+    assert older != newer
+    assert (
+        post(
+            client, "/password/reset", {"token": newer, "password": "brand new pass 1"}
+        ).status_code
+        == 200
+    )
+    # The older email can no longer set a password.
+    replay = post(client, "/password/reset", {"token": older, "password": "attacker pass 99"})
+    assert replay.status_code == 400
+    assert sign_in(client, password="brand new pass 1").status_code == 303

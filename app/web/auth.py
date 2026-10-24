@@ -49,11 +49,11 @@ NOTICES = {
 LANG_MAX_AGE = 60 * 60 * 24 * 365
 
 
-def safe_next(value: str | None) -> str:
-    """Only same-site paths. Anything else goes to the account page (no open redirect)."""
+def safe_next(value: str | None, default: str = "/account") -> str:
+    """Only same-site paths. Anything else goes to `default` (no open redirect)."""
     if value and value.startswith("/") and not value.startswith("//") and "\\" not in value:
         return value
-    return "/account"
+    return default
 
 
 def url_builder(request: Request) -> auth.UrlFor:
@@ -119,6 +119,7 @@ def signin_page_response(
 
 
 def _attach_session(response: Response, raw: str, settings: Settings) -> None:
+    response.headers["Cache-Control"] = "no-store"
     set_cookie(response, SESSION, raw, settings, max_age=SESSION_MAX_AGE)
     # A new CSRF token at sign-in too: the pre-login form is no longer trusted.
     set_cookie(response, CSRF, new_token(), settings, max_age=CSRF_MAX_AGE)
@@ -500,9 +501,10 @@ def google_callback(
 
 
 @router.get("/lang/{code}", name="set_lang")
-def set_lang(code: str) -> RedirectResponse:
+def set_lang(code: str, next: str | None = None) -> RedirectResponse:
     if code not in LANGS:
         code = normalize_lang(None)
-    response = RedirectResponse("/", status_code=303)
+    # Back to the page the visitor was on, if it is on this site.
+    response = RedirectResponse(safe_next(next, default="/"), status_code=303)
     set_cookie(response, LANG, code, get_settings(), max_age=LANG_MAX_AGE)
     return response

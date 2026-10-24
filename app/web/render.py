@@ -7,6 +7,7 @@ from app.core.config import get_settings
 from app.core.i18n import translate
 from app.core.security import new_token
 from app.models.user import User
+from app.schemas.account import AccountView
 from app.web.cookies import CSRF, CSRF_MAX_AGE, cookie_name, set_cookie
 from app.web.deps import current_lang
 from app.web.templating import templates
@@ -30,11 +31,14 @@ def render(
         "lang": lang,
         "t": partial(translate, lang),
         "csrf_token": token,
-        "user": user,
+        # Templates get a view without sensitive fields, never the ORM object.
+        "user": AccountView.from_user(user) if user else None,
         "google_enabled": settings.google_enabled,
         **context,
     }
     response = templates.TemplateResponse(request, template, page, status_code=status)
+    # Pages carry the CSRF token and, when signed in, the user's email: never cache them.
+    response.headers["Cache-Control"] = "no-store"
     if existing is None:
         set_cookie(response, CSRF, token, settings, max_age=CSRF_MAX_AGE)
     return response

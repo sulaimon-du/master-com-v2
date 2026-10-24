@@ -96,6 +96,19 @@ def _consume_token(db: Session, purpose: str, raw: str) -> User | None:
     return user
 
 
+def _burn_tokens(db: Session, user_id: int, purpose: str) -> None:
+    """Use up every other open link of this kind, so an older email cannot be replayed later."""
+    db.execute(
+        update(AuthToken)
+        .where(
+            AuthToken.user_id == user_id,
+            AuthToken.purpose == purpose,
+            AuthToken.used_at.is_(None),
+        )
+        .values(used_at=utcnow())
+    )
+
+
 # --- Registration and email confirmation --------------------------------------------------
 
 
@@ -119,7 +132,12 @@ def register(
         return Outcome.RATE_LIMITED
     # Hash in both branches, so the response time does not reveal whether the address exists.
     password_hash = hash_password(password)
+    # At most 3 emails per address per hour, whichever kind. Over the limit nothing is sent,
+    # but the answer is the same, so a stranger cannot flood someone's inbox or learn anything.
+    may_email = rate_limit.allow(db, "register_email", email, limit=3, window=HOUR)
     if db.scalar(select(User.id).where(User.email == email)) is not None:
+        if not may_email:
+            return Outcome.SENT
         _send(
             sender,
             email,
@@ -137,6 +155,8 @@ def register(
             db.flush()
     except IntegrityError:
         # Another request registered the same address first: answer as for an existing one.
+        if not may_email:
+            return Outcome.SENT
         _send(
             sender,
             email,
@@ -178,6 +198,7 @@ def confirm_email(db: Session, raw: str) -> Outcome:
         return Outcome.BAD_LINK
     if user.email_verified_at is None:
         user.email_verified_at = utcnow()
+    _burn_tokens(db, user.id, "confirm_email")
     return Outcome.OK
 
 
@@ -295,6 +316,8 @@ def reset_password(db: Session, *, ip: str, raw: str, password: str) -> Outcome:
     # Following the link proves the inbox, so the address counts as confirmed.
     if user.email_verified_at is None:
         user.email_verified_at = utcnow()
+    # Older reset links in the inbox stop working too.
+    _burn_tokens(db, user.id, "reset_password")
     # A new password is a privilege change: every existing session ends.
     revoke_all_sessions(db, user.id)
     return Outcome.OK

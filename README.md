@@ -22,6 +22,12 @@ uv run python -m app.seed     # cities, districts, catalog (safe to rerun)
 uv run uvicorn --factory app.main:create_app --reload
 ```
 
+## Sign-in in development
+
+- On http://localhost the cookies are named `mc_session`, `mc_csrf`, `mc_oauth` (no `__Host-` prefix, no `Secure`). Staging and production use `__Host-mc_session` etc. over HTTPS (R-019).
+- Emails (confirmation, password reset) are written to the terminal log; open the link from there.
+- Google sign-in is hidden unless `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set in `.env`. For local testing, add `http://localhost:8000/auth/google/callback` as a redirect URI in the Google console.
+
 ## Checks
 
 ```bash
@@ -44,6 +50,11 @@ Schema and rules: [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md). Reference data liv
 | `/` | Home page (placeholder) |
 | `/health` | Liveness: the process is up |
 | `/health/ready` | Readiness: the database answers (503 if not) |
+| `/signin`, `/register`, `/signout` | Password sign-in, registration, sign-out |
+| `/confirm`, `/confirm/resend` | Email confirmation |
+| `/password/forgot`, `/password/reset` | Password reset |
+| `/auth/google/start`, `/auth/google/callback` | Google sign-in (only when configured) |
+| `/account` | Account settings: sign-in methods, link Google, sign out everywhere |
 
 ## Staging
 

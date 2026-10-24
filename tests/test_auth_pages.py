@@ -61,3 +61,36 @@ def test_user_text_is_escaped(client: TestClient) -> None:
 def test_pages_render_in_csp_safe_form_on_mobile_width(client: TestClient) -> None:
     html = client.get("/register").text
     assert 'name="viewport" content="width=device-width' in html
+
+
+@pytest.mark.parametrize("path", ["/signin", "/register", "/account"])
+def test_pages_are_never_cached(client: TestClient, path: str) -> None:
+    make_user()
+    sign_in(client)
+    assert client.get(path).headers["cache-control"] == "no-store"
+
+
+def test_sign_in_redirect_is_never_cached(client: TestClient) -> None:
+    make_user()
+    assert sign_in(client).headers["cache-control"] == "no-store"
+
+
+def test_language_switch_returns_to_the_same_page(client: TestClient) -> None:
+    assert client.get("/lang/tg?next=/register").headers["location"] == "/register"
+    assert client.get("/lang/tg?next=//evil.example").headers["location"] == "/"
+    assert client.get("/lang/tg?next=https://evil.example").headers["location"] == "/"
+    html = client.get("/register").text
+    assert "/lang/ru?next=/register" in html
+
+
+def test_templates_get_a_view_without_sensitive_fields(client: TestClient) -> None:
+    from app.schemas.account import AccountView
+
+    make_user()
+    sign_in(client)
+    r = client.get("/account")
+    view = r.context["user"]  # type: ignore[attr-defined]
+    assert isinstance(view, AccountView)
+    assert not hasattr(view, "password_hash")
+    assert not hasattr(view, "google_sub")
+    assert view.has_password and view.email_confirmed and not view.google_linked

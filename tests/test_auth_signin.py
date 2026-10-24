@@ -91,7 +91,7 @@ def test_sign_out_ends_the_session_on_the_server(client: TestClient) -> None:
     assert client.get("/account").status_code == 303
 
 
-def test_client_ip_trusts_only_the_proxy_entry(monkeypatch) -> None:
+def test_client_ip_uses_cloudflare_header_only_behind_the_proxy(monkeypatch) -> None:
     from starlette.requests import Request
 
     from app.core.config import get_settings
@@ -108,14 +108,19 @@ def test_client_ip_trusts_only_the_proxy_entry(monkeypatch) -> None:
         }
         return Request(scope)
 
-    # Development has no proxy: the connection address is used, headers are ignored.
-    assert client_ip(request([(b"x-forwarded-for", b"6.6.6.6")])) == "10.0.0.1"
+    spoofed = [
+        (b"x-forwarded-for", b"6.6.6.6, 203.0.113.9"),
+        (b"cf-connecting-ip", b"198.51.100.7"),
+    ]
+    # Development has no proxy: headers are ignored, the connection address is used.
+    assert client_ip(request(spoofed)) == "10.0.0.1"
 
     monkeypatch.setenv("APP_ENV", "staging")
     get_settings.cache_clear()
     try:
-        spoofed = request([(b"x-forwarded-for", b"6.6.6.6, 203.0.113.9")])
-        assert client_ip(spoofed) == "203.0.113.9"
+        # Behind Cloudflare: its header wins, X-Forwarded-For is never read.
+        assert client_ip(request(spoofed)) == "198.51.100.7"
+        assert client_ip(request([(b"x-forwarded-for", b"6.6.6.6, 203.0.113.9")])) == "10.0.0.1"
     finally:
         monkeypatch.undo()
         get_settings.cache_clear()

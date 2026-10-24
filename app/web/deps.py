@@ -16,16 +16,19 @@ def current_lang(request: Request) -> str:
 
 
 def client_ip(request: Request) -> str:
-    """The address the rate limits count. Only the proxy's entry is trusted, never the client's.
+    """The address the IP rate limits count.
 
-    Render's proxy appends the real client address to X-Forwarded-For, so the last entry is the
-    one to use. The first entry is whatever the client typed. Development has no proxy, so it
-    uses the connection address.
+    Staging and production: Render serves traffic through Cloudflare, which sets CF-Connecting-IP
+    to the visitor's address. X-Forwarded-For is not used, because Render appends its own proxy
+    address to it, so its last entry may be shared by every visitor. Both points come from Render
+    community reports, not official docs; R-019 lists the black-box check to run on staging.
+    Without the header, the connection address is used. Behind uvicorn's --proxy-headers that is
+    the first X-Forwarded-For entry, which a client can forge; the per-email limits still hold.
     """
     if get_settings().is_production_like:
-        forwarded = request.headers.get("x-forwarded-for", "")
+        forwarded = request.headers.get("cf-connecting-ip", "").strip()
         if forwarded:
-            return forwarded.split(",")[-1].strip() or "unknown"
+            return forwarded
     return request.client.host if request.client else "unknown"
 
 
