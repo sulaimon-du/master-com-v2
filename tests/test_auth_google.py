@@ -273,3 +273,44 @@ def test_google_start_is_rate_limited(client: TestClient, google) -> None:  # ty
     for _ in range(30):
         assert client.get("/auth/google/start").status_code == 303
     assert client.get("/auth/google/start").status_code == 429
+
+
+def test_takeover_burns_the_squatters_confirmation_link(
+    client: TestClient, google, signing_key, outbox
+) -> None:  # type: ignore[no-untyped-def]
+    post(
+        client, "/register", {"name": "S", "email": "ana@gmail.com", "password": "stranger pass 1"}
+    )
+    old_link = outbox.sent[-1].body.split("token=")[1].split()[0]
+    state, _ = _start(client)
+    google["id_token"] = _id_token(signing_key, _nonce_of(client))
+    assert client.get(f"/auth/google/callback?state={state}&code=abc").status_code == 303
+    other = TestClient(client.app, follow_redirects=False)
+    r = post(other, "/confirm", {"token": old_link, "password": "stranger pass 1"})
+    assert r.status_code == 400
+
+
+def test_blocked_unconfirmed_account_is_not_taken_over(
+    client: TestClient, google, signing_key
+) -> None:  # type: ignore[no-untyped-def]
+    make_user("ana@gmail.com", confirmed=False, blocked=True)
+    state, _ = _start(client)
+    google["id_token"] = _id_token(signing_key, _nonce_of(client))
+    r = client.get(f"/auth/google/callback?state={state}&code=abc")
+    assert r.status_code == 403
+    with get_sessionmaker()() as db:
+        assert db.execute(text("SELECT google_sub FROM users")).scalar_one() is None
+
+
+def test_unconfirmed_account_with_another_proven_method_is_not_taken_over(
+    client: TestClient, google, signing_key
+) -> None:  # type: ignore[no-untyped-def]
+    # A Telegram account (week 4) that added an email it has not confirmed yet still belongs
+    # to its Telegram owner.
+    user_id = make_user("ana@gmail.com", confirmed=False)
+    with get_sessionmaker()() as db:
+        db.execute(text("UPDATE users SET telegram_id = 42 WHERE id = :id"), {"id": user_id})
+        db.commit()
+    state, _ = _start(client)
+    google["id_token"] = _id_token(signing_key, _nonce_of(client))
+    assert client.get(f"/auth/google/callback?state={state}&code=abc").status_code == 409

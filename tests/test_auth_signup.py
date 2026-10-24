@@ -161,3 +161,30 @@ def test_confirming_kills_the_older_confirmation_links(client: TestClient, outbo
     newer = link_from(outbox)
     assert post(client, "/confirm", {"token": newer, "password": PASSWORD}).status_code == 303
     assert post(client, "/confirm", {"token": older, "password": PASSWORD}).status_code == 400
+
+
+def test_confirm_attempts_are_limited_per_ip(client: TestClient) -> None:
+    for _ in range(30):
+        assert post(client, "/confirm", {"token": "bogus", "password": PASSWORD}).status_code == 400
+    assert post(client, "/confirm", {"token": "bogus", "password": PASSWORD}).status_code == 429
+
+
+def test_confirm_link_shares_the_sign_in_limit_of_the_address(client: TestClient, outbox) -> None:
+    # A leaked link must not allow more password guesses than the sign-in form does.
+    _register(client)
+    token = link_from(outbox)
+    for _ in range(5):
+        assert (
+            post(client, "/confirm", {"token": token, "password": "guess pass 01"}).status_code
+            == 401
+        )
+    assert post(client, "/confirm", {"token": token, "password": PASSWORD}).status_code == 429
+
+
+def test_reset_burns_open_confirmation_links(client: TestClient, outbox) -> None:
+    _register(client)
+    confirm_token = link_from(outbox)
+    post(client, "/password/forgot", {"email": "ana@example.com"})
+    post(client, "/password/reset", {"token": link_from(outbox), "password": "brand new pass 1"})
+    r = post(client, "/confirm", {"token": confirm_token, "password": "brand new pass 1"})
+    assert r.status_code == 400

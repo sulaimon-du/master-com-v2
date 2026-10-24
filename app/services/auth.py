@@ -213,6 +213,10 @@ def confirm_email(db: Session, *, ip: str, raw: str, password: str) -> tuple[Out
     user = db.get(User, token.user_id) if token else None
     if user is None or not _is_active(user):
         return Outcome.BAD_LINK, None
+    # A valid link is a way to try passwords: share the sign-in limit for this address. Only a
+    # link holder gets this far, so it reveals nothing to strangers.
+    if not rate_limit.allow(db, "login_email", user.email or "", limit=5, window=LOGIN_WINDOW):
+        return Outcome.RATE_LIMITED, None
     if not verify_password(user.password_hash, password):
         return Outcome.WRONG_CREDENTIALS, None
     if _consume_token(db, "confirm_email", raw) is None:
@@ -354,14 +358,21 @@ def reset_password(db: Session, *, ip: str, raw: str, password: str) -> Outcome:
     # Following the link proves the inbox, so the address counts as confirmed.
     if user.email_verified_at is None:
         user.email_verified_at = utcnow()
-    # Older reset links in the inbox stop working too.
+    # Older links in the inbox stop working too: a confirmation link plus the new password
+    # would otherwise be a second way in.
     _burn_tokens(db, user.id, "reset_password")
+    _burn_tokens(db, user.id, "confirm_email")
     # A new password is a privilege change: every existing session ends.
     revoke_all_sessions(db, user.id)
     return Outcome.OK
 
 
 # --- Google sign-in and linking -----------------------------------------------------------
+
+
+def allow_google_start(db: Session, *, ip: str) -> bool:
+    """Each start stores a flow row: cap it per address so a bot cannot fill the table."""
+    return rate_limit.allow(db, "google_start_ip", ip, limit=30, window=LOGIN_WINDOW)
 
 
 def sign_in_with_google(
@@ -375,8 +386,16 @@ def sign_in_with_google(
         return Outcome.OK, user
     existing = db.scalar(select(User).where(User.email == identity.email))
     if existing is not None:
-        if existing.email_verified_at is not None or not _is_active(existing):
-            # A confirmed account: sign in with its password first, then link Google (no merge).
+        if not _is_active(existing):
+            return Outcome.WRONG_CREDENTIALS, None
+        claimable = (
+            existing.email_verified_at is None
+            and existing.google_sub is None
+            and existing.telegram_id is None
+            and existing.phone_verified_at is None
+        )
+        if not claimable:
+            # The account is proven some other way: sign in with it first, then link Google.
             return Outcome.EMAIL_TAKEN, None
         # Nobody ever proved this address, and Google just did. The unconfirmed account may have
         # been registered by a stranger to squat the address, so the Google owner takes it over:

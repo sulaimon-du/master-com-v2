@@ -17,8 +17,7 @@ from app.core.i18n import LANGS, normalize_lang
 from app.core.security import new_token, tokens_match
 from app.models.user import User
 from app.schemas.auth import EmailForm, NewPasswordForm, RegisterForm, SignInForm
-from app.services import auth, google_oidc, rate_limit
-from app.services.auth import LOGIN_WINDOW
+from app.services import auth, google_oidc
 from app.services.email import EmailSender, get_email_sender
 from app.web.cookies import (
     CSRF,
@@ -441,10 +440,7 @@ def google_start(request: Request, db: DbSession) -> Response:
         return notice_page(
             request, None, status=404, title="error.not_found", text="error.not_found"
         )
-    # Each start stores a flow row: cap it per address so a bot cannot fill the table.
-    if not rate_limit.allow(
-        db, "google_start_ip", client_ip(request), limit=30, window=LOGIN_WINDOW
-    ):
+    if not auth.allow_google_start(db, ip=client_ip(request)):
         return notice_page(
             request, None, status=429, title="error.rate_limited_title", text="error.rate_limited"
         )
