@@ -1,7 +1,7 @@
 """Outgoing email behind one interface (PRODUCT_RULES A4: a real provider comes later).
 
-Development and staging write each message to the log. Production refuses to send until a
-provider is chosen, so nothing is silently dropped there.
+Development and staging write each message to the log. Production logs an error instead of
+sending until a provider is chosen, so a missing provider is visible but never breaks a page.
 """
 
 import logging
@@ -31,7 +31,18 @@ class LogEmailSender:
         log.info("email to=%s subject=%r\n%s", message.to, message.subject, message.body)
 
 
+class UnconfiguredEmailSender:
+    """Production before a provider is chosen: the email is not sent and an error is logged.
+
+    It does not raise, so pages answer the same as when an email goes out (a 500 here would
+    reveal which accounts exist). The address and the link are not logged in production.
+    """
+
+    def send(self, message: OutgoingEmail) -> None:
+        log.error("email not sent: no provider configured (PRODUCT_RULES A4)")
+
+
 def get_email_sender() -> EmailSender:
     if get_settings().app_env == "production":
-        raise RuntimeError("No email provider is configured for production (PRODUCT_RULES A4).")
+        return UnconfiguredEmailSender()
     return LogEmailSender()

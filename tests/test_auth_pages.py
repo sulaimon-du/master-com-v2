@@ -58,7 +58,7 @@ def test_user_text_is_escaped(client: TestClient) -> None:
     assert "&lt;script&gt;" in html
 
 
-def test_pages_render_in_csp_safe_form_on_mobile_width(client: TestClient) -> None:
+def test_pages_set_the_mobile_viewport(client: TestClient) -> None:
     html = client.get("/register").text
     assert 'name="viewport" content="width=device-width' in html
 
@@ -94,3 +94,26 @@ def test_templates_get_a_view_without_sensitive_fields(client: TestClient) -> No
     assert not hasattr(view, "password_hash")
     assert not hasattr(view, "google_sub")
     assert view.has_password and view.email_confirmed and not view.google_linked
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/signin",
+        "/register",
+        "/password/forgot",
+        "/confirm/resend",
+        "/password/reset?token=x",
+        "/confirm?token=x",
+        "/account",
+    ],
+)
+def test_forms_post_to_a_path_on_this_site(client: TestClient, path: str) -> None:
+    # Absolute URLs would carry the request scheme; behind a proxy that could be http on an
+    # https page, and browsers block such forms.
+    make_user()
+    sign_in(client)
+    html = client.get(path).text
+    actions = re.findall(r'action="([^"]*)"', html)
+    assert actions, "expected at least one form"
+    assert all(a.startswith("/") and not a.startswith("//") for a in actions), actions

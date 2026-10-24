@@ -182,10 +182,11 @@ def resend_confirmation(
 ) -> Outcome:
     if not rate_limit.allow(db, "confirm_ip", ip, limit=20, window=HOUR):
         return Outcome.RATE_LIMITED
-    if not rate_limit.allow(db, "confirm_email", email, limit=3, window=HOUR):
-        return Outcome.RATE_LIMITED
+    # Over the per-address limit nothing is sent, but the answer stays the same: a visible 429
+    # here would tell a stranger whether this address had just received emails.
+    may_email = rate_limit.allow(db, "confirm_email", email, limit=3, window=HOUR)
     user = db.scalar(select(User).where(User.email == email))
-    if user is not None and _is_active(user) and user.email_verified_at is None:
+    if may_email and user is not None and _is_active(user) and user.email_verified_at is None:
         raw = _issue_token(db, user, "confirm_email", CONFIRM_TTL)
         _send(sender, email, user.locale, "confirm", url=url_for("confirm_page", {"token": raw}))
     return Outcome.SENT
@@ -217,8 +218,8 @@ def sign_in_with_password(
 
     A separate "confirm your email" answer would let anyone test an address: register it with a
     known password, then sign in and see which answer comes back. Instead an unconfirmed owner
-    with the right password quietly gets a fresh confirmation link (at most 3 per hour, shared
-    with "resend"), and the generic message tells them to check their inbox.
+    with the right password quietly gets a fresh confirmation link (at most 3 per hour, on its
+    own counter), and the generic message tells them to check their inbox.
     """
     if not rate_limit.allow(db, "login_ip", ip, limit=30, window=LOGIN_WINDOW):
         return Outcome.RATE_LIMITED, None
@@ -230,7 +231,8 @@ def sign_in_with_password(
     if user is None or not password_ok or not _is_active(user):
         return Outcome.WRONG_CREDENTIALS, None
     if user.email_verified_at is None:
-        if rate_limit.allow(db, "confirm_email", email, limit=3, window=HOUR):
+        # Own counter, never shown as 429: sharing one with "resend" would make it observable.
+        if rate_limit.allow(db, "signin_confirm", email, limit=3, window=HOUR):
             raw = _issue_token(db, user, "confirm_email", CONFIRM_TTL)
             _send(
                 sender, email, user.locale, "confirm", url=url_for("confirm_page", {"token": raw})

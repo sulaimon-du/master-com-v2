@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% import "partials/forms.html" as forms with context %}
-{% if mode == 'resend' %}{% set title_key = 'confirm.resend_title' %}{% set text_key = 'resend.text' %}{% set submit_key = 'resend.submit' %}{% set action = url_for('resend_submit') %}{% else %}{% set title_key = 'forgot.title' %}{% set text_key = 'forgot.text' %}{% set submit_key = 'forgot.submit' %}{% set action = url_for('forgot_submit') %}{% endif %}
+{% if mode == 'resend' %}{% set title_key = 'confirm.resend_title' %}{% set text_key = 'resend.text' %}{% set submit_key = 'resend.submit' %}{% set action = url_for('resend_submit').path %}{% else %}{% set title_key = 'forgot.title' %}{% set text_key = 'forgot.text' %}{% set submit_key = 'forgot.submit' %}{% set action = url_for('forgot_submit').path %}{% endif %}
 {% block title %}{{ t(title_key) }} · {{ app_name }}{% endblock %}
 {% block content %}
 <section class="mx-auto grid max-w-md gap-6">

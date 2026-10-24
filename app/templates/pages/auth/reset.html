@@ -6,7 +6,7 @@
   <h1 class="text-4xl">{{ t('reset.title') }}</h1>
   {% if error %}<p role="alert" class="notice notice-error">{{ t(error) }}</p>{% endif %}
   {% if token %}
-  <form method="post" action="{{ url_for('reset_submit') }}" class="grid gap-4">
+  <form method="post" action="{{ url_for('reset_submit').path }}" class="grid gap-4">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="token" value="{{ token }}">
     {{ forms.field('password', t('reset.password'), errors, type='password', autocomplete='new-password') }}
@@ -14,7 +14,7 @@
   </form>
   {% elif not error %}
   <p class="text-muted">{{ t('reset.invalid') }}</p>
-  <p><a class="link" href="{{ url_for('forgot_page') }}">{{ t('forgot.title') }}</a></p>
+  <p><a class="link" href="{{ url_for('forgot_page').path }}">{{ t('forgot.title') }}</a></p>
   {% endif %}
 </section>
 {% endblock %}

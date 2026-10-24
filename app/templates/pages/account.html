@@ -19,7 +19,7 @@
     <div class="card grid gap-3">
       <p><strong>{{ t('account.google') }}</strong>: {{ t('account.google_linked') if user.google_linked else t('account.google_not_linked') }}</p>
       {% if google_enabled and not user.google_linked %}
-      <form method="post" action="{{ url_for('google_link') }}">
+      <form method="post" action="{{ url_for('google_link').path }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button class="btn btn-secondary" type="submit">{{ t('account.google_link') }}</button>
       </form>
@@ -33,12 +33,12 @@
     <h2 class="text-xl">{{ t('account.heading_sessions') }}</h2>
     <div class="card grid gap-4">
       <p class="text-sm text-muted">{{ t('account.sessions_text') }}</p>
-      <form method="post" action="{{ url_for('revoke_sessions') }}">
+      <form method="post" action="{{ url_for('revoke_sessions').path }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button class="btn btn-secondary" type="submit">{{ t('account.signout_all') }}</button>
       </form>
     </div>
-    <form method="post" action="{{ url_for('signout') }}">
+    <form method="post" action="{{ url_for('signout').path }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <button class="btn btn-primary" type="submit">{{ t('account.signout') }}</button>
     </form>

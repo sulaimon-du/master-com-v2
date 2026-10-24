@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.core.config import Settings
+from app.core.config import Settings, get_settings
 
 
 def test_security_headers_on_pages(client: TestClient) -> None:
@@ -57,14 +57,29 @@ def test_form_action_allows_only_us_and_google(client: TestClient) -> None:
 
 
 def test_routes_commit_before_the_response_is_sent() -> None:
-    # A bare Depends(get_db) commits after the response: a session cookie could reach the browser
-    # before its row exists. Routes and dependencies must use DbSession (scope="function").
-    from pathlib import Path
+    # With the default scope FastAPI commits after the response: a session cookie could reach the
+    # browser before its row exists. Every get_db dependency must be function-scoped (DbSession).
+    from fastapi.routing import APIRoute
 
-    app_dir = Path(__file__).resolve().parent.parent / "app"
-    offenders = [
-        str(path.relative_to(app_dir))
-        for path in app_dir.rglob("*.py")
-        if "Depends(get_db)" in path.read_text(encoding="utf-8")
-    ]
-    assert offenders == []
+    from app.core.db import get_db
+    from app.main import create_app
+
+    def routes(items):  # type: ignore[no-untyped-def]
+        for item in items:
+            if isinstance(item, APIRoute):
+                yield item
+            elif hasattr(item, "original_router"):
+                yield from routes(item.original_router.routes)
+
+    def dependencies(dependant):  # type: ignore[no-untyped-def]
+        for dep in dependant.dependencies:
+            yield dep
+            yield from dependencies(dep)
+
+    found = 0
+    for route in routes(create_app(get_settings()).routes):
+        for dep in dependencies(route.dependant):
+            if dep.call is get_db:
+                found += 1
+                assert dep.scope == "function", f"{route.path} uses get_db with scope {dep.scope}"
+    assert found >= 10

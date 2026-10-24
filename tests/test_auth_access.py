@@ -47,7 +47,7 @@ def test_signed_out_account_actions_do_nothing(client: TestClient) -> None:
     assert r.headers["location"] == "/signin?next=/account"
 
 
-def test_every_error_page_is_translated_in_both_languages() -> None:
+def test_ru_and_tg_catalogs_have_the_same_non_empty_keys() -> None:
     ru = _catalog("ru")
     tg = _catalog("tg")
     assert ru.keys() == tg.keys()

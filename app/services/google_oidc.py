@@ -149,8 +149,9 @@ def verify_id_token(id_token: str, *, client_id: str, nonce: str) -> GoogleIdent
         raise GoogleError("nonce mismatch")
     if claims.get("email_verified") is not True:
         raise GoogleError("email not verified by Google")
+    name = claims.get("name")
     return GoogleIdentity(
         sub=str(claims["sub"]),
         email=str(claims["email"]).lower(),
-        name=claims.get("name"),
+        name=name if isinstance(name, str) else None,
     )

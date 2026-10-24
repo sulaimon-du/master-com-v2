@@ -6,14 +6,14 @@
   {% if error %}<p role="alert" class="notice notice-error">{{ t(error) }}</p>{% endif %}
   {% if token %}
   {# A button, not a link: mail scanners that open links must not use up the token. #}
-  <form method="post" action="{{ url_for('confirm_submit') }}" class="grid gap-4">
+  <form method="post" action="{{ url_for('confirm_submit').path }}" class="grid gap-4">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="token" value="{{ token }}">
     <button class="btn btn-primary" type="submit">{{ t('confirm.submit') }}</button>
   </form>
   {% elif not error %}
   <p class="text-muted">{{ t('confirm.invalid') }}</p>
-  <p><a class="link" href="{{ url_for('resend_page') }}">{{ t('signin.resend') }}</a></p>
+  <p><a class="link" href="{{ url_for('resend_page').path }}">{{ t('signin.resend') }}</a></p>
   {% endif %}
 </section>
 {% endblock %}

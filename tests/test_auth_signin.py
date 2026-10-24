@@ -58,6 +58,53 @@ def test_register_then_sign_in_does_not_reveal_an_existing_address(
     assert _main(answers[0]).replace("taken@", "@") == _main(answers[1]).replace("free@", "@")
 
 
+def test_resend_after_sign_in_does_not_reveal_an_existing_address(client: TestClient) -> None:
+    # The reviewer's probe: register with a known password, sign in three times, then resend.
+    # A free address gets confirmation emails from sign-in, a taken one does not; the resend
+    # answer must not show the difference.
+    make_user("taken@example.com")
+    answers = []
+    for address in ("taken@example.com", "free@example.com"):
+        post(client, "/register", {"name": "X", "email": address, "password": "probe pass 123"})
+        for _ in range(3):
+            sign_in(client, address, "probe pass 123")
+        answers.append(post(client, "/confirm/resend", {"email": address}))
+    assert answers[0].status_code == answers[1].status_code == 200
+    assert _main(answers[0]) == _main(answers[1])
+
+
+def test_production_without_mail_provider_answers_normally(monkeypatch, caplog) -> None:
+    # Production has no provider yet: pages must behave as usual (no 500 that would reveal an
+    # unconfirmed account), and the log gets an error without the address or the link.
+    from app.core.config import get_settings
+    from app.main import create_app
+
+    make_user("ana@example.com")
+    make_user("new@example.com", confirmed=False)
+    monkeypatch.setenv("APP_ENV", "production")
+    get_settings.cache_clear()
+    try:
+        browser = TestClient(create_app(get_settings()), base_url="https://testserver")
+        browser.get("/signin")
+        token = browser.cookies.get("__Host-mc_csrf")
+        assert token
+
+        def attempt(email: str, password: str):  # type: ignore[no-untyped-def]
+            data = {"email": email, "password": password, "csrf_token": token}
+            return browser.post("/signin", data=data, follow_redirects=False)
+
+        with caplog.at_level("ERROR"):
+            unconfirmed = attempt("new@example.com", PASSWORD)
+        wrong = attempt("new@example.com", "wrong horse 9")
+        assert unconfirmed.status_code == wrong.status_code == 401
+        assert "email not sent" in caplog.text
+        assert "new@example.com" not in caplog.text
+        assert attempt("ana@example.com", PASSWORD).status_code == 303
+    finally:
+        monkeypatch.undo()
+        get_settings.cache_clear()
+
+
 def _main(response) -> str:  # type: ignore[no-untyped-def]
     return response.text.split("<main")[1].split("</main>")[0]
 

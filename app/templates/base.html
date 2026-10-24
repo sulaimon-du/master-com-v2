@@ -17,9 +17,9 @@
     <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
       <a href="/" class="text-lg font-bold no-underline">{{ app_name }}</a>
       {% if user %}
-        <a class="btn btn-secondary no-underline" href="{{ url_for('account_page') }}">{{ t('nav.account') }}</a>
+        <a class="btn btn-secondary no-underline" href="{{ url_for('account_page').path }}">{{ t('nav.account') }}</a>
       {% else %}
-        <a class="btn btn-secondary no-underline" href="{{ url_for('signin_page') }}">{{ t('nav.signin') }}</a>
+        <a class="btn btn-secondary no-underline" href="{{ url_for('signin_page').path }}">{{ t('nav.signin') }}</a>
       {% endif %}
     </div>
   </header>
@@ -28,8 +28,8 @@
   </main>
   <footer class="mx-auto max-w-6xl px-4 pb-8">
     <nav aria-label="{{ t('footer.lang') }}" class="flex gap-4 text-sm text-muted">
-      <a href="{{ url_for('set_lang', code='ru') }}?next={{ request.url.path | urlencode }}" {% if lang == 'ru' %}aria-current="true" class="font-semibold text-ink"{% endif %}>{{ t('lang.ru') }}</a>
-      <a href="{{ url_for('set_lang', code='tg') }}?next={{ request.url.path | urlencode }}" {% if lang == 'tg' %}aria-current="true" class="font-semibold text-ink"{% endif %} lang="tg">{{ t('lang.tg') }}</a>
+      <a href="{{ url_for('set_lang', code='ru').path }}?next={{ request.url.path | urlencode }}" {% if lang == 'ru' %}aria-current="true" class="font-semibold text-ink"{% endif %}>{{ t('lang.ru') }}</a>
+      <a href="{{ url_for('set_lang', code='tg').path }}?next={{ request.url.path | urlencode }}" {% if lang == 'tg' %}aria-current="true" class="font-semibold text-ink"{% endif %} lang="tg">{{ t('lang.tg') }}</a>
     </nav>
   </footer>
 </body>
