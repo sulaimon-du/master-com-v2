@@ -7,10 +7,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse, Response
-from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.db import get_db
+from app.core.db import DbSession
 from app.models.user import User
 from app.services import auth, google_oidc
 from app.web.auth import NOTICES, notice_page
@@ -41,7 +40,7 @@ def account_page(
 @router.post("/account/google/link", name="google_link", dependencies=[CSRFProtected])
 def google_link(
     request: Request,
-    db: Annotated[Session, Depends(get_db)],
+    db: DbSession,
     user: Annotated[User | None, Depends(current_user)],
 ) -> Response:
     settings = get_settings()
@@ -66,7 +65,7 @@ def google_link(
 @router.post("/account/sessions/revoke", name="revoke_sessions", dependencies=[CSRFProtected])
 def revoke_sessions(
     request: Request,
-    db: Annotated[Session, Depends(get_db)],
+    db: DbSession,
     user: Annotated[User | None, Depends(current_user)],
 ) -> Response:
     settings = get_settings()

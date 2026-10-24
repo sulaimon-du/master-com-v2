@@ -26,6 +26,7 @@ uv run uvicorn --factory app.main:create_app --reload
 
 - On http://localhost the cookies are named `mc_session`, `mc_csrf`, `mc_oauth` (no `__Host-` prefix, no `Secure`). Staging and production use `__Host-mc_session` etc. over HTTPS (R-019).
 - Emails (confirmation, password reset) are written to the terminal log; open the link from there.
+- Leave `CLIENT_IP_HEADER` empty locally; rate limits then count the connection address.
 - Google sign-in is hidden unless `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set in `.env`. For local testing, add `http://localhost:8000/auth/google/callback` as a redirect URI in the Google console.
 
 ## Checks

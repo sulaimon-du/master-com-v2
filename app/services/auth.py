@@ -37,7 +37,6 @@ class Outcome(Enum):
     OK = "ok"
     SENT = "sent"
     WRONG_CREDENTIALS = "wrong_credentials"
-    UNCONFIRMED = "unconfirmed"
     RATE_LIMITED = "rate_limited"
     BAD_LINK = "invalid_token"
     EMAIL_TAKEN = "email_taken"
@@ -206,9 +205,21 @@ def confirm_email(db: Session, raw: str) -> Outcome:
 
 
 def sign_in_with_password(
-    db: Session, *, ip: str, email: str, password: str
+    db: Session,
+    sender: EmailSender,
+    *,
+    ip: str,
+    email: str,
+    password: str,
+    url_for: UrlFor,
 ) -> tuple[Outcome, User | None]:
-    """Check the password. Both limits count every attempt, and their messages are generic."""
+    """Check the password. Every failure, including "not confirmed yet", looks the same.
+
+    A separate "confirm your email" answer would let anyone test an address: register it with a
+    known password, then sign in and see which answer comes back. Instead an unconfirmed owner
+    with the right password quietly gets a fresh confirmation link (at most 3 per hour, shared
+    with "resend"), and the generic message tells them to check their inbox.
+    """
     if not rate_limit.allow(db, "login_ip", ip, limit=30, window=LOGIN_WINDOW):
         return Outcome.RATE_LIMITED, None
     if not rate_limit.allow(db, "login_email", email, limit=5, window=LOGIN_WINDOW):
@@ -219,8 +230,12 @@ def sign_in_with_password(
     if user is None or not password_ok or not _is_active(user):
         return Outcome.WRONG_CREDENTIALS, None
     if user.email_verified_at is None:
-        # Shown only after the password is right, so it reveals nothing to a stranger.
-        return Outcome.UNCONFIRMED, user
+        if rate_limit.allow(db, "confirm_email", email, limit=3, window=HOUR):
+            raw = _issue_token(db, user, "confirm_email", CONFIRM_TTL)
+            _send(
+                sender, email, user.locale, "confirm", url=url_for("confirm_page", {"token": raw})
+            )
+        return Outcome.WRONG_CREDENTIALS, None
     return Outcome.OK, user
 
 

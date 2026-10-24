@@ -12,7 +12,7 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
-from app.core.db import get_db
+from app.core.db import DbSession
 from app.core.i18n import LANGS, normalize_lang
 from app.core.security import new_token, tokens_match
 from app.models.user import User
@@ -136,7 +136,8 @@ def signin_page(request: Request, next: str | None = None, notice: str = "") -> 
 @router.post("/signin", name="signin_submit", dependencies=[CSRFProtected])
 def signin_submit(
     request: Request,
-    db: Annotated[Session, Depends(get_db)],
+    db: DbSession,
+    sender: Annotated[EmailSender, Depends(get_email_sender)],
     email: Annotated[str, Form()] = "",
     password: Annotated[str, Form()] = "",
     next: Annotated[str, Form()] = "/account",
@@ -150,7 +151,12 @@ def signin_submit(
         )
 
     outcome, user = auth.sign_in_with_password(
-        db, ip=client_ip(request), email=form.email, password=form.password
+        db,
+        sender,
+        ip=client_ip(request),
+        email=form.email,
+        password=form.password,
+        url_for=url_builder(request),
     )
     if outcome is auth.Outcome.RATE_LIMITED:
         return signin_page_response(
@@ -160,18 +166,15 @@ def signin_submit(
             error="error.rate_limited",
             status=429,
         )
-    if outcome is auth.Outcome.UNCONFIRMED:
+    if outcome is not auth.Outcome.OK or user is None:
+        # One answer for every failure, unconfirmed accounts included (no enumeration).
         return signin_page_response(
             request,
             email=form.email,
             next_url=next_url,
-            error="signin.unconfirmed",
+            error="signin.wrong",
             show_resend=True,
-            status=403,
-        )
-    if outcome is not auth.Outcome.OK or user is None:
-        return signin_page_response(
-            request, email=form.email, next_url=next_url, error="signin.wrong", status=401
+            status=401,
         )
 
     settings = get_settings()
@@ -182,7 +185,7 @@ def signin_submit(
 
 
 @router.post("/signout", name="signout", dependencies=[CSRFProtected])
-def signout(request: Request, db: Annotated[Session, Depends(get_db)]) -> RedirectResponse:
+def signout(request: Request, db: DbSession) -> RedirectResponse:
     settings = get_settings()
     auth.end_session(db, request.cookies.get(cookie_name(SESSION, settings)))
     response = RedirectResponse("/signin?notice=signed_out", status_code=303)
@@ -201,7 +204,7 @@ def register_page(request: Request) -> HTMLResponse:
 @router.post("/register", name="register_submit", dependencies=[CSRFProtected])
 def register_submit(
     request: Request,
-    db: Annotated[Session, Depends(get_db)],
+    db: DbSession,
     sender: Annotated[EmailSender, Depends(get_email_sender)],
     name: Annotated[str, Form()] = "",
     email: Annotated[str, Form()] = "",
@@ -254,7 +257,7 @@ def confirm_page(request: Request, token: str = "") -> HTMLResponse:
 @router.post("/confirm", name="confirm_submit", dependencies=[CSRFProtected])
 def confirm_submit(
     request: Request,
-    db: Annotated[Session, Depends(get_db)],
+    db: DbSession,
     token: Annotated[str, Form()] = "",
 ) -> HTMLResponse:
     if not token or auth.confirm_email(db, token) is not auth.Outcome.OK:
@@ -282,7 +285,7 @@ def resend_page(request: Request) -> HTMLResponse:
 @router.post("/confirm/resend", name="resend_submit", dependencies=[CSRFProtected])
 def resend_submit(
     request: Request,
-    db: Annotated[Session, Depends(get_db)],
+    db: DbSession,
     sender: Annotated[EmailSender, Depends(get_email_sender)],
     email: Annotated[str, Form()] = "",
 ) -> HTMLResponse:
@@ -323,7 +326,7 @@ def forgot_page(request: Request) -> HTMLResponse:
 @router.post("/password/forgot", name="forgot_submit", dependencies=[CSRFProtected])
 def forgot_submit(
     request: Request,
-    db: Annotated[Session, Depends(get_db)],
+    db: DbSession,
     sender: Annotated[EmailSender, Depends(get_email_sender)],
     email: Annotated[str, Form()] = "",
 ) -> HTMLResponse:
@@ -361,7 +364,7 @@ def reset_page(request: Request, token: str = "") -> HTMLResponse:
 @router.post("/password/reset", name="reset_submit", dependencies=[CSRFProtected])
 def reset_submit(
     request: Request,
-    db: Annotated[Session, Depends(get_db)],
+    db: DbSession,
     token: Annotated[str, Form()] = "",
     password: Annotated[str, Form()] = "",
 ) -> HTMLResponse:
@@ -406,7 +409,7 @@ def _google_redirect(request: Request, db: Session, user_id: int | None) -> Redi
 
 
 @router.get("/auth/google/start", name="google_start")
-def google_start(request: Request, db: Annotated[Session, Depends(get_db)]) -> Response:
+def google_start(request: Request, db: DbSession) -> Response:
     if not get_settings().google_enabled:
         return notice_page(
             request, None, status=404, title="error.not_found", text="error.not_found"
@@ -425,7 +428,7 @@ def _google_fail(request: Request, user: User | None, status: int = 400) -> HTML
 @router.get("/auth/google/callback", name="google_callback")
 def google_callback(
     request: Request,
-    db: Annotated[Session, Depends(get_db)],
+    db: DbSession,
     user: Annotated[User | None, Depends(current_user)],
     state: Annotated[str, Query()] = "",
     code: Annotated[str, Query()] = "",

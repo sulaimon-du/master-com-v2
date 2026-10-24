@@ -1,12 +1,11 @@
 import logging
-from typing import Annotated, Literal
+from typing import Literal
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
 
-from app.core.db import get_db, ping
+from app.core.db import DbSession, ping
 
 router = APIRouter(tags=["health"])
 log = logging.getLogger(__name__)
@@ -31,7 +30,7 @@ def liveness() -> Health:
     response_model=Readiness,
     responses={503: {"model": Readiness}},
 )
-def readiness(response: Response, db: Annotated[Session, Depends(get_db)]) -> Readiness:
+def readiness(response: Response, db: DbSession) -> Readiness:
     """Process can serve traffic: the database answers."""
     try:
         ok = ping(db)

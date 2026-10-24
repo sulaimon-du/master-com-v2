@@ -1,10 +1,7 @@
-from typing import Annotated
-
-from fastapi import Depends, Request
-from sqlalchemy.orm import Session
+from fastapi import Request
 
 from app.core.config import get_settings
-from app.core.db import get_db
+from app.core.db import DbSession
 from app.core.i18n import normalize_lang
 from app.models.user import User
 from app.services import auth
@@ -18,20 +15,20 @@ def current_lang(request: Request) -> str:
 def client_ip(request: Request) -> str:
     """The address the IP rate limits count.
 
-    Staging and production: Render serves traffic through Cloudflare, which sets CF-Connecting-IP
-    to the visitor's address. X-Forwarded-For is not used, because Render appends its own proxy
-    address to it, so its last entry may be shared by every visitor. Both points come from Render
-    community reports, not official docs; R-019 lists the black-box check to run on staging.
-    Without the header, the connection address is used. Behind uvicorn's --proxy-headers that is
-    the first X-Forwarded-For entry, which a client can forge; the per-email limits still hold.
+    With `CLIENT_IP_HEADER` set (staging: CF-Connecting-IP, which Cloudflare in front of Render
+    overwrites), that header is used. X-Forwarded-For is never read directly: Render appends its
+    own proxy address to it. Otherwise the connection address is used; behind uvicorn's
+    --proxy-headers with FORWARDED_ALLOW_IPS="*" that is the first X-Forwarded-For entry, which a
+    client can forge, so production must set FORWARDED_ALLOW_IPS to its proxy (R-019).
     """
-    if get_settings().is_production_like:
-        forwarded = request.headers.get("cf-connecting-ip", "").strip()
-        if forwarded:
-            return forwarded
+    header = get_settings().client_ip_header
+    if header:
+        value = request.headers.get(header, "").strip()
+        if value:
+            return value
     return request.client.host if request.client else "unknown"
 
 
-def current_user(request: Request, db: Annotated[Session, Depends(get_db)]) -> User | None:
+def current_user(request: Request, db: DbSession) -> User | None:
     raw = request.cookies.get(cookie_name(SESSION, get_settings()))
     return auth.user_for_session(db, raw)

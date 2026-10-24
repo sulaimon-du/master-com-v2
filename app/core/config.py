@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     database_url: PostgresDsn
     allowed_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]
     log_level: str = "INFO"
+    # Header a trusted proxy fills with the visitor's address, e.g. CF-Connecting-IP on Render
+    # (Cloudflare in front). Unset: the connection address is used. Set it only when every
+    # request passes through that proxy, or visitors could forge it (R-019).
+    client_ip_header: str | None = None
     # Google sign-in (BRIEF §4.1). Both must be set to show the Google button.
     google_client_id: str | None = None
     google_client_secret: SecretStr | None = None

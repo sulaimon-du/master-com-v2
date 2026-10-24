@@ -30,17 +30,36 @@ def test_wrong_password_and_unknown_email_get_the_same_message(client: TestClien
     assert "mc_session" not in wrong.headers.get("set-cookie", "")
 
 
-def test_unconfirmed_account_is_told_to_confirm_only_after_the_right_password(
-    client: TestClient,
+def test_unconfirmed_account_looks_exactly_like_a_wrong_password(
+    client: TestClient, outbox
 ) -> None:
     make_user(confirmed=False)
     wrong = sign_in(client, password="wrong horse 9")
-    assert wrong.status_code == 401
-    assert "Сначала подтвердите почту" not in wrong.text
     right = sign_in(client)
-    assert right.status_code == 403
-    assert "Сначала подтвердите почту" in right.text
+    assert wrong.status_code == right.status_code == 401
+    assert _main(wrong) == _main(right)
+    assert "подтвердите почту" in right.text
     assert "mc_session" not in right.headers.get("set-cookie", "")
+    # Only the right password quietly sends the owner a fresh confirmation link.
+    assert [m.to for m in outbox.sent] == ["ana@example.com"]
+    assert "/confirm?token=" in outbox.sent[0].body
+
+
+def test_register_then_sign_in_does_not_reveal_an_existing_address(
+    client: TestClient,
+) -> None:
+    # The trick: register an address with a known password, then try to sign in with it.
+    make_user("taken@example.com")
+    answers = []
+    for address in ("taken@example.com", "free@example.com"):
+        post(client, "/register", {"name": "X", "email": address, "password": "probe pass 123"})
+        answers.append(sign_in(client, address, "probe pass 123"))
+    assert answers[0].status_code == answers[1].status_code == 401
+    assert _main(answers[0]).replace("taken@", "@") == _main(answers[1]).replace("free@", "@")
+
+
+def _main(response) -> str:  # type: ignore[no-untyped-def]
+    return response.text.split("<main")[1].split("</main>")[0]
 
 
 def test_password_sign_in_is_rate_limited_per_email(client: TestClient) -> None:
@@ -91,7 +110,7 @@ def test_sign_out_ends_the_session_on_the_server(client: TestClient) -> None:
     assert client.get("/account").status_code == 303
 
 
-def test_client_ip_uses_cloudflare_header_only_behind_the_proxy(monkeypatch) -> None:
+def test_client_ip_reads_only_the_configured_header(monkeypatch) -> None:
     from starlette.requests import Request
 
     from app.core.config import get_settings
@@ -112,15 +131,15 @@ def test_client_ip_uses_cloudflare_header_only_behind_the_proxy(monkeypatch) -> 
         (b"x-forwarded-for", b"6.6.6.6, 203.0.113.9"),
         (b"cf-connecting-ip", b"198.51.100.7"),
     ]
-    # Development has no proxy: headers are ignored, the connection address is used.
+    # Not configured (development, a VPS without Cloudflare): headers are ignored.
     assert client_ip(request(spoofed)) == "10.0.0.1"
 
-    monkeypatch.setenv("APP_ENV", "staging")
+    monkeypatch.setenv("CLIENT_IP_HEADER", "CF-Connecting-IP")
     get_settings.cache_clear()
     try:
-        # Behind Cloudflare: its header wins, X-Forwarded-For is never read.
         assert client_ip(request(spoofed)) == "198.51.100.7"
-        assert client_ip(request([(b"x-forwarded-for", b"6.6.6.6, 203.0.113.9")])) == "10.0.0.1"
+        # Header missing: back to the connection address, never X-Forwarded-For.
+        assert client_ip(request(spoofed[:1])) == "10.0.0.1"
     finally:
         monkeypatch.undo()
         get_settings.cache_clear()
