@@ -89,3 +89,33 @@ def test_sign_out_ends_the_session_on_the_server(client: TestClient) -> None:
     with get_sessionmaker()() as db:
         assert db.execute(text("SELECT count(*) FROM auth_sessions")).scalar_one() == 0
     assert client.get("/account").status_code == 303
+
+
+def test_client_ip_trusts_only_the_proxy_entry(monkeypatch) -> None:
+    from starlette.requests import Request
+
+    from app.core.config import get_settings
+    from app.web.deps import client_ip
+
+    def request(headers: list[tuple[bytes, bytes]]) -> Request:
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "query_string": b"",
+            "headers": headers,
+            "client": ("10.0.0.1", 1234),
+        }
+        return Request(scope)
+
+    # Development has no proxy: the connection address is used, headers are ignored.
+    assert client_ip(request([(b"x-forwarded-for", b"6.6.6.6")])) == "10.0.0.1"
+
+    monkeypatch.setenv("APP_ENV", "staging")
+    get_settings.cache_clear()
+    try:
+        spoofed = request([(b"x-forwarded-for", b"6.6.6.6, 203.0.113.9")])
+        assert client_ip(spoofed) == "203.0.113.9"
+    finally:
+        monkeypatch.undo()
+        get_settings.cache_clear()

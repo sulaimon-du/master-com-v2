@@ -124,6 +124,8 @@ def exchange_code(
             payload = json.load(response)
     except (urllib.error.URLError, TimeoutError, ValueError) as exc:
         raise GoogleError("token exchange failed") from exc
+    if not isinstance(payload, dict):
+        raise GoogleError("token response is not an object")
     token = payload.get("id_token")
     if not isinstance(token, str):
         raise GoogleError("no id_token in token response")
