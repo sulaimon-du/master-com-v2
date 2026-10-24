@@ -5,16 +5,19 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
-from app.models.common import IdPk, one_of
+from app.models.common import CreatedAt, IdPk, one_of
 
 TOKEN_PURPOSES = ("confirm_email", "reset_password")
+GOOGLE_CLAIM_STATUSES = ("pending", "approved", "rejected")
 
 
 class AuthSession(IdPk, Base):
@@ -77,3 +80,37 @@ class OAuthFlow(IdPk, Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class GoogleClaim(IdPk, CreatedAt, Base):
+    """A Google user asking for an unconfirmed account with the same email (R-019).
+
+    Nobody proved that account, so it may be a stranger's squat; still, the owner (admin)
+    approves the handover. Approval only sets the status: the handover itself happens at the
+    claimant's next Google sign-in, after checking again that the account is still unproven.
+    """
+
+    __tablename__ = "google_claims"
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    # The account's email when the claim was made; the handover requires it to be unchanged.
+    email: Mapped[str] = mapped_column(String(254))
+    google_sub: Mapped[str] = mapped_column(String(255))
+    google_name: Mapped[str | None] = mapped_column(String(80))
+    status: Mapped[str] = mapped_column(String(10), server_default="pending")
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        CheckConstraint(one_of("status", GOOGLE_CLAIM_STATUSES), name="status"),
+        CheckConstraint("(status = 'pending') = (resolved_at IS NULL)", name="resolved_at"),
+        # One open claim per account and Google user; asking again does not add rows.
+        Index(
+            "uq_google_claims_pending",
+            "user_id",
+            "google_sub",
+            unique=True,
+            postgresql_where=text("status = 'pending'"),
+        ),
+    )

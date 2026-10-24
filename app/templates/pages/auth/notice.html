@@ -4,6 +4,6 @@
 <section class="mx-auto grid max-w-md gap-4">
   <h1 class="text-4xl">{{ t(title_key) }}</h1>
   <p class="text-muted">{{ t(text_key) }}</p>
-  {% if link %}<p><a class="btn btn-primary no-underline" href="{{ link }}">{{ t('nav.signin') }}</a></p>{% endif %}
+  {% if link %}<p><a class="btn btn-primary no-underline" href="{{ link }}">{{ t(link_text | default('nav.signin')) }}</a></p>{% endif %}
 </section>
 {% endblock %}

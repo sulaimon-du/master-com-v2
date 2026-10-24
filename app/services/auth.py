@@ -4,6 +4,7 @@ Routes parse input and render pages. Every rule lives here, so it can be tested 
 Functions take the raw secret (cookie value or link token) and compare only its hash.
 """
 
+import logging
 from collections.abc import Callable
 from datetime import timedelta
 from enum import Enum
@@ -15,11 +16,13 @@ from sqlalchemy.orm import Session
 from app.core.i18n import translate
 from app.core.security import hash_password, hash_token, new_token, verify_password
 from app.core.time import utcnow
-from app.models.auth import AuthSession, AuthToken
+from app.models.auth import AuthSession, AuthToken, GoogleClaim
 from app.models.user import User
 from app.services import rate_limit
 from app.services.email import EmailSender, OutgoingEmail
 from app.services.google_oidc import GoogleIdentity
+
+log = logging.getLogger(__name__)
 
 SESSION_IDLE = timedelta(days=30)
 SESSION_ABSOLUTE = timedelta(days=90)
@@ -42,6 +45,7 @@ class Outcome(Enum):
     EMAIL_TAKEN = "email_taken"
     GOOGLE_ALREADY_LINKED = "google_already_linked"
     GOOGLE_TAKEN = "google_taken"
+    CLAIM_PENDING = "claim_pending"
 
 
 def _is_active(user: User) -> bool:
@@ -397,23 +401,20 @@ def sign_in_with_google(
         if not claimable:
             # The account is proven some other way: sign in with it first, then link Google.
             return Outcome.EMAIL_TAKEN, None
-        # Nobody ever proved this address, and Google just did. The unconfirmed account may have
-        # been registered by a stranger to squat the address, so the Google owner takes it over:
-        # the unproven password, its links and any sessions are dropped (R-019).
-        try:
-            with db.begin_nested():
-                existing.password_hash = None
-                existing.google_sub = identity.sub
-                existing.email_verified_at = utcnow()
-                existing.name = (identity.name or "")[:80] or None
-                existing.locale = lang
-                db.flush()
-        except IntegrityError:
-            return Outcome.EMAIL_TAKEN, None
-        _burn_tokens(db, existing.id, "confirm_email")
-        _burn_tokens(db, existing.id, "reset_password")
-        revoke_all_sessions(db, existing.id)
-        return Outcome.OK, existing
+        # Nobody ever proved this address, and Google just did. The unconfirmed account may be a
+        # stranger's squat, but the handover still waits for the owner's approval (R-019).
+        claim = db.scalar(
+            select(GoogleClaim).where(
+                GoogleClaim.user_id == existing.id,
+                GoogleClaim.google_sub == identity.sub,
+                GoogleClaim.status == "approved",
+                GoogleClaim.email == existing.email,
+            )
+        )
+        if claim is None:
+            _open_google_claim(db, existing, identity)
+            return Outcome.CLAIM_PENDING, None
+        return _hand_over_to_google(db, existing, identity, lang=lang)
 
     now = utcnow()
     try:
@@ -430,6 +431,64 @@ def sign_in_with_google(
     except IntegrityError:
         return Outcome.EMAIL_TAKEN, None
     return Outcome.OK, user
+
+
+def _open_google_claim(db: Session, user: User, identity: GoogleIdentity) -> None:
+    """Record the request once; asking again while it is pending adds nothing."""
+    try:
+        with db.begin_nested():
+            db.add(
+                GoogleClaim(
+                    user_id=user.id,
+                    email=user.email or "",
+                    google_sub=identity.sub,
+                    google_name=(identity.name or "")[:80] or None,
+                )
+            )
+            db.flush()
+    except IntegrityError:
+        return
+    log.warning("google claim pending for user id=%s", user.id)
+
+
+def _hand_over_to_google(
+    db: Session, user: User, identity: GoogleIdentity, *, lang: str
+) -> tuple[Outcome, User | None]:
+    """Approved claim: drop the unproven password, its links and sessions; Google signs in."""
+    try:
+        with db.begin_nested():
+            user.password_hash = None
+            user.google_sub = identity.sub
+            user.email_verified_at = utcnow()
+            user.name = (identity.name or "")[:80] or None
+            user.locale = lang
+            db.flush()
+    except IntegrityError:
+        return Outcome.EMAIL_TAKEN, None
+    _burn_tokens(db, user.id, "confirm_email")
+    _burn_tokens(db, user.id, "reset_password")
+    revoke_all_sessions(db, user.id)
+    return Outcome.OK, user
+
+
+def pending_google_claims(db: Session) -> list[GoogleClaim]:
+    return list(
+        db.scalars(
+            select(GoogleClaim)
+            .where(GoogleClaim.status == "pending")
+            .order_by(GoogleClaim.created_at)
+        )
+    )
+
+
+def resolve_google_claim(db: Session, claim_id: int, *, approve: bool) -> Outcome:
+    """Owner's decision on a pending claim. Approval takes effect at the next Google sign-in."""
+    claim = db.get(GoogleClaim, claim_id)
+    if claim is None or claim.status != "pending":
+        return Outcome.BAD_LINK
+    claim.status = "approved" if approve else "rejected"
+    claim.resolved_at = utcnow()
+    return Outcome.OK
 
 
 def link_google(db: Session, user: User, identity: GoogleIdentity) -> Outcome:

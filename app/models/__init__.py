@@ -1,6 +1,6 @@
 """All SQLAlchemy models are imported here so Alembic sees them."""
 
-from app.models.auth import AuthSession, AuthToken, OAuthFlow, RateLimit
+from app.models.auth import AuthSession, AuthToken, GoogleClaim, OAuthFlow, RateLimit
 from app.models.catalog import Category, Specialty, SpecialtySynonym
 from app.models.complaint import Complaint
 from app.models.imports import DataRemovalRequest, ImportBlocklist, ProfileClaim
@@ -20,6 +20,7 @@ __all__ = [
     "Complaint",
     "DataRemovalRequest",
     "District",
+    "GoogleClaim",
     "ImportBlocklist",
     "JobRequest",
     "JobResponse",

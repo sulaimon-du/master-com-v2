@@ -247,14 +247,46 @@ def test_link_callback_for_a_different_signed_in_user_is_refused(
         )
 
 
-def test_google_owner_takes_over_an_unconfirmed_squatted_account(
+def _google_sign_in(client: TestClient, google, signing_key):  # type: ignore[no-untyped-def]
+    state, _ = _start(client)
+    google["id_token"] = _id_token(signing_key, _nonce_of(client))
+    return client.get(f"/auth/google/callback?state={state}&code=abc")
+
+
+def _approve_all() -> None:
+    from app.cli import main
+
+    with get_sessionmaker()() as db:
+        ids = db.execute(text("SELECT id FROM google_claims WHERE status = 'pending'")).scalars()
+        ids = list(ids)
+    for claim_id in ids:
+        assert main(["claims", "approve", str(claim_id)]) == 0
+
+
+def test_google_claim_on_an_unconfirmed_account_waits_for_the_owner(
     client: TestClient, google, signing_key
 ) -> None:  # type: ignore[no-untyped-def]
     # A stranger registered ana@gmail.com with their own password but never confirmed it.
     make_user("ana@gmail.com", password="stranger pass 1", confirmed=False, name="Stranger")
-    state, _ = _start(client)
-    google["id_token"] = _id_token(signing_key, _nonce_of(client))
-    r = client.get(f"/auth/google/callback?state={state}&code=abc")
+    first = _google_sign_in(client, google, signing_key)
+    assert first.status_code == 200
+    assert "Заявка отправлена" in first.text
+    assert "mc_session" not in first.headers.get("set-cookie", "")
+    # Asking again does not add a second request, and nothing changed on the account.
+    _google_sign_in(client, google, signing_key)
+    with get_sessionmaker()() as db:
+        assert db.execute(text("SELECT count(*) FROM google_claims")).scalar_one() == 1
+        row = db.execute(text("SELECT google_sub, password_hash FROM users")).one()
+    assert row.google_sub is None and row.password_hash is not None
+
+
+def test_approved_claim_hands_the_account_over_at_the_next_sign_in(
+    client: TestClient, google, signing_key
+) -> None:  # type: ignore[no-untyped-def]
+    make_user("ana@gmail.com", password="stranger pass 1", confirmed=False, name="Stranger")
+    _google_sign_in(client, google, signing_key)
+    _approve_all()
+    r = _google_sign_in(client, google, signing_key)
     assert r.status_code == 303
     assert r.headers["location"] == "/account"
     with get_sessionmaker()() as db:
@@ -269,10 +301,34 @@ def test_google_owner_takes_over_an_unconfirmed_squatted_account(
     assert sign_in(stranger, "ana@gmail.com", "stranger pass 1").status_code == 401
 
 
-def test_google_start_is_rate_limited(client: TestClient, google) -> None:  # type: ignore[no-untyped-def]
-    for _ in range(30):
-        assert client.get("/auth/google/start").status_code == 303
-    assert client.get("/auth/google/start").status_code == 429
+def test_rejected_claim_hands_nothing_over(client: TestClient, google, signing_key) -> None:  # type: ignore[no-untyped-def]
+    from app.cli import main
+
+    make_user("ana@gmail.com", confirmed=False)
+    _google_sign_in(client, google, signing_key)
+    with get_sessionmaker()() as db:
+        claim_id = db.execute(text("SELECT id FROM google_claims")).scalar_one()
+    assert main(["claims", "reject", str(claim_id)]) == 0
+    assert main(["claims", "reject", str(claim_id)]) == 1  # already decided
+    r = _google_sign_in(client, google, signing_key)
+    assert "Заявка отправлена" in r.text
+    with get_sessionmaker()() as db:
+        assert db.execute(text("SELECT google_sub FROM users")).scalar_one() is None
+
+
+def test_approval_does_not_apply_once_the_owner_confirmed_the_account(
+    client: TestClient, google, signing_key
+) -> None:  # type: ignore[no-untyped-def]
+    user_id = make_user("ana@gmail.com", confirmed=False)
+    _google_sign_in(client, google, signing_key)
+    _approve_all()
+    # Meanwhile the real owner proves the inbox (e.g. by password reset).
+    with get_sessionmaker()() as db:
+        db.execute(
+            text("UPDATE users SET email_verified_at = now() WHERE id = :id"), {"id": user_id}
+        )
+        db.commit()
+    assert _google_sign_in(client, google, signing_key).status_code == 409
 
 
 def test_takeover_burns_the_squatters_confirmation_link(
@@ -282,12 +338,29 @@ def test_takeover_burns_the_squatters_confirmation_link(
         client, "/register", {"name": "S", "email": "ana@gmail.com", "password": "stranger pass 1"}
     )
     old_link = outbox.sent[-1].body.split("token=")[1].split()[0]
-    state, _ = _start(client)
-    google["id_token"] = _id_token(signing_key, _nonce_of(client))
-    assert client.get(f"/auth/google/callback?state={state}&code=abc").status_code == 303
+    _google_sign_in(client, google, signing_key)
+    _approve_all()
+    assert _google_sign_in(client, google, signing_key).status_code == 303
     other = TestClient(client.app, follow_redirects=False)
     r = post(other, "/confirm", {"token": old_link, "password": "stranger pass 1"})
     assert r.status_code == 400
+
+
+def test_claims_list_shows_pending_requests(
+    client: TestClient, google, signing_key, capsys
+) -> None:  # type: ignore[no-untyped-def]
+    from app.cli import main
+
+    make_user("ana@gmail.com", confirmed=False)
+    _google_sign_in(client, google, signing_key)
+    assert main(["claims", "list"]) == 0
+    assert "ana@gmail.com" in capsys.readouterr().out
+
+
+def test_google_start_is_rate_limited(client: TestClient, google) -> None:  # type: ignore[no-untyped-def]
+    for _ in range(30):
+        assert client.get("/auth/google/start").status_code == 303
+    assert client.get("/auth/google/start").status_code == 429
 
 
 def test_blocked_unconfirmed_account_is_not_taken_over(

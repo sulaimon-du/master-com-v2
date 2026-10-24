@@ -83,6 +83,7 @@ def notice_page(
     text: str,
     status: int = 200,
     link: str | None = None,
+    link_text: str = "nav.signin",
 ) -> HTMLResponse:
     return render(
         request,
@@ -92,6 +93,7 @@ def notice_page(
         title_key=title,
         text_key=text,
         link=link,
+        link_text=link_text,
     )
 
 
@@ -512,7 +514,16 @@ def google_callback(
         return response
 
     outcome, account = auth.sign_in_with_google(db, identity, lang=current_lang(request))
-    if outcome is auth.Outcome.EMAIL_TAKEN:
+    if outcome is auth.Outcome.CLAIM_PENDING:
+        response = notice_page(
+            request,
+            None,
+            title="google.claim_title",
+            text="google.claim_text",
+            link=request.url_for("forgot_page").path,
+            link_text="signin.forgot",
+        )
+    elif outcome is auth.Outcome.EMAIL_TAKEN:
         response = signin_page_response(
             request, next_url="/account", error="signin.google_taken", status=409
         )
