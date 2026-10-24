@@ -53,10 +53,16 @@ jobs:
         with:
           version: "0.11.32"
       - run: uv sync --frozen
-      - name: Migrations apply and match the models
+      - name: Migrations apply, match the models and roll back cleanly
         run: |
           uv run alembic upgrade head
           uv run alembic check
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+      - name: Seed loads twice without errors
+        run: |
+          uv run python -m app.seed
+          uv run python -m app.seed
       - run: uv run pytest
 
   audit:

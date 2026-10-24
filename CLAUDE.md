@@ -43,6 +43,7 @@ docs/                brief, decisions, tokens
 - Whole stack: `docker compose up --build`
 - Checks before every commit: `uv run ruff check . && uv run ruff format --check . && uv run pytest`
 - Migrations: `uv run alembic revision --autogenerate -m "..."`, review the file by hand, then `uv run alembic upgrade head && uv run alembic check`
+- Reference data (cities, districts, catalog): `uv run python -m app.seed` (idempotent; data in `app/seed/data/`, schema in `docs/DATA_MODEL.md`)
 
 ## Security rules (never cut, even for speed)
 - The server is the security boundary. Every write checks ownership in a service function; hiding a button is not access control.

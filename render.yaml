@@ -15,6 +15,8 @@ services:
         value: staging
       - key: RUN_MIGRATIONS
         value: "1"
+      - key: RUN_SEED
+        value: "1"
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
