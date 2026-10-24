@@ -72,3 +72,11 @@ docs/                brief, decisions, tokens
 1. All checks pass locally.
 2. Run the `reviewer` agent (`.claude/agents/reviewer.md`) on the diff and fix its blocking findings.
 3. Fill in the PR template, including how the owner can check the change on staging.
+
+## How to talk to me
+- Begin each reply by restating my message in Russian in one line, then answer it.
+- Write each reply in English, then add a full Russian translation below it.
+- Ask questions in English with a Russian translation, and act on the answer once it arrives.
+- Code, identifiers, commands and file paths stay in English in both versions.
+- Give a recommendation, not a menu. If there is a real trade-off, state it in two lines and pick one.
+- Keep answers short unless I ask for depth. Put long deliverables (code, specs, prompts) in code blocks I can copy.
