@@ -118,7 +118,9 @@ Week 2. Details in `docs/DATA_MODEL.md`. Points where the brief was silent or ne
 - **Text limits not in the brief:** response message 500 characters, collection title 120, collection description 1000.
 - **Rating constants (BRIEF §4.11):** score = (C·m + sum of ratings) / (C + n), with C = 5 and m = 4.0. Proposal; can be tuned without a migration.
 - **Kept in services, not in the database:** at most 10 specialties and 3 primary; collection and photo limits (plan config); no response to one's own request; reviews only by the client of a completed request. These arrive with their features (weeks 5–10).
-- **Re-import blocklist:** stores only a SHA-256 of the phone or source URL of people who asked to be removed.
+- **Re-import blocklist:** stores an HMAC-SHA256 (keyed with a server secret) of the phone or source URL of people who asked to be removed, not the value. A plain SHA-256 would not do: all 10^9 local phone numbers can be hashed in seconds.
+- **Deleting a profile:** "Remove my data" deletes an unclaimed profile together with its complaints, claims and work data. Unclaimed profiles cannot respond or be reviewed, so nothing else blocks the delete.
+- **Later, before week 7:** old place names people still type (Курган-Тюбе, Чкаловск, Кайраккум…) need place synonyms for search. Renaming a seeded slug needs a manual deactivation of the old row.
 - **Seed:** reference data loads with `python -m app.seed` on every start (`RUN_SEED=1`); it is idempotent. Until the admin panel can edit these tables (week 10) the seed files are the source of truth: names are overwritten from the files and seeded synonyms are synced. In week 10, switch to insert-only so admin edits win.
 
 ## Open

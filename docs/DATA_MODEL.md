@@ -2,7 +2,7 @@
 
 Week 2. Source: `app/models/`. Migration: `migrations/versions/*_0002_data_model.py`. Choices not in the brief: R-018.
 
-Conventions: `bigint` identity keys (small `int` for reference tables); timestamps are `timestamptz`; status fields are short strings with a named CHECK (not Postgres ENUMs); constraint names follow `app/core/db.py`. Nothing user-facing is hard-deleted: moderation sets `hidden_at`, photo deletion sets `deleted_at` (undo), account deletion clears personal columns and sets `users.deleted_at`.
+Conventions: `bigint` identity keys (small `int` for reference tables); timestamps are `timestamptz`; status fields are short strings with a named CHECK (not Postgres ENUMs); constraint names follow `app/core/db.py`. Nothing user-facing is hard-deleted: moderation sets `hidden_at`, photo deletion sets `deleted_at` (undo), account deletion clears personal columns and sets `users.deleted_at`. The one hard delete is "Remove my data" on an unclaimed profile: it takes the profile's complaints, claims, specialties, areas and portfolio with it (unclaimed profiles have no responses or reviews).
 
 ## Tables
 
@@ -23,7 +23,7 @@ Conventions: `bigint` identity keys (small `int` for reference tables); timestam
 | `support_threads`, `support_messages` | "Ask a question" (BRIEF §4.12a) | thread belongs to a user **or** a guest email; closed ⇔ `closed_at` |
 | `profile_claims` | "This is me" on imported profiles | one pending claim per user and profile |
 | `data_removal_requests` | "Remove my data" | resolved ⇔ `resolved_at` |
-| `import_blocklist` | Never re-import removed people | only SHA-256 hex values, unique per kind |
+| `import_blocklist` | Never re-import removed people | only HMAC-SHA256 hex values (keyed with a server secret), unique per kind |
 
 ## Rating (BRIEF §4.11)
 

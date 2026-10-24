@@ -78,7 +78,8 @@ class DataRemovalRequest(IdPk, CreatedAt, Base):
 class ImportBlocklist(IdPk, CreatedAt, Base):
     """People who asked to be removed are never re-imported (R-015).
 
-    Only a SHA-256 of the normalized phone or source URL is kept, not the value itself.
+    Stores HMAC-SHA256(server secret, normalized phone or source URL). A plain SHA-256 of a
+    9-digit phone number can be reversed by trying every number; a keyed hash cannot.
     """
 
     __tablename__ = "import_blocklist"

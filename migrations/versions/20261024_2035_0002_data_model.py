@@ -867,6 +867,7 @@ def upgrade() -> None:
             ["master_profile_id"],
             ["master_profiles.id"],
             name=op.f("fk_complaints_master_profile_id_master_profiles"),
+            ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
             ["reporter_id"], ["users.id"], name=op.f("fk_complaints_reporter_id_users")

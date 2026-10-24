@@ -20,8 +20,9 @@ class Complaint(IdPk, CreatedAt, Base):
     __tablename__ = "complaints"
 
     reporter_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    # Deleting a profile ("Remove my data", R-015) deletes the complaints about it.
     master_profile_id: Mapped[int | None] = mapped_column(
-        ForeignKey("master_profiles.id"), index=True
+        ForeignKey("master_profiles.id", ondelete="CASCADE"), index=True
     )
     request_id: Mapped[int | None] = mapped_column(ForeignKey("requests.id"), index=True)
     review_id: Mapped[int | None] = mapped_column(ForeignKey("reviews.id"), index=True)

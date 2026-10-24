@@ -41,15 +41,27 @@ def test_seed_files_cover_the_brief() -> None:
     assert {c["region"] for c in data.cities} == {"dushanbe", "rrs", "sughd", "khatlon", "gbao"}
 
 
+def _expected_synonyms(data) -> int:
+    return sum(
+        len(s["synonyms_ru"]) + len(s["synonyms_tg"])
+        for c in data.categories
+        for s in c["specialties"]
+    )
+
+
+# These tests do not assume empty tables: CI seeds the test database before pytest runs.
+
+
 def test_seed_writes_reference_data(db: Session) -> None:
     data = load()
     stats = apply(db, data)
 
+    specialties = sum(len(c["specialties"]) for c in data.categories)
     assert _count(db, Category) == stats.categories == 12
-    assert _count(db, Specialty) == stats.specialties
+    assert _count(db, Specialty) == stats.specialties == specialties
     assert _count(db, City) == stats.cities == len(data.cities)
     assert _count(db, District) == stats.districts == 4
-    assert _count(db, SpecialtySynonym) == stats.synonyms_added
+    assert _count(db, SpecialtySynonym) == _expected_synonyms(data)
 
     plumber = db.scalars(select(Specialty).where(Specialty.slug == "santekhnik")).one()
     assert plumber.category.slug == "santekhnika"
@@ -65,10 +77,12 @@ def test_seed_writes_reference_data(db: Session) -> None:
 
 def test_seed_is_idempotent(db: Session) -> None:
     first = apply(db)
+    tables = (City, District, Category, Specialty, SpecialtySynonym)
+    counts = [_count(db, m) for m in tables]
     second = apply(db)
     assert second.synonyms_added == second.synonyms_removed == 0
     assert (second.cities, second.specialties) == (first.cities, first.specialties)
-    assert _count(db, SpecialtySynonym) == first.synonyms_added
+    assert [_count(db, m) for m in tables] == counts
 
 
 def test_seed_restores_names_and_syncs_synonyms(db: Session) -> None:
