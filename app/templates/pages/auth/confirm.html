@@ -1,16 +1,21 @@
 {% extends "base.html" %}
+{% import "partials/forms.html" as forms with context %}
 {% block title %}{{ t('confirm.title') }} · {{ app_name }}{% endblock %}
 {% block content %}
 <section class="mx-auto grid max-w-md gap-6">
   <h1 class="text-4xl">{{ t('confirm.title') }}</h1>
   {% if error %}<p role="alert" class="notice notice-error">{{ t(error) }}</p>{% endif %}
   {% if token %}
-  {# A button, not a link: mail scanners that open links must not use up the token. #}
+  {# A form, not a link: mail scanners that open links must not use up the token. The password
+     proves the person confirming is the one who registered (R-019). #}
+  <p class="text-muted">{{ t('confirm.text') }}</p>
   <form method="post" action="{{ url_for('confirm_submit').path }}" class="grid gap-4">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="token" value="{{ token }}">
+    {{ forms.field('password', t('confirm.password'), errors, type='password', autocomplete='current-password') }}
     <button class="btn btn-primary" type="submit">{{ t('confirm.submit') }}</button>
   </form>
+  {% if error == 'confirm.wrong_password' %}<p><a class="link" href="{{ url_for('forgot_page').path }}">{{ t('signin.forgot') }}</a></p>{% endif %}
   {% elif not error %}
   <p class="text-muted">{{ t('confirm.invalid') }}</p>
   <p><a class="link" href="{{ url_for('resend_page').path }}">{{ t('signin.resend') }}</a></p>

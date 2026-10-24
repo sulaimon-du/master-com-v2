@@ -7,6 +7,7 @@ expiry and nonce are checked too. Only verified email addresses are accepted.
 import base64
 import hashlib
 import hmac
+import http.client
 import json
 import secrets
 import urllib.error
@@ -122,7 +123,8 @@ def exchange_code(
     try:
         with urllib.request.urlopen(request, timeout=HTTP_TIMEOUT) as response:  # noqa: S310
             payload = json.load(response)
-    except (urllib.error.URLError, TimeoutError, ValueError) as exc:
+    # URLError covers the request; OSError and HTTPException cover a connection dropped mid-read.
+    except (urllib.error.URLError, OSError, http.client.HTTPException, ValueError) as exc:
         raise GoogleError("token exchange failed") from exc
     if not isinstance(payload, dict):
         raise GoogleError("token response is not an object")

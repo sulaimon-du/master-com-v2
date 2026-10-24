@@ -17,7 +17,8 @@ from app.core.i18n import LANGS, normalize_lang
 from app.core.security import new_token, tokens_match
 from app.models.user import User
 from app.schemas.auth import EmailForm, NewPasswordForm, RegisterForm, SignInForm
-from app.services import auth, google_oidc
+from app.services import auth, google_oidc, rate_limit
+from app.services.auth import LOGIN_WINDOW
 from app.services.email import EmailSender, get_email_sender
 from app.web.cookies import (
     CSRF,
@@ -45,6 +46,7 @@ NOTICES = {
     "taken": "account.linked_taken",
     "failed": "account.linked_failed",
     "signed_out": "account.signed_out",
+    "confirmed": "confirm.done_title",
 }
 LANG_MAX_AGE = 60 * 60 * 24 * 365
 
@@ -251,7 +253,7 @@ def register_submit(
 
 @router.get("/confirm", name="confirm_page")
 def confirm_page(request: Request, token: str = "") -> HTMLResponse:
-    return render(request, "pages/auth/confirm.html", token=token)
+    return render(request, "pages/auth/confirm.html", token=token, errors={})
 
 
 @router.post("/confirm", name="confirm_submit", dependencies=[CSRFProtected])
@@ -259,22 +261,47 @@ def confirm_submit(
     request: Request,
     db: DbSession,
     token: Annotated[str, Form()] = "",
-) -> HTMLResponse:
-    if not token or auth.confirm_email(db, token) is not auth.Outcome.OK:
+    password: Annotated[str, Form()] = "",
+) -> Response:
+    if not token:
         return render(
             request,
             "pages/auth/confirm.html",
             status=400,
             token="",
             error="confirm.invalid",
+            errors={},
         )
-    return notice_page(
-        request,
-        None,
-        title="confirm.done_title",
-        text="confirm.done_text",
-        link=request.url_for("signin_page").path,
-    )
+    outcome, user = auth.confirm_email(db, ip=client_ip(request), raw=token, password=password)
+    if outcome is auth.Outcome.RATE_LIMITED:
+        return notice_page(
+            request, None, status=429, title="error.rate_limited_title", text="error.rate_limited"
+        )
+    if outcome is auth.Outcome.WRONG_CREDENTIALS:
+        # The link stays valid; the page points to password reset for an owner who never set it.
+        return render(
+            request,
+            "pages/auth/confirm.html",
+            status=401,
+            token=token,
+            error="confirm.wrong_password",
+            errors={},
+        )
+    if outcome is not auth.Outcome.OK or user is None:
+        return render(
+            request,
+            "pages/auth/confirm.html",
+            status=400,
+            token="",
+            error="confirm.invalid",
+            errors={},
+        )
+    # Address and password both proven: sign the owner in (a new session ID, R-011).
+    settings = get_settings()
+    raw = auth.open_session(db, user, replace=request.cookies.get(cookie_name(SESSION, settings)))
+    response = RedirectResponse("/account?notice=confirmed", status_code=303)
+    _attach_session(response, raw, settings)
+    return response
 
 
 @router.get("/confirm/resend", name="resend_page")
@@ -413,6 +440,13 @@ def google_start(request: Request, db: DbSession) -> Response:
     if not get_settings().google_enabled:
         return notice_page(
             request, None, status=404, title="error.not_found", text="error.not_found"
+        )
+    # Each start stores a flow row: cap it per address so a bot cannot fill the table.
+    if not rate_limit.allow(
+        db, "google_start_ip", client_ip(request), limit=30, window=LOGIN_WINDOW
+    ):
+        return notice_page(
+            request, None, status=429, title="error.rate_limited_title", text="error.rate_limited"
         )
     return _google_redirect(request, db, user_id=None)
 

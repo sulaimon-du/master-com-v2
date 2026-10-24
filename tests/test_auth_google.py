@@ -245,3 +245,31 @@ def test_link_callback_for_a_different_signed_in_user_is_refused(
             db.execute(text("SELECT count(*) FROM users WHERE google_sub IS NOT NULL")).scalar_one()
             == 0
         )
+
+
+def test_google_owner_takes_over_an_unconfirmed_squatted_account(
+    client: TestClient, google, signing_key
+) -> None:  # type: ignore[no-untyped-def]
+    # A stranger registered ana@gmail.com with their own password but never confirmed it.
+    make_user("ana@gmail.com", password="stranger pass 1", confirmed=False, name="Stranger")
+    state, _ = _start(client)
+    google["id_token"] = _id_token(signing_key, _nonce_of(client))
+    r = client.get(f"/auth/google/callback?state={state}&code=abc")
+    assert r.status_code == 303
+    assert r.headers["location"] == "/account"
+    with get_sessionmaker()() as db:
+        row = db.execute(
+            text("SELECT google_sub, password_hash, email_verified_at, name FROM users")
+        ).one()
+    assert row.google_sub == "google-sub-1"
+    assert row.password_hash is None
+    assert row.email_verified_at is not None
+    assert row.name == "Ана"
+    stranger = TestClient(client.app, follow_redirects=False)
+    assert sign_in(stranger, "ana@gmail.com", "stranger pass 1").status_code == 401
+
+
+def test_google_start_is_rate_limited(client: TestClient, google) -> None:  # type: ignore[no-untyped-def]
+    for _ in range(30):
+        assert client.get("/auth/google/start").status_code == 303
+    assert client.get("/auth/google/start").status_code == 429

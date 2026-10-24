@@ -192,14 +192,35 @@ def resend_confirmation(
     return Outcome.SENT
 
 
-def confirm_email(db: Session, raw: str) -> Outcome:
-    user = _consume_token(db, "confirm_email", raw)
-    if user is None:
-        return Outcome.BAD_LINK
+def confirm_email(db: Session, *, ip: str, raw: str, password: str) -> tuple[Outcome, User | None]:
+    """Confirm the address. The link proves the inbox; the password proves who registered.
+
+    Without the password check, a stranger could register someone's address with their own
+    password, wait for the owner to confirm it from the inbox, and then sign in (pre-hijack).
+    A wrong password does not use up the link. An owner who does not know the password resets
+    it instead, which also confirms the address and removes the stranger's password.
+    """
+    if not rate_limit.allow(db, "confirm_attempt_ip", ip, limit=30, window=LOGIN_WINDOW):
+        return Outcome.RATE_LIMITED, None
+    token = db.scalar(
+        select(AuthToken).where(
+            AuthToken.token_hash == hash_token(raw),
+            AuthToken.purpose == "confirm_email",
+            AuthToken.used_at.is_(None),
+            AuthToken.expires_at > utcnow(),
+        )
+    )
+    user = db.get(User, token.user_id) if token else None
+    if user is None or not _is_active(user):
+        return Outcome.BAD_LINK, None
+    if not verify_password(user.password_hash, password):
+        return Outcome.WRONG_CREDENTIALS, None
+    if _consume_token(db, "confirm_email", raw) is None:
+        return Outcome.BAD_LINK, None
     if user.email_verified_at is None:
         user.email_verified_at = utcnow()
     _burn_tokens(db, user.id, "confirm_email")
-    return Outcome.OK
+    return Outcome.OK, user
 
 
 # --- Password sign-in ---------------------------------------------------------------------
@@ -346,14 +367,34 @@ def reset_password(db: Session, *, ip: str, raw: str, password: str) -> Outcome:
 def sign_in_with_google(
     db: Session, identity: GoogleIdentity, *, lang: str
 ) -> tuple[Outcome, User | None]:
-    """Sign in by Google `sub`. A matching email on another account is refused, never merged."""
+    """Sign in by Google `sub`. A confirmed account with the same email is refused, never merged."""
     user = db.scalar(select(User).where(User.google_sub == identity.sub))
     if user is not None:
         if not _is_active(user):
             return Outcome.WRONG_CREDENTIALS, None
         return Outcome.OK, user
-    if db.scalar(select(User.id).where(User.email == identity.email)) is not None:
-        return Outcome.EMAIL_TAKEN, None
+    existing = db.scalar(select(User).where(User.email == identity.email))
+    if existing is not None:
+        if existing.email_verified_at is not None or not _is_active(existing):
+            # A confirmed account: sign in with its password first, then link Google (no merge).
+            return Outcome.EMAIL_TAKEN, None
+        # Nobody ever proved this address, and Google just did. The unconfirmed account may have
+        # been registered by a stranger to squat the address, so the Google owner takes it over:
+        # the unproven password, its links and any sessions are dropped (R-019).
+        try:
+            with db.begin_nested():
+                existing.password_hash = None
+                existing.google_sub = identity.sub
+                existing.email_verified_at = utcnow()
+                existing.name = (identity.name or "")[:80] or None
+                existing.locale = lang
+                db.flush()
+        except IntegrityError:
+            return Outcome.EMAIL_TAKEN, None
+        _burn_tokens(db, existing.id, "confirm_email")
+        _burn_tokens(db, existing.id, "reset_password")
+        revoke_all_sessions(db, existing.id)
+        return Outcome.OK, existing
 
     now = utcnow()
     try:

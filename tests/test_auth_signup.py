@@ -5,7 +5,7 @@ from sqlalchemy import select, text
 from app.core.db import get_sessionmaker
 from app.models.auth import AuthToken
 from app.models.user import User
-from tests.support import PASSWORD, csrf_token, link_from, make_user, post
+from tests.support import PASSWORD, link_from, make_user, post, sign_in
 
 pytestmark = pytest.mark.usefixtures("clean_auth")
 
@@ -55,25 +55,61 @@ def test_weak_password_and_bad_email_are_refused(client: TestClient, outbox) -> 
     assert outbox.sent == []
 
 
-def test_confirmation_link_works_once(client: TestClient, outbox) -> None:
+def test_confirmation_link_works_once_and_signs_the_owner_in(client: TestClient, outbox) -> None:
     _register(client)
     token = link_from(outbox)
     assert client.get(f"/confirm?token={token}").status_code == 200
-    first = client.post("/confirm", data={"token": token, "csrf_token": csrf_token(client)})
-    assert first.status_code == 200
-    assert "Почта подтверждена" in first.text
-    again = client.post("/confirm", data={"token": token, "csrf_token": csrf_token(client)})
+    first = post(client, "/confirm", {"token": token, "password": PASSWORD})
+    assert first.status_code == 303
+    assert first.headers["location"] == "/account?notice=confirmed"
+    assert client.get("/account").status_code == 200
+    again = post(client, "/confirm", {"token": token, "password": PASSWORD})
     assert again.status_code == 400
 
 
+def test_confirmation_needs_the_password_and_a_wrong_one_keeps_the_link(
+    client: TestClient, outbox
+) -> None:
+    _register(client)
+    token = link_from(outbox)
+    wrong = post(client, "/confirm", {"token": token, "password": "not my pass 1"})
+    assert wrong.status_code == 401
+    assert "Пароль не подходит" in wrong.text
+    assert "mc_session" not in wrong.headers.get("set-cookie", "")
+    assert post(client, "/confirm", {"token": token, "password": PASSWORD}).status_code == 303
+
+
 def test_opening_the_confirm_page_does_not_use_the_link(client: TestClient, outbox) -> None:
-    # Mail scanners open links with GET; only the POST button may use up the token.
+    # Mail scanners open links with GET; only the POST form may use up the token.
     _register(client)
     token = link_from(outbox)
     client.get(f"/confirm?token={token}")
     client.get(f"/confirm?token={token}")
-    r = post(client, "/confirm", {"token": token})
-    assert "Почта подтверждена" in r.text
+    assert post(client, "/confirm", {"token": token, "password": PASSWORD}).status_code == 303
+
+
+def test_stranger_cannot_pre_register_someone_elses_address(client: TestClient, outbox) -> None:
+    # Pre-hijack: a stranger registers the victim's address with their own password and waits
+    # for the victim to confirm it from the inbox.
+    stranger = TestClient(client.app, follow_redirects=False)
+    post(
+        stranger,
+        "/register",
+        {"name": "S", "email": "ana@example.com", "password": "stranger pass 1"},
+    )
+    # The victim registers too, gets the "account exists" email, asks for a new link...
+    _register(client)
+    post(client, "/confirm/resend", {"email": "ana@example.com"})
+    token = link_from(outbox)
+    # ...and cannot confirm with their own password: the account is not theirs yet.
+    assert post(client, "/confirm", {"token": token, "password": PASSWORD}).status_code == 401
+    assert sign_in(stranger, password="stranger pass 1").status_code == 401
+    # Resetting the password proves the inbox, replaces the stranger's password and confirms.
+    post(client, "/password/forgot", {"email": "ana@example.com"})
+    reset = post(client, "/password/reset", {"token": link_from(outbox), "password": PASSWORD})
+    assert reset.status_code == 200
+    assert sign_in(stranger, password="stranger pass 1").status_code == 401
+    assert sign_in(client).status_code == 303
 
 
 def test_expired_confirmation_link_is_refused(client: TestClient, outbox) -> None:
@@ -82,7 +118,7 @@ def test_expired_confirmation_link_is_refused(client: TestClient, outbox) -> Non
     with get_sessionmaker()() as db:
         db.execute(text("UPDATE auth_tokens SET expires_at = now() - interval '1 minute'"))
         db.commit()
-    r = post(client, "/confirm", {"token": token})
+    r = post(client, "/confirm", {"token": token, "password": PASSWORD})
     assert r.status_code == 400
 
 
@@ -123,5 +159,5 @@ def test_confirming_kills_the_older_confirmation_links(client: TestClient, outbo
     older = link_from(outbox)
     post(client, "/confirm/resend", {"email": "ana@example.com"})
     newer = link_from(outbox)
-    assert post(client, "/confirm", {"token": newer}).status_code == 200
-    assert post(client, "/confirm", {"token": older}).status_code == 400
+    assert post(client, "/confirm", {"token": newer, "password": PASSWORD}).status_code == 303
+    assert post(client, "/confirm", {"token": older, "password": PASSWORD}).status_code == 400
