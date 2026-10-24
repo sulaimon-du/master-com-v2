@@ -110,6 +110,17 @@ Supersedes the old 14_DECISIONS.md. The new brief is `redefinition/BRIEF.md`. Nu
 - Push to `main` deploys automatically; migrations run on start. Free service sleeps after 15 minutes idle.
 - Week 1 (walking skeleton) done: CI green on GitHub (lint, tests, audit, Docker build), `/health/ready` returns ok with the database.
 
+## R-018 Data model choices (2026-10-24, proposed; owner to confirm)
+Week 2. Details in `docs/DATA_MODEL.md`. Points where the brief was silent or needed a reading:
+- **Places:** the top level ("city") holds both cities (шаҳр) and rural districts (ноҳия), with a region and a kind; the second level ("district") holds city subdivisions, so far only Dushanbe's four. A request needs a district only when its city has districts. *Alternative:* region → city/nohiya → (district); it would change the SEO URLs, so I did not take it.
+- **Complaint reasons:** C7's list plus `wrong_number` for unclaimed profiles (R-016).
+- **Request end states:** `closed` = ended by the client or by the 30-day auto-close (C4); `cancelled` = withdrawn by the client.
+- **Text limits not in the brief:** response message 500 characters, collection title 120, collection description 1000.
+- **Rating constants (BRIEF §4.11):** score = (C·m + sum of ratings) / (C + n), with C = 5 and m = 4.0. Proposal; can be tuned without a migration.
+- **Kept in services, not in the database:** at most 10 specialties and 3 primary; collection and photo limits (plan config); no response to one's own request; reviews only by the client of a completed request. These arrive with their features (weeks 5–10).
+- **Re-import blocklist:** stores only a SHA-256 of the phone or source URL of people who asked to be removed.
+- **Seed:** reference data loads with `python -m app.seed` on every start (`RUN_SEED=1`); it is idempotent. Until the admin panel can edit these tables (week 10) the seed files are the source of truth: names are overwritten from the files and seeded synonyms are synced. In week 10, switch to insert-only so admin edits win.
+
 ## Open
 - Final name and positioning (round 6): postponed by the owner; working name Master COM stays.
 - Visual direction: tentative pick in R-014; final confirmation pending.

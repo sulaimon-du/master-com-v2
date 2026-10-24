@@ -18,6 +18,7 @@ Or for development with auto-reload (needs Python 3.12, uv, Node 22 and a local 
 ```bash
 uv sync && npm ci && npm run build
 uv run alembic upgrade head
+uv run python -m app.seed     # cities, districts, catalog (safe to rerun)
 uv run uvicorn --factory app.main:create_app --reload
 ```
 
@@ -32,6 +33,10 @@ uv run pip-audit
 
 CI runs all of these on every push and pull request, plus a Docker image build.
 
+## Data
+
+Schema and rules: [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md). Reference data lives in `app/seed/data/`; Tajik names are in `tg_names.csv` for review.
+
 ## Endpoints so far
 
 | Path | Purpose |
@@ -42,4 +47,4 @@ CI runs all of these on every push and pull request, plus a Docker image build.
 
 ## Staging
 
-Render free web service (Docker) + Neon free Postgres; see [`render.yaml`](render.yaml). Pushing to `main` deploys automatically; migrations run on start.
+Render free web service (Docker) + Neon free Postgres; see [`render.yaml`](render.yaml). Pushing to `main` deploys automatically; migrations and the seed run on start.
