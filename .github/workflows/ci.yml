@@ -43,7 +43,7 @@ jobs:
       DATABASE_URL: postgresql+psycopg://mc:mc@localhost:5432/mastercom_test
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22.22.0"
           cache: npm
@@ -68,7 +68,7 @@ jobs:
           version: "0.11.32"
       - run: uv sync --frozen
       - run: uv run pip-audit
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22.22.0"
       - run: npm audit --audit-level=high
