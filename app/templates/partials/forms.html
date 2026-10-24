@@ -7,6 +7,6 @@
     {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}
     {% if name in errors %}aria-invalid="true" aria-describedby="{{ name }}-error"{% elif hint %}aria-describedby="{{ name }}-hint"{% endif %}>
   {% if hint and name not in errors %}<p id="{{ name }}-hint" class="text-sm text-muted">{{ hint }}</p>{% endif %}
-  {% if name in errors %}<p id="{{ name }}-error" class="text-sm font-semibold">{{ t(errors[name]) }}</p>{% endif %}
+  {% if name in errors %}<p id="{{ name }}-error" class="field-error text-sm">{{ t(errors[name]) }}</p>{% endif %}
 </div>
 {%- endmacro %}
