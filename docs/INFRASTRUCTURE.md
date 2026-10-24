@@ -49,17 +49,17 @@ Check after a deploy:
 | `DATABASE_URL` | Neon direct connection string | Render dashboard | **yes** |
 | `RENDER_EXTERNAL_HOSTNAME` | set by Render automatically; the app trusts it as an allowed host | Render | no |
 
-Coming next (add in Render → Environment when the PR that needs them is merged):
+Coming next (add in Render → Environment when the PR that needs them is merged). Render does not create new `sync: false` variables from `render.yaml` on an existing service, so add each one by hand:
 
 | Name | Needed from | Secret |
 |---|---|---|
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | week 3 (Google sign-in) | yes |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | week 3 (Google sign-in; redirect URI `https://master-com-staging.onrender.com/auth/google/callback`) | yes |
 | `TELEGRAM_BOT_TOKEN` | week 4 (Telegram bot and sign-in) | yes |
 | key for the blocklist hash (R-018; name defined in the PR that implements it) | import tool, weeks 10–11 | yes |
 | email provider key | before launch (PRODUCT_RULES A4) | yes |
 | R2 keys | week 5 (uploads) | yes |
 
-Changing a variable restarts the service. `SECRET_KEY` must stay the same between deploys, or all sessions end.
+Changing a variable restarts the service. Sessions do not depend on `SECRET_KEY`: they are random IDs stored hashed in Postgres (R-011, R-019), so changing it signs nobody out. Keep it stable anyway, because later features may key hashes with it (for example the re-import blocklist, R-018). To sign everyone out, delete the rows in `auth_sessions`.
 
 ## Neon (database)
 
@@ -90,7 +90,7 @@ SELECT pg_size_pretty(pg_database_size(current_database()));  -- stay well under
 
 - Secrets never go into git, chats, issues, PR descriptions or logs.
 - Staging secrets: Render dashboard only. Local secrets: `.env` (gitignored).
-- If a secret leaks: rotate it at the source (Neon: reset the role password; Render: regenerate `SECRET_KEY`, which signs everyone out; Google/Telegram: regenerate in their consoles), update Render, redeploy.
+- If a secret leaks: rotate it at the source (Neon: reset the role password; Render: regenerate `SECRET_KEY`; to end all sessions, `DELETE FROM auth_sessions;` in the Neon SQL Editor; Google/Telegram: regenerate in their consoles), update Render, redeploy.
 
 ## When something breaks
 
