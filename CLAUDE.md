@@ -9,6 +9,7 @@ A marketplace for construction and home-repair masters in Tajikistan: Instagram-
 4. `docs/design_tokens.md`: colors, fonts, radii. Current pick: variant 11 (R-014).
 5. `docs/PRODUCT_RULES.md`: approved rules not spelled out in the brief (price units, auto-closing requests, review editing, complaint reasons, chat history, search visibility, infrastructure choices).
 6. `docs/design_direction.md`: screen-by-screen references for the frontend. Colors and fonts there are superseded by R-014 and `design_tokens.md`; layouts still apply.
+7. `docs/INFRASTRUCTURE.md`: staging on Render + Neon, environment variables, limits, deploy flow, secrets policy.
 
 If they disagree or are silent, stop and ask; propose a decision. Never invent requirements. Log every deviation from the brief as a new R-xxx entry in `docs/DECISIONS.md`.
 
