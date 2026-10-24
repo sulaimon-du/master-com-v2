@@ -101,6 +101,16 @@
   .btn-primary:hover { background: var(--color-signal); color: var(--color-on-signal); }
   .btn-secondary { background: var(--mc-surface); color: var(--mc-text); border-color: var(--mc-border-strong); }
   .btn-secondary:hover { background: var(--mc-surface-2); }
+  .input {
+    width: 100%; min-height: 44px; padding: .5rem .75rem; border-radius: var(--radius-btn);
+    border: 1px solid var(--mc-border-strong); background: var(--mc-surface); color: var(--mc-text);
+    font: inherit;
+  }
+  .input[aria-invalid="true"] { border: 2px solid var(--mc-text); }
+  .card { border: 1px solid var(--mc-border); border-radius: var(--radius-card); background: var(--mc-surface); padding: 1rem; }
+  .notice { border-radius: var(--radius-card); background: var(--mc-tint); color: var(--mc-on-tint); padding: .75rem 1rem; }
+  .notice-error { background: var(--mc-surface); color: var(--mc-text); border: 2px solid var(--mc-text); }
+  .link { color: var(--mc-text); text-decoration: underline; text-underline-offset: 3px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

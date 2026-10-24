@@ -123,6 +123,22 @@ Week 2. Details in `docs/DATA_MODEL.md`. Points where the brief was silent or ne
 - **Later, before week 7:** old place names people still type (Курган-Тюбе, Чкаловск, Кайраккум…) need place synonyms for search. Renaming a seeded slug needs a manual deactivation of the old row.
 - **Seed:** reference data loads with `python -m app.seed` on every start (`RUN_SEED=1`); it is idempotent. Until the admin panel can edit these tables (week 10) the seed files are the source of truth: names are overwritten from the files and seeded synonyms are synced. In week 10, switch to insert-only so admin edits win.
 
+## R-019 Sign-in and sessions implementation (2026-10-24, week 3)
+Implements BRIEF §4.1 and R-011. Choices and deviations, for the owner to confirm:
+- **Password rule:** 10 to 128 characters, no composition rules. Argon2id with argon2-cffi defaults. Sign-in accepts any length so existing passwords keep working.
+- **Confirmation before password sign-in:** an unconfirmed account gets "confirm your email" only after the right password, so strangers learn nothing. Confirmation links are single-use and expire after 48 hours; reset links expire after 1 hour and also confirm the address.
+- **Account enumeration:** registration, resend and forgot-password answer the same way for known and unknown addresses. Registration hashes the password in both branches to keep timing equal.
+- **Cookie names (deviation in dev only):** staging and production use `__Host-mc_session` / `__Host-mc_csrf` / `__Host-mc_oauth` with Secure. Development and tests use `mc_session` etc. without the prefix or Secure, because the owner works on plain http://localhost. The switch is `Settings.secure_cookies`.
+- **CSRF:** double-submit cookie. The page writes the token from `mc_csrf` into forms and into `hx-headers`; a POST passes only if the form field or `X-CSRF-Token` equals the cookie. It is checked per route by a test, so a new POST route without it fails CI. A new token is issued at sign-in.
+- **Session rotation:** a new session ID and new CSRF token at every sign-in, Google sign-in, Google link and password reset. Reset also ends every existing session. Sessions are compared by SHA-256 hash; idle 30 days (touched at most hourly), absolute 90 days.
+- **Rate limits in Postgres:** fixed windows, keys hashed. Sign-in: 5 attempts per email and 30 per IP in 15 minutes. Registration: 10 per IP per hour. Resend and reset: 3 per email and 20 per IP per hour. Rejected attempts still count.
+- **Google:** authorization code with PKCE (S256), `state` bound to the browser by a cookie and single-use in Postgres, `nonce` checked, `id_token` checked against Google's JWKS with audience, issuer, expiry and `email_verified`. Token exchange and key fetch use the standard library, so no new HTTP dependency.
+- **Google linking:** only from settings and only with POST and CSRF. The callback must come from the same signed-in user who started it. A Google email that matches another account is refused (409), never merged.
+- **Email:** one `EmailSender` interface. Development and staging write the message to the log, as the owner asked. This means one-time links appear in staging logs until a real provider is set up (PRODUCT_RULES A4). Production refuses to send, so nothing is lost silently.
+- **Language:** Russian by default and Tajik through `app/locales/{ru,tg}.json`. The Tajik text is a first draft and needs the owner's proofreading. A cookie `mc_lang` chooses the language. The Accept-Language header is not used yet.
+- **Colors:** `design_tokens.md` has no error color. Error messages use bold text, a 2px border and `aria-invalid`, not red. Proposal: add a `danger` token to variant 11 when the owner picks the colour.
+- **Out of scope here:** Telegram sign-in (week 4), the admin block UI (week 10; `block_user` service exists and is tested), password change while signed in.
+
 ## Open
 - Final name and positioning (round 6): postponed by the owner; working name Master COM stays.
 - Visual direction: tentative pick in R-014; final confirmation pending.

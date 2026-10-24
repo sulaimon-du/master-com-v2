@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% import "partials/forms.html" as forms with context %}
+{% if mode == 'resend' %}{% set title_key = 'confirm.resend_title' %}{% set text_key = 'resend.text' %}{% set submit_key = 'resend.submit' %}{% set action = url_for('resend_submit') %}{% else %}{% set title_key = 'forgot.title' %}{% set text_key = 'forgot.text' %}{% set submit_key = 'forgot.submit' %}{% set action = url_for('forgot_submit') %}{% endif %}
+{% block title %}{{ t(title_key) }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-md gap-6">
+  <h1 class="text-4xl">{{ t(title_key) }}</h1>
+  <p class="text-muted">{{ t(text_key) }}</p>
+  <form method="post" action="{{ action }}" class="grid gap-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {{ forms.field('email', t('signin.email'), errors, type='email', value=email, autocomplete='email') }}
+    <button class="btn btn-primary" type="submit">{{ t(submit_key) }}</button>
+  </form>
+</section>
+{% endblock %}

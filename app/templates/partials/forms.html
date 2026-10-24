@@ -1,0 +1,12 @@
+{# Form fields. `errors` maps a field name to a translation key. Autoescaped; no inline script or style. #}
+{% macro field(name, label, errors, type="text", value="", autocomplete="", hint="") -%}
+<div class="grid gap-1.5">
+  <label for="{{ name }}" class="text-sm font-semibold">{{ label }}</label>
+  <input id="{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ value }}" required
+    class="input"
+    {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}
+    {% if name in errors %}aria-invalid="true" aria-describedby="{{ name }}-error"{% elif hint %}aria-describedby="{{ name }}-hint"{% endif %}>
+  {% if hint and name not in errors %}<p id="{{ name }}-hint" class="text-sm text-muted">{{ hint }}</p>{% endif %}
+  {% if name in errors %}<p id="{{ name }}-error" class="text-sm font-semibold">{{ t(errors[name]) }}</p>{% endif %}
+</div>
+{%- endmacro %}

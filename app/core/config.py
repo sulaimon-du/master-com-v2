@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     database_url: PostgresDsn
     allowed_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]
     log_level: str = "INFO"
+    # Google sign-in (BRIEF §4.1). Both must be set to show the Google button.
+    google_client_id: str | None = None
+    google_client_secret: SecretStr | None = None
 
     @field_validator("database_url", mode="before")
     @classmethod
@@ -40,6 +43,17 @@ class Settings(BaseSettings):
     @property
     def is_production_like(self) -> bool:
         return self.app_env in {"staging", "production"}
+
+    @property
+    def google_enabled(self) -> bool:
+        return bool(self.google_client_id and self.google_client_secret)
+
+    @property
+    def secure_cookies(self) -> bool:
+        # Staging and production are HTTPS, so cookies get the __Host- prefix and Secure.
+        # Development and tests run on plain http://localhost, where the prefix would be
+        # refused by some browsers; they use the same names without the prefix (dev-only).
+        return self.is_production_like
 
 
 @lru_cache

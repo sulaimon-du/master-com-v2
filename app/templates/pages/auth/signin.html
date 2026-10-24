@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% import "partials/forms.html" as forms with context %}
+{% block title %}{{ t('signin.title') }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-md gap-6">
+  <h1 class="text-4xl">{{ t('signin.title') }}</h1>
+  {% if notice %}<p role="status" class="notice">{{ t(notice) }}</p>{% endif %}
+  {% if error %}<p role="alert" class="notice notice-error">{{ t(error) }}</p>{% endif %}
+  <form method="post" action="{{ url_for('signin_submit') }}" class="grid gap-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    {{ forms.field('email', t('signin.email'), errors, type='email', value=email, autocomplete='email') }}
+    {{ forms.field('password', t('signin.password'), errors, type='password', autocomplete='current-password') }}
+    <button class="btn btn-primary" type="submit">{{ t('signin.submit') }}</button>
+  </form>
+  <p class="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+    <a class="link" href="{{ url_for('forgot_page') }}">{{ t('signin.forgot') }}</a>
+    {% if show_resend %}<a class="link" href="{{ url_for('resend_page') }}">{{ t('signin.resend') }}</a>{% endif %}
+  </p>
+  {% if google_enabled %}
+  <div class="grid gap-3">
+    <p class="text-sm text-muted">{{ t('signin.or') }}</p>
+    <a class="btn btn-secondary no-underline" href="{{ url_for('google_start') }}">{{ t('signin.google') }}</a>
+  </div>
+  {% endif %}
+  <p class="text-sm text-muted">{{ t('signin.more') }} <a class="link" href="{{ url_for('register_page') }}">{{ t('signin.register') }}</a></p>
+</section>
+{% endblock %}

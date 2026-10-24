@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% import "partials/forms.html" as forms with context %}
+{% block title %}{{ t('reset.title') }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-md gap-6">
+  <h1 class="text-4xl">{{ t('reset.title') }}</h1>
+  {% if error %}<p role="alert" class="notice notice-error">{{ t(error) }}</p>{% endif %}
+  {% if token %}
+  <form method="post" action="{{ url_for('reset_submit') }}" class="grid gap-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="token" value="{{ token }}">
+    {{ forms.field('password', t('reset.password'), errors, type='password', autocomplete='new-password') }}
+    <button class="btn btn-primary" type="submit">{{ t('reset.submit') }}</button>
+  </form>
+  {% elif not error %}
+  <p class="text-muted">{{ t('reset.invalid') }}</p>
+  <p><a class="link" href="{{ url_for('forgot_page') }}">{{ t('forgot.title') }}</a></p>
+  {% endif %}
+</section>
+{% endblock %}

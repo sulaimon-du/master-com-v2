@@ -1,5 +1,6 @@
 """All SQLAlchemy models are imported here so Alembic sees them."""
 
+from app.models.auth import AuthSession, AuthToken, OAuthFlow, RateLimit
 from app.models.catalog import Category, Specialty, SpecialtySynonym
 from app.models.complaint import Complaint
 from app.models.imports import DataRemovalRequest, ImportBlocklist, ProfileClaim
@@ -12,6 +13,8 @@ from app.models.support import SupportMessage, SupportThread
 from app.models.user import User
 
 __all__ = [
+    "AuthSession",
+    "AuthToken",
     "Category",
     "City",
     "Complaint",
@@ -23,9 +26,11 @@ __all__ = [
     "MasterArea",
     "MasterProfile",
     "MasterSpecialty",
+    "OAuthFlow",
     "PortfolioCollection",
     "PortfolioPhoto",
     "ProfileClaim",
+    "RateLimit",
     "RequestPhoto",
     "RequestSpecialty",
     "Review",
