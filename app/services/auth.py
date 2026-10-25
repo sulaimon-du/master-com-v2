@@ -29,6 +29,8 @@ SESSION_ABSOLUTE = timedelta(days=90)
 SESSION_TOUCH_EVERY = timedelta(hours=1)
 CONFIRM_TTL = timedelta(hours=48)
 RESET_TTL = timedelta(hours=1)
+# An owner's decision on a Google claim counts for 30 days; after that a new request is needed.
+GOOGLE_CLAIM_TTL = timedelta(days=30)
 HOUR = timedelta(hours=1)
 LOGIN_WINDOW = timedelta(minutes=15)
 
@@ -46,6 +48,7 @@ class Outcome(Enum):
     GOOGLE_ALREADY_LINKED = "google_already_linked"
     GOOGLE_TAKEN = "google_taken"
     CLAIM_PENDING = "claim_pending"
+    CLAIM_REJECTED = "claim_rejected"
 
 
 def _is_active(user: User) -> bool:
@@ -388,33 +391,33 @@ def sign_in_with_google(
         if not _is_active(user):
             return Outcome.WRONG_CREDENTIALS, None
         return Outcome.OK, user
-    existing = db.scalar(select(User).where(User.email == identity.email))
+    # Locked until commit: a confirmation or reset racing with a handover waits, then the
+    # handover sees the confirmed account and refuses.
+    existing = db.scalar(select(User).where(User.email == identity.email).with_for_update())
     if existing is not None:
         if not _is_active(existing):
             return Outcome.WRONG_CREDENTIALS, None
-        claimable = (
-            existing.email_verified_at is None
-            and existing.google_sub is None
-            and existing.telegram_id is None
-            and existing.phone_verified_at is None
-        )
-        if not claimable:
+        if not claimable(existing):
             # The account is proven some other way: sign in with it first, then link Google.
             return Outcome.EMAIL_TAKEN, None
         # Nobody ever proved this address, and Google just did. The unconfirmed account may be a
         # stranger's squat, but the handover still waits for the owner's approval (R-019).
-        claim = db.scalar(
-            select(GoogleClaim).where(
+        decided = db.scalars(
+            select(GoogleClaim.status).where(
                 GoogleClaim.user_id == existing.id,
                 GoogleClaim.google_sub == identity.sub,
-                GoogleClaim.status == "approved",
                 GoogleClaim.email == existing.email,
+                GoogleClaim.status != "pending",
+                GoogleClaim.resolved_at > utcnow() - GOOGLE_CLAIM_TTL,
             )
-        )
-        if claim is None:
-            _open_google_claim(db, existing, identity)
-            return Outcome.CLAIM_PENDING, None
-        return _hand_over_to_google(db, existing, identity, lang=lang)
+        ).all()
+        if "rejected" in decided:
+            # A refusal sticks: no new request, the page points to password reset instead.
+            return Outcome.CLAIM_REJECTED, None
+        if "approved" in decided:
+            return _hand_over_to_google(db, existing, identity, lang=lang)
+        _open_google_claim(db, existing, identity)
+        return Outcome.CLAIM_PENDING, None
 
     now = utcnow()
     try:
@@ -431,6 +434,16 @@ def sign_in_with_google(
     except IntegrityError:
         return Outcome.EMAIL_TAKEN, None
     return Outcome.OK, user
+
+
+def claimable(user: User) -> bool:
+    """Nobody has proven this account: no confirmed email and no other sign-in method."""
+    return (
+        user.email_verified_at is None
+        and user.google_sub is None
+        and user.telegram_id is None
+        and user.phone_verified_at is None
+    )
 
 
 def _open_google_claim(db: Session, user: User, identity: GoogleIdentity) -> None:
@@ -481,14 +494,16 @@ def pending_google_claims(db: Session) -> list[GoogleClaim]:
     )
 
 
-def resolve_google_claim(db: Session, claim_id: int, *, approve: bool) -> Outcome:
+def resolve_google_claim(
+    db: Session, claim_id: int, *, approve: bool
+) -> tuple[Outcome, GoogleClaim | None]:
     """Owner's decision on a pending claim. Approval takes effect at the next Google sign-in."""
     claim = db.get(GoogleClaim, claim_id)
     if claim is None or claim.status != "pending":
-        return Outcome.BAD_LINK
+        return Outcome.BAD_LINK, None
     claim.status = "approved" if approve else "rejected"
     claim.resolved_at = utcnow()
-    return Outcome.OK
+    return Outcome.OK, claim
 
 
 def link_google(db: Session, user: User, identity: GoogleIdentity) -> Outcome:

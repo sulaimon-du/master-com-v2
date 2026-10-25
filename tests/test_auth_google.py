@@ -301,7 +301,9 @@ def test_approved_claim_hands_the_account_over_at_the_next_sign_in(
     assert sign_in(stranger, "ana@gmail.com", "stranger pass 1").status_code == 401
 
 
-def test_rejected_claim_hands_nothing_over(client: TestClient, google, signing_key) -> None:  # type: ignore[no-untyped-def]
+def test_rejected_claim_sticks_and_points_to_password_reset(
+    client: TestClient, google, signing_key, capsys
+) -> None:  # type: ignore[no-untyped-def]
     from app.cli import main
 
     make_user("ana@gmail.com", confirmed=False)
@@ -309,7 +311,24 @@ def test_rejected_claim_hands_nothing_over(client: TestClient, google, signing_k
     with get_sessionmaker()() as db:
         claim_id = db.execute(text("SELECT id FROM google_claims")).scalar_one()
     assert main(["claims", "reject", str(claim_id)]) == 0
+    assert "ana@gmail.com: rejected" in capsys.readouterr().out
     assert main(["claims", "reject", str(claim_id)]) == 1  # already decided
+    r = _google_sign_in(client, google, signing_key)
+    assert r.status_code == 403
+    assert "Заявка отклонена" in r.text
+    assert "/password/forgot" in r.text
+    with get_sessionmaker()() as db:
+        assert db.execute(text("SELECT count(*) FROM google_claims")).scalar_one() == 1
+        assert db.execute(text("SELECT google_sub FROM users")).scalar_one() is None
+
+
+def test_an_old_approval_no_longer_counts(client: TestClient, google, signing_key) -> None:  # type: ignore[no-untyped-def]
+    make_user("ana@gmail.com", confirmed=False)
+    _google_sign_in(client, google, signing_key)
+    _approve_all()
+    with get_sessionmaker()() as db:
+        db.execute(text("UPDATE google_claims SET resolved_at = now() - interval '31 days'"))
+        db.commit()
     r = _google_sign_in(client, google, signing_key)
     assert "Заявка отправлена" in r.text
     with get_sessionmaker()() as db:

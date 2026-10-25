@@ -13,6 +13,7 @@ import argparse
 import sys
 
 from app.core.db import get_sessionmaker
+from app.models.user import User
 from app.services import auth
 
 
@@ -30,14 +31,21 @@ def main(argv: list[str] | None = None) -> int:
         if args.action == "list":
             for claim in auth.pending_google_claims(db):
                 created = f"{claim.created_at:%Y-%m-%d %H:%M}"
-                print(f"{claim.id}\t{created}\t{claim.email}\t{claim.google_name or ''}")
+                user = db.get(User, claim.user_id)
+                # Approving these would do nothing: the owner proved the account meanwhile.
+                note = "" if user and auth.claimable(user) else "\t(account no longer claimable)"
+                print(f"{claim.id}\t{created}\t{claim.email}\t{claim.google_name or ''}{note}")
             return 0
-        outcome = auth.resolve_google_claim(db, args.claim_id, approve=args.action == "approve")
-        if outcome is not auth.Outcome.OK:
+        outcome, claim = auth.resolve_google_claim(
+            db, args.claim_id, approve=args.action == "approve"
+        )
+        if outcome is not auth.Outcome.OK or claim is None:
             print(f"claim {args.claim_id} not found or already decided", file=sys.stderr)
             return 1
         db.commit()
-        print(f"claim {args.claim_id} {args.action}d; it takes effect at the next Google sign-in")
+        print(f"claim {claim.id} for {claim.email}: {claim.status}")
+        if claim.status == "approved":
+            print("It takes effect at the next Google sign-in, if the account is still unproven.")
         return 0
 
 

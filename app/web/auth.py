@@ -523,6 +523,16 @@ def google_callback(
             link=request.url_for("forgot_page").path,
             link_text="signin.forgot",
         )
+    elif outcome is auth.Outcome.CLAIM_REJECTED:
+        response = notice_page(
+            request,
+            None,
+            status=403,
+            title="google.claim_refused_title",
+            text="google.claim_refused_text",
+            link=request.url_for("forgot_page").path,
+            link_text="signin.forgot",
+        )
     elif outcome is auth.Outcome.EMAIL_TAKEN:
         response = signin_page_response(
             request, next_url="/account", error="signin.google_taken", status=409
