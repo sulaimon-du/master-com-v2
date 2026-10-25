@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% import "partials/forms.html" as forms with context %}
+{% block title %}{{ t('register.title') }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-md gap-6">
+  <h1 class="text-4xl">{{ t('register.title') }}</h1>
+  <form method="post" action="{{ url_for('register_submit').path }}" class="grid gap-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {{ forms.field('name', t('register.name'), errors, value=form.get('name', ''), autocomplete='name') }}
+    {{ forms.field('email', t('register.email'), errors, type='email', value=form.get('email', ''), autocomplete='email') }}
+    {{ forms.field('password', t('register.password'), errors, type='password', autocomplete='new-password') }}
+    <button class="btn btn-primary" type="submit">{{ t('register.submit') }}</button>
+  </form>
+  <p class="text-sm text-muted">{{ t('register.have') }} <a class="link" href="{{ url_for('signin_page').path }}">{{ t('nav.signin') }}</a></p>
+</section>
+{% endblock %}

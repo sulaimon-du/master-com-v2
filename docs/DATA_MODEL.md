@@ -24,6 +24,10 @@ Conventions: `bigint` identity keys (small `int` for reference tables); timestam
 | `profile_claims` | "This is me" on imported profiles | one pending claim per user and profile |
 | `data_removal_requests` | "Remove my data" | resolved ⇔ `resolved_at` |
 | `import_blocklist` | Never re-import removed people | only HMAC-SHA256 hex values (keyed with a server secret), unique per kind |
+| `auth_sessions` | Signed-in browsers (week 3, R-019) | only the SHA-256 of the session ID is stored; cascades with the user |
+| `auth_tokens` | One-time confirmation and reset links | purpose `confirm_email` or `reset_password`; hash only; `used_at` makes each link single-use |
+| `rate_limits` | Fixed-window counters (BRIEF §6.3) | key is a hash of scope and identity |
+| `oauth_flows` | Google sign-in or link in progress | state hash, nonce and PKCE verifier; deleted when the callback runs |
 
 ## Rating (BRIEF §4.11)
 

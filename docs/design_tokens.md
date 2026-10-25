@@ -223,6 +223,7 @@ Shared: fonts load from Google Fonts with Tajik coverage verified (ғ ӣ қ ӯ �
 - Radii: button 12px, card 12px, input 12px, small 10px; portfolio grid gap 2px
 - Default theme: system
 - Signature details: same as typographic
+- Danger: owner-approved red for form errors and error notices (R-020). Contrast: 6.5 on background and 5.8 on surface 2 (light), 8.6 on background, 8.0 on surface and 7.2 on surface 2 (dark), 5.7 / 7.1 against the danger tint; all pass WCAG AA.
 
 | Token | Light | Dark |
 |---|---|---|
@@ -238,3 +239,5 @@ Shared: fonts load from Google Fonts with Tajik coverage verified (ғ ӣ қ ӯ �
 | Text on accent | `#FFFFFF` | `#111111` |
 | Accent tint | `#FFF1B8` | `#3A3000` |
 | Text on tint | `#3D3200` | `#FFE066` |
+| Danger (errors) | `#B3261E` | `#FF8A80` |
+| Danger tint | `#FDECEA` | `#3A1412` |
