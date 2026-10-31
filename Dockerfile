@@ -1,5 +1,5 @@
 # ---- 1. Static assets: Tailwind CSS, vendored htmx + Alpine (CSP build), self-hosted fonts ----
-FROM node:22.22.0-bookworm-slim AS assets
+FROM node:26.12.1-bookworm-slim AS assets
 WORKDIR /src
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
