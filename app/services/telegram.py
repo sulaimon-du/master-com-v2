@@ -87,7 +87,7 @@ def issue_signin(
             token_hash=hash_token(raw),
             telegram_id=telegram_id,
             first_name=first_name.strip()[:80],
-            language_code=language_code,
+            language_code=(language_code or "")[:8] or None,
             created_at=now,
             expires_at=now + SIGNIN_TTL,
         )
@@ -117,40 +117,45 @@ def sign_in_with_telegram(
     """
     if not rate_limit.allow(db, "login_ip", ip, limit=30, window=auth.LOGIN_WINDOW):
         return auth.Outcome.RATE_LIMITED, None
+    token_hash = hash_token(raw)
+    # Lock the user before the token row, as `auth._consume_token` does, so the two cannot
+    # deadlock. The first read is unlocked: it only finds out whose link this is.
+    telegram_id = db.scalar(
+        select(TelegramSignin.telegram_id).where(TelegramSignin.token_hash == token_hash)
+    )
+    if telegram_id is None:
+        return auth.Outcome.BAD_LINK, None
+    user = _lock_user(db, telegram_id)
     # Atomic: the link works exactly once, even for two simultaneous requests.
     row = db.execute(
         update(TelegramSignin)
         .where(
-            TelegramSignin.token_hash == hash_token(raw),
+            TelegramSignin.token_hash == token_hash,
             TelegramSignin.used_at.is_(None),
             TelegramSignin.expires_at > utcnow(),
         )
         .values(used_at=utcnow())
-        .returning(
-            TelegramSignin.telegram_id, TelegramSignin.first_name, TelegramSignin.language_code
-        )
+        .returning(TelegramSignin.first_name, TelegramSignin.language_code)
     ).first()
-    if row is None:
+    if row is None or (user is not None and not auth._is_active(user)):
         return auth.Outcome.BAD_LINK, None
-    telegram_id, first_name, language_code = row
-
-    user = _lock_user(db, telegram_id)
     if user is None:
+        first_name, language_code = row
         try:
             with db.begin_nested():
                 user = User(
                     telegram_id=telegram_id,
                     email=None,
                     name=first_name.strip()[:80] or None,
-                    locale="tg" if language_code == "tg" else lang,
+                    locale="tg" if language_code == "tg" else normalize_lang(lang),
                 )
                 db.add(user)
                 db.flush()
         except IntegrityError:
             # Another request created this account first: use it.
             user = _lock_user(db, telegram_id)
-    if user is None or not auth._is_active(user):
-        return auth.Outcome.BAD_LINK, None
+        if user is None or not auth._is_active(user):
+            return auth.Outcome.BAD_LINK, None
     return auth.Outcome.OK, user
 
 

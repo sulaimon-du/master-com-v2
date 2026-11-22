@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 import pytest
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 
 from app.core.time import utcnow
 from app.models.auth import TelegramSignin
@@ -189,3 +189,31 @@ def test_new_user_name_is_trimmed_and_empty_becomes_none(db):
         db, ip="1.1.1.1", raw=_issue(db, telegram_id=5, first_name="   "), lang="ru"
     )
     assert other.name is None
+
+
+def test_used_or_expired_token_creates_no_account(db):
+    used = _issue(db, telegram_id=801)
+    sign_in_with_telegram(db, ip="1.1.1.1", raw=used, lang="ru")
+    expired = _issue(db, telegram_id=802)
+    db.execute(
+        update(TelegramSignin)
+        .where(TelegramSignin.telegram_id == 802)
+        .values(expires_at=utcnow() - timedelta(seconds=1))
+    )
+    db.execute(delete(User).where(User.telegram_id == 801))
+    before = _user_count(db)
+    assert sign_in_with_telegram(db, ip="1.1.1.1", raw=used, lang="ru")[0] is Outcome.BAD_LINK
+    assert sign_in_with_telegram(db, ip="1.1.1.1", raw=expired, lang="ru")[0] is Outcome.BAD_LINK
+    assert _user_count(db) == before
+
+
+def test_long_language_code_is_truncated(db):
+    raw = _issue(db, language_code="x" * 20)
+    assert raw is not None
+    stored = db.scalar(select(TelegramSignin.language_code))
+    assert stored == "x" * 8
+
+
+def test_unknown_site_language_falls_back_to_ru(db):
+    _, user = sign_in_with_telegram(db, ip="1.1.1.1", raw=_issue(db, language_code="en"), lang="xx")
+    assert user.locale == "ru"
