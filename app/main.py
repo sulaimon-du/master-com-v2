@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api import health
+from app.core.body_limit import BodyLimitMiddleware
 from app.core.config import Settings, get_settings
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.web import account, auth, master, media, pages, telegram
@@ -32,6 +33,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.add_middleware(SecurityHeadersMiddleware, hsts=settings.is_production_like)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
+    # Added last, so it runs first: the body is capped before anything else sees it.
+    app.add_middleware(BodyLimitMiddleware)
 
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     app.include_router(health.router)
