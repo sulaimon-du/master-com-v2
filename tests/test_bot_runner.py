@@ -230,3 +230,38 @@ def test_callback_is_answered_when_the_dialog_fails(offline_bot) -> None:
     monkeypatch.setattr(runner.dialog, "on_callback", boom)
     feed(_update("private", callback=True))
     assert answered == ["q1"]
+
+
+def _tap(offline_bot, *, edit_fails: bool) -> tuple[list[object], list[str]]:
+    from aiogram.types import Message
+
+    _calls, answered, feed, monkeypatch = offline_bot
+    edits: list[object] = []
+
+    async def edit_reply_markup(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        edits.append(kwargs.get("reply_markup", "missing"))
+        if edit_fails:
+            raise RuntimeError("message is too old")
+
+    monkeypatch.setattr(Message, "edit_reply_markup", edit_reply_markup)
+    feed(_update("private", callback=True))
+    return edits, answered
+
+
+def test_buttons_are_removed_after_a_tap(offline_bot) -> None:
+    edits, answered = _tap(offline_bot, edit_fails=False)
+    assert edits == [None]
+    assert answered == ["q1"]
+
+
+def test_failing_button_removal_never_masks_the_reply(offline_bot) -> None:
+    sent: list[str] = []
+
+    async def record_send(bot, chat_id, reply):  # type: ignore[no-untyped-def]
+        sent.append(reply.text)
+
+    offline_bot[3].setattr(runner, "_send", record_send)
+    edits, answered = _tap(offline_bot, edit_fails=True)
+    assert edits == [None]
+    assert sent == ["ok"]
+    assert answered == ["q1"]

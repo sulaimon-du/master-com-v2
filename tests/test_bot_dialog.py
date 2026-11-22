@@ -109,6 +109,20 @@ def test_callback_yes_links_and_asks_for_contact() -> None:
     assert again.text == _t("bot.link_expired")
 
 
+def test_callback_yes_with_verified_phone_does_not_ask_for_contact() -> None:
+    uid = make_user()
+    with get_sessionmaker()() as db:
+        user = db.get(User, uid)
+        user.phone, user.phone_verified_at = "+992900112233", utcnow()
+        db.commit()
+    raw = _link_token(uid)
+    yes = dialog.on_start(_tg(), f"link_{raw}").buttons[0]
+    r = dialog.on_callback(_tg(), yes.callback or "")
+    assert r.text == _t("bot.linked")
+    assert r.ask_contact is False
+    assert _db_user(uid).telegram_id == TG_ID
+
+
 def test_callback_same_telegram_already_linked_is_linked() -> None:
     uid = _linked_user()
     raw = _link_token(uid)

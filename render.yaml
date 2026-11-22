@@ -51,7 +51,7 @@ services:
       - key: DATABASE_URL
         sync: false # the same Neon connection string as the web service
       - key: SECRET_KEY
-        sync: false # must equal the web service's SECRET_KEY (it signs the bot's callback data)
+        generateValue: true # signs only the bot's own buttons; need not match the site's
       - key: TELEGRAM_BOT_TOKEN
         sync: false # the staging bot from BotFather (never the development bot)
       - key: TELEGRAM_WEBHOOK_SECRET

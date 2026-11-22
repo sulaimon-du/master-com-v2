@@ -139,6 +139,16 @@ async def on_text(message: Message, bot: Bot) -> None:
     logger.info("bot update=message outcome=help")
 
 
+async def _remove_buttons(query: CallbackQuery) -> None:
+    """Take the Yes/Cancel buttons off the message so a second tap is impossible."""
+    if not isinstance(query.message, Message):
+        return
+    try:
+        await query.message.edit_reply_markup(reply_markup=None)
+    except Exception as exc:  # never mask the reply; the message may be too old to edit
+        logger.warning("bot could not remove buttons: %s", type(exc).__name__)
+
+
 async def on_callback(query: CallbackQuery, bot: Bot) -> None:
     user = _tg_user(query)
     try:
@@ -148,6 +158,7 @@ async def on_callback(query: CallbackQuery, bot: Bot) -> None:
     finally:
         # Always answered, even when the dialog fails, so the button stops spinning.
         await query.answer()
+    await _remove_buttons(query)
     await _send(bot, user.id, reply)
     kind = "cancel" if query.data == dialog.CANCEL else "confirm"
     logger.info("bot update=callback kind=%s outcome=replied", kind)

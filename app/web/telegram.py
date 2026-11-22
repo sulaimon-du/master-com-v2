@@ -1,7 +1,8 @@
 """Telegram sign-in page and link start. Rules live in app/services/telegram.py.
 
-The one-time token sits in the path, so it is never logged here. Opening the page does not use
-it (messengers and scanners preview links); only the POST does.
+The one-time token sits in the path. The app never logs it, but the HTTP access log records
+the path (`/auth/telegram/<token>`); the token is single-use and expires in 10 minutes. Opening
+the page does not use it (messengers and scanners preview links); only the POST does.
 """
 
 from typing import Annotated

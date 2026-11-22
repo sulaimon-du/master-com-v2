@@ -100,6 +100,27 @@ def test_signin_creates_an_account_without_email(db):
     assert user.locale == "tg"
 
 
+def test_signin_first_sign_in_race_uses_the_existing_account(db, monkeypatch):
+    # The unlocked lookup misses the account another request has just created: the insert hits
+    # the unique index, and the re-select finds the account. No error, same user.
+    existing = _web_user(db, telegram_id=777)
+    raw = _issue(db)
+    before = _user_count(db)
+    real = telegram._lock_user
+    calls = []
+
+    def lock_once_blind(db_, telegram_id):
+        calls.append(telegram_id)
+        return None if len(calls) == 1 else real(db_, telegram_id)
+
+    monkeypatch.setattr(telegram, "_lock_user", lock_once_blind)
+    outcome, user = sign_in_with_telegram(db, ip="1.1.1.1", raw=raw, lang="ru")
+    assert outcome is Outcome.OK
+    assert user is existing
+    assert len(calls) == 2
+    assert _user_count(db) == before
+
+
 def test_signin_uses_the_site_language_for_other_telegram_languages(db):
     raw = _issue(db, language_code="en")
     _, user = sign_in_with_telegram(db, ip="1.1.1.1", raw=raw, lang="ru")

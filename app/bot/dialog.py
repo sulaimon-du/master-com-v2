@@ -129,11 +129,13 @@ def on_callback(user: TgUser, data: str) -> Reply:
         token_id = telegram.token_id_from_callback(data, user.id)
         if token_id is None:
             return Reply(translate(lang, "bot.link_expired"))
-        outcome, _ = telegram.confirm_link(db, token_id=token_id, telegram_id=user.id)
-        key = _LINK_OUTCOMES.get(outcome, "bot.link_expired")
+        outcome, linked = telegram.confirm_link(db, token_id=token_id, telegram_id=user.id)
+        key = _LINK_OUTCOMES[outcome]
         # The account may have just gained a Telegram ID, and with it its own language.
         lang = _lang(db, user)
-        return Reply(translate(lang, key), ask_contact=outcome is Outcome.OK, lang=lang)
+        # No contact request when the account's phone is already verified.
+        ask = outcome is Outcome.OK and linked is not None and linked.phone_verified_at is None
+        return Reply(translate(lang, key), ask_contact=ask, lang=lang)
 
     return _run(run)
 
@@ -157,7 +159,7 @@ def on_contact(user: TgUser, contact_user_id: int | None, phone_number: str) -> 
             db, telegram_id=user.id, contact_user_id=contact_user_id, phone_number=phone_number
         )
         lang = _lang(db, user)
-        key = _PHONE_OUTCOMES.get(outcome, "bot.not_linked")
+        key = _PHONE_OUTCOMES[outcome]
         buttons: tuple[Button, ...] = ()
         if outcome in (Outcome.OK, Outcome.ALREADY, Outcome.NOT_LINKED):
             buttons = (Button(translate(lang, "bot.open_account"), url=_site("/account")),)
