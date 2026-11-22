@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{{ t('telegram.signin_title') }} · {{ app_name }}{% endblock %}
+{% block content %}
+{# A form, not a link: previews and scanners that open links must not use up the token. #}
+<section class="mx-auto grid max-w-md gap-6">
+  <h1 class="text-4xl">{{ t('telegram.signin_title') }}</h1>
+  <p class="text-muted">{{ t('telegram.signin_confirm', name=first_name) }}</p>
+  <form method="post" action="{{ url_for('telegram_signin_submit', token=token).path }}" class="grid gap-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button class="btn btn-primary" type="submit">{{ t('telegram.signin_submit') }}</button>
+  </form>
+  <p class="text-sm text-muted">{{ t('telegram.signin_in_app_hint') }}</p>
+</section>
+{% endblock %}

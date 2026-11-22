@@ -10,6 +10,11 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-that-is-long-enough-123456"
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://mc:mc@localhost:5432/mastercom_test")
 # Process env wins over a developer's .env, so a local .env cannot drop the test host.
 os.environ.setdefault("ALLOWED_HOSTS", '["testserver", "localhost", "127.0.0.1"]')
+# Telegram off in tests whatever a developer's .env says; tests that need it set it themselves.
+os.environ.setdefault("TELEGRAM_BOT_TOKEN", "")
+os.environ.setdefault("TELEGRAM_BOT_USERNAME", "")
+os.environ.setdefault("TELEGRAM_WEBHOOK_SECRET", "")
+os.environ.setdefault("TELEGRAM_WEBHOOK_URL", "")
 
 from alembic import command
 from alembic.config import Config
@@ -59,8 +64,8 @@ def clean_auth(migrated_engine) -> None:
     with migrated_engine.begin() as conn:
         conn.execute(
             text(
-                "TRUNCATE auth_sessions, auth_tokens, oauth_flows, rate_limits, users "
-                "RESTART IDENTITY CASCADE"
+                "TRUNCATE auth_sessions, auth_tokens, oauth_flows, rate_limits, "
+                "telegram_signins, users RESTART IDENTITY CASCADE"
             )
         )
 

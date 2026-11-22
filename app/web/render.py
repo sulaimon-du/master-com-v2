@@ -3,7 +3,7 @@ from functools import partial
 from fastapi import Request
 from fastapi.responses import HTMLResponse
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.i18n import translate
 from app.core.security import new_token
 from app.models.user import User
@@ -11,6 +11,12 @@ from app.schemas.account import AccountView
 from app.web.cookies import CSRF, CSRF_MAX_AGE, cookie_name, set_cookie
 from app.web.deps import current_lang
 from app.web.templating import templates
+
+
+def _bot_url(settings: Settings, start: str) -> str | None:
+    if not settings.telegram_enabled:
+        return None
+    return f"https://t.me/{settings.telegram_bot_username}?start={start}"
 
 
 def render(
@@ -34,6 +40,9 @@ def render(
         # Templates get a view without sensitive fields, never the ORM object.
         "user": AccountView.from_user(user) if user else None,
         "google_enabled": settings.google_enabled,
+        "telegram_enabled": settings.telegram_enabled,
+        "telegram_signin_url": _bot_url(settings, "login"),
+        "telegram_phone_url": _bot_url(settings, "phone"),
         **context,
     }
     response = templates.TemplateResponse(request, template, page, status_code=status)

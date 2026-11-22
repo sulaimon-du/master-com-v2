@@ -27,6 +27,22 @@
       <p class="text-sm text-muted">{{ t('account.google_unavailable') }}</p>
       {% endif %}
     </div>
+    <div class="card grid gap-3">
+      <p><strong>{{ t('account.telegram') }}</strong>: {{ t('account.telegram_linked') if user.telegram_linked else t('account.telegram_not_linked') }}</p>
+      {% if user.phone %}
+      <p><span class="text-muted">{{ t('account.phone') }}:</span> {{ user.phone }}{% if user.phone_verified %} <span class="text-muted">({{ t('account.phone_verified') }})</span>{% endif %}</p>
+      {% endif %}
+      {% if telegram_enabled and not user.telegram_linked %}
+      <form method="post" action="{{ url_for('telegram_link').path }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-secondary" type="submit">{{ t('account.telegram_link') }}</button>
+      </form>
+      {% elif telegram_enabled and not user.phone_verified %}
+      <a class="btn btn-secondary no-underline" href="{{ telegram_phone_url }}">{{ t('account.phone_verify') }}</a>
+      {% elif not telegram_enabled and not user.telegram_linked %}
+      <p class="text-sm text-muted">{{ t('account.telegram_unavailable') }}</p>
+      {% endif %}
+    </div>
   </div>
 
   <div class="grid gap-3">

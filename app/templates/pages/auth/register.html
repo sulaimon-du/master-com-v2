@@ -11,6 +11,9 @@
     {{ forms.field('password', t('register.password'), errors, type='password', autocomplete='new-password') }}
     <button class="btn btn-primary" type="submit">{{ t('register.submit') }}</button>
   </form>
+  {% if telegram_enabled %}
+  <a class="btn btn-secondary no-underline" href="{{ telegram_signin_url }}">{{ t('telegram.signin_button') }}</a>
+  {% endif %}
   <p class="text-sm text-muted">{{ t('register.have') }} <a class="link" href="{{ url_for('signin_page').path }}">{{ t('nav.signin') }}</a></p>
 </section>
 {% endblock %}

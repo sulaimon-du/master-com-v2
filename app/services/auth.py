@@ -50,6 +50,14 @@ class Outcome(Enum):
     GOOGLE_EMAIL_TAKEN = "google_email_taken"
     CLAIM_PENDING = "claim_pending"
     CLAIM_REJECTED = "claim_rejected"
+    TELEGRAM_TAKEN = "telegram_taken"
+    TELEGRAM_OTHER_LINKED = "telegram_other_linked"
+    PHONE_TAKEN = "phone_taken"
+    PHONE_CHANGE_NEEDS_SUPPORT = "phone_change_needs_support"
+    PHONE_INVALID = "phone_invalid"
+    NOT_OWN_CONTACT = "not_own_contact"
+    NOT_LINKED = "not_linked"
+    ALREADY = "already"
 
 
 def _is_active(user: User) -> bool:

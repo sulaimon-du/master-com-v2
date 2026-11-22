@@ -50,10 +50,13 @@ def test_render_hostname_is_trusted(monkeypatch) -> None:
     assert "master-com-staging.onrender.com" in s.allowed_hosts
 
 
-def test_form_action_allows_only_us_and_google(client: TestClient) -> None:
-    # "Link Google" posts a form that redirects to Google; without this the browser blocks it.
+def test_csp_allows_forms_to_redirect_to_telegram(client: TestClient) -> None:
+    # "Link Google" and "Sign in with Telegram" are POST forms answered by a redirect to Google or
+    # Telegram; without these origins the browser blocks them.
     csp = client.get("/").headers["content-security-policy"]
-    assert "form-action 'self' https://accounts.google.com;" in csp + ";"
+    assert "form-action 'self' https://accounts.google.com https://t.me;" in csp + ";"
+    assert "script-src 'self';" in csp + ";"
+    assert "frame-ancestors 'none'" in csp
 
 
 def test_routes_commit_before_the_response_is_sent() -> None:
