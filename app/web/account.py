@@ -11,11 +11,11 @@ from fastapi.responses import RedirectResponse, Response
 from app.core.config import get_settings
 from app.core.db import DbSession
 from app.models.user import User
-from app.services import auth, google_oidc
-from app.web.auth import NOTICES, notice_page
-from app.web.cookies import OAUTH, OAUTH_MAX_AGE, SESSION, delete_cookie, set_cookie
+from app.services import auth
+from app.web.auth import NOTICES, google_redirect, notice_page
+from app.web.cookies import SESSION, delete_cookie
 from app.web.csrf import CSRFProtected
-from app.web.deps import current_user
+from app.web.deps import client_ip, current_user
 from app.web.render import render
 
 router = APIRouter(include_in_schema=False)
@@ -50,16 +50,12 @@ def google_link(
         return notice_page(
             request, user, status=404, title="error.not_found", text="error.not_found"
         )
+    if not auth.allow_google_start(db, ip=client_ip(request)):
+        return notice_page(
+            request, user, status=429, title="error.rate_limited_title", text="error.rate_limited"
+        )
     # POST with CSRF: a link started from another site would attach the attacker's Google account.
-    state, url = google_oidc.begin_flow(
-        db,
-        redirect_uri=str(request.url_for("google_callback")),
-        client_id=settings.google_client_id or "",
-        user_id=user.id,
-    )
-    response = RedirectResponse(url, status_code=303)
-    set_cookie(response, OAUTH, state, settings, max_age=OAUTH_MAX_AGE)
-    return response
+    return google_redirect(request, db, user_id=user.id)
 
 
 @router.post("/account/sessions/revoke", name="revoke_sessions", dependencies=[CSRFProtected])

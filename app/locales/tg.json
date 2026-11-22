@@ -62,6 +62,7 @@
   "account.signout": "Баромад",
   "account.linked_ok": "Google ба ҳисоб пайваст шуд.",
   "account.linked_taken": "Ин ҳисоби Google аллакай ба ҳисоби дигар пайваст аст.",
+  "account.linked_email_taken": "Почтаи ин ҳисоби Google ба ҳисоби дигари Master COM тааллуқ дорад. Онро пайваст кардан мумкин нест.",
   "account.linked_already": "Ба ҳисоб Google аллакай пайваст аст.",
   "account.linked_failed": "Пайваст кардани Google муваффақ нашуд. Дубора кӯшиш кунед.",
   "account.signed_out": "Шумо аз ҳисоб баромадед.",

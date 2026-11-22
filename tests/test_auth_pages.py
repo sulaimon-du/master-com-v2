@@ -83,6 +83,14 @@ def test_language_switch_returns_to_the_same_page(client: TestClient) -> None:
     assert "/lang/ru?next=/register" in html
 
 
+def test_language_switch_keeps_the_query_string(client: TestClient) -> None:
+    # Switching language on a confirm or reset page must not drop ?token=.
+    html = client.get("/password/reset?token=abc").text
+    assert "/lang/tg?next=/password/reset%3Ftoken%3Dabc" in html
+    r = client.get("/lang/tg?next=/password/reset%3Ftoken%3Dabc")
+    assert r.headers["location"] == "/password/reset?token=abc"
+
+
 def test_templates_get_a_view_without_sensitive_fields(client: TestClient) -> None:
     from app.schemas.account import AccountView
 

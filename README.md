@@ -52,11 +52,15 @@ Schema and rules: [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md). Reference data liv
 | `/` | Home page (placeholder) |
 | `/health` | Liveness: the process is up |
 | `/health/ready` | Readiness: the database answers (503 if not) |
-| `/signin`, `/register`, `/signout` | Password sign-in, registration, sign-out |
+| `/signin`, `/register` | Password sign-in, registration |
+| `POST /signout` | Sign out of this browser |
 | `/confirm`, `/confirm/resend` | Email confirmation |
 | `/password/forgot`, `/password/reset` | Password reset |
 | `/auth/google/start`, `/auth/google/callback` | Google sign-in (only when configured) |
 | `/account` | Account settings: sign-in methods, link Google, sign out everywhere |
+| `POST /account/google/link` | Start linking Google to the signed-in account |
+| `POST /account/sessions/revoke` | Sign out on every device |
+| `/lang/{code}` | Switch language (`ru`, `tg`) and return to the same page |
 
 ## Staging
 

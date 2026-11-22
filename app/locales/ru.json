@@ -62,6 +62,7 @@
   "account.signout": "Выйти",
   "account.linked_ok": "Google привязан к аккаунту.",
   "account.linked_taken": "Этот Google-аккаунт уже привязан к другому аккаунту.",
+  "account.linked_email_taken": "Почта этого Google-аккаунта принадлежит другому аккаунту Master COM. Привязать его нельзя.",
   "account.linked_already": "К аккаунту уже привязан Google.",
   "account.linked_failed": "Не удалось привязать Google. Попробуйте ещё раз.",
   "account.signed_out": "Вы вышли из аккаунта.",

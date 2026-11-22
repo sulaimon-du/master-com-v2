@@ -188,3 +188,52 @@ def test_reset_burns_open_confirmation_links(client: TestClient, outbox) -> None
     post(client, "/password/reset", {"token": link_from(outbox), "password": "brand new pass 1"})
     r = post(client, "/confirm", {"token": confirm_token, "password": "brand new pass 1"})
     assert r.status_code == 400
+
+
+def test_account_blocked_while_confirmation_waits_is_not_confirmed(
+    client: TestClient, outbox
+) -> None:
+    """The block must be seen after the row lock, not from a copy read before it."""
+    import threading
+    import time
+
+    from app.services import auth
+
+    _register(client)
+    token = link_from(outbox)
+    sessions = get_sessionmaker()
+    holder = sessions()
+    holder.execute(text("UPDATE users SET blocked_at = now() WHERE email = 'ana@example.com'"))
+    result: dict[str, object] = {}
+
+    def run_confirm() -> None:
+        with sessions() as db:
+            try:
+                result["outcome"], _ = auth.confirm_email(
+                    db, ip="203.0.113.9", raw=token, password=PASSWORD
+                )
+                db.commit()
+            except Exception as exc:  # reported by the assertion below
+                result["error"] = exc
+
+    worker = threading.Thread(target=run_confirm)
+    worker.start()
+    try:
+        with sessions() as probe:
+            for _ in range(200):
+                waiting = probe.execute(
+                    text(
+                        "SELECT count(*) FROM pg_stat_activity"
+                        " WHERE wait_event_type = 'Lock' AND datname = current_database()"
+                    )
+                ).scalar_one()
+                probe.rollback()
+                if waiting:
+                    break
+                time.sleep(0.05)
+        holder.commit()
+    finally:
+        holder.close()
+        worker.join(10)
+    assert "error" not in result, result
+    assert result["outcome"] is auth.Outcome.BAD_LINK

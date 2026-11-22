@@ -154,8 +154,15 @@ def test_unverified_google_email_is_refused(client: TestClient, google, signing_
 
 def test_expired_id_token_is_refused(client: TestClient, google, signing_key) -> None:  # type: ignore[no-untyped-def]
     state, _ = _start(client)
-    google["id_token"] = _id_token(signing_key, _nonce_of(client), exp=int(time.time()) - 60)
+    google["id_token"] = _id_token(signing_key, _nonce_of(client), exp=int(time.time()) - 120)
     assert client.get(f"/auth/google/callback?state={state}&code=abc").status_code == 400
+
+
+def test_small_clock_skew_with_google_is_tolerated(client: TestClient, google, signing_key) -> None:  # type: ignore[no-untyped-def]
+    state, _ = _start(client)
+    google["id_token"] = _id_token(signing_key, _nonce_of(client), iat=int(time.time()) + 30)
+    r = client.get(f"/auth/google/callback?state={state}&code=abc")
+    assert r.headers["location"] == "/account"
 
 
 def test_google_email_matching_a_password_account_is_not_merged(
@@ -223,6 +230,22 @@ def test_linking_a_google_account_used_elsewhere_is_refused(
             ).scalar_one()
             is None
         )
+
+
+def test_linking_a_google_account_whose_email_belongs_to_another_user_is_refused(
+    client: TestClient, google, signing_key
+) -> None:  # type: ignore[no-untyped-def]
+    make_user("ana@example.com")
+    make_user("bo@example.com")
+    sign_in(client)
+    post(client, "/account/google/link")
+    state = client.cookies.get("mc_oauth")
+    google["id_token"] = _id_token(signing_key, _nonce_of(client), email="Bo@example.com")
+    done = client.get(f"/auth/google/callback?state={state}&code=abc")
+    assert done.headers["location"] == "/account?notice=email_taken"
+    with get_sessionmaker()() as db:
+        rows = db.execute(text("SELECT google_sub FROM users")).scalars().all()
+        assert rows == [None, None]
 
 
 def test_link_callback_for_a_different_signed_in_user_is_refused(
@@ -379,6 +402,15 @@ def test_claims_list_shows_pending_requests(
 def test_google_start_is_rate_limited(client: TestClient, google) -> None:  # type: ignore[no-untyped-def]
     for _ in range(30):
         assert client.get("/auth/google/start").status_code == 303
+    assert client.get("/auth/google/start").status_code == 429
+
+
+def test_google_link_start_shares_the_start_limit(client: TestClient, google) -> None:  # type: ignore[no-untyped-def]
+    make_user()
+    sign_in(client)
+    for _ in range(30):
+        assert post(client, "/account/google/link").status_code == 303
+    assert post(client, "/account/google/link").status_code == 429
     assert client.get("/auth/google/start").status_code == 429
 
 

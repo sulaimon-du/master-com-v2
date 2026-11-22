@@ -143,6 +143,7 @@ def verify_id_token(id_token: str, *, client_id: str, nonce: str) -> GoogleIdent
             algorithms=["RS256"],
             audience=client_id,
             issuer=ISSUERS,
+            leeway=60,  # clock skew between Google and the host
             options={"require": ["exp", "iat", "iss", "aud", "sub", "nonce", "email"]},
         )
     except (jwt.PyJWTError, jwt.PyJWKClientError) as exc:

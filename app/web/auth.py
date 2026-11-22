@@ -43,6 +43,7 @@ NOTICES = {
     "linked": "account.linked_ok",
     "already": "account.linked_already",
     "taken": "account.linked_taken",
+    "email_taken": "account.linked_email_taken",
     "failed": "account.linked_failed",
     "signed_out": "account.signed_out",
     "confirmed": "confirm.done_title",
@@ -423,7 +424,7 @@ def reset_submit(
 # --- Google ------------------------------------------------------------------------------
 
 
-def _google_redirect(request: Request, db: Session, user_id: int | None) -> RedirectResponse:
+def google_redirect(request: Request, db: Session, user_id: int | None) -> RedirectResponse:
     settings = get_settings()
     state, url = google_oidc.begin_flow(
         db,
@@ -446,7 +447,7 @@ def google_start(request: Request, db: DbSession) -> Response:
         return notice_page(
             request, None, status=429, title="error.rate_limited_title", text="error.rate_limited"
         )
-    return _google_redirect(request, db, user_id=None)
+    return google_redirect(request, db, user_id=None)
 
 
 def _google_fail(request: Request, user: User | None, status: int = 400) -> HTMLResponse:
@@ -503,6 +504,7 @@ def google_callback(
             auth.Outcome.OK: "linked",
             auth.Outcome.GOOGLE_ALREADY_LINKED: "already",
             auth.Outcome.GOOGLE_TAKEN: "taken",
+            auth.Outcome.GOOGLE_EMAIL_TAKEN: "email_taken",
         }.get(outcome, "failed")
         response = RedirectResponse(f"/account?notice={notice}", status_code=303)
         delete_cookie(response, OAUTH, settings)

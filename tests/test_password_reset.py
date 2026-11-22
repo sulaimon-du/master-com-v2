@@ -27,6 +27,14 @@ def test_forgot_password_looks_the_same_for_an_unknown_address(client: TestClien
     assert [m.to for m in outbox.sent] == ["ana@example.com"]
 
 
+def test_forgot_password_over_the_address_limit_is_silent(client: TestClient, outbox) -> None:
+    make_user()
+    answers = [post(client, "/password/forgot", {"email": "ana@example.com"}) for _ in range(4)]
+    assert [r.status_code for r in answers] == [200, 200, 200, 200]
+    assert answers[3].text.split("<main")[1] == answers[0].text.split("<main")[1]
+    assert len(outbox.sent) == 3
+
+
 def test_reset_sets_a_new_password_and_ends_old_sessions(client: TestClient, outbox) -> None:
     make_user()
     old = TestClient(client.app, follow_redirects=False)
@@ -117,3 +125,65 @@ def test_using_one_reset_link_kills_the_older_ones(client: TestClient, outbox) -
     replay = post(client, "/password/reset", {"token": older, "password": "attacker pass 99"})
     assert replay.status_code == 400
     assert sign_in(client, password="brand new pass 1").status_code == 303
+
+
+def test_reset_locks_the_user_before_the_link_so_a_google_handover_cannot_deadlock(
+    client: TestClient, outbox
+) -> None:
+    """The Google handover locks the user row, then burns links. Reset must take the same order.
+
+    Here a second transaction holds the user row (as the handover does) and then burns the
+    link. If reset grabbed the link row first, that burn would wait for reset while reset waits
+    for the user row: a deadlock, which Postgres resolves by failing one side with a 500.
+    """
+    import threading
+    import time
+
+    from app.services import auth
+
+    make_user()
+    post(client, "/password/forgot", {"email": "ana@example.com"})
+    token = link_from(outbox)
+    sessions = get_sessionmaker()
+    holder = sessions()
+    uid = holder.execute(
+        text("SELECT id FROM users WHERE email='ana@example.com' FOR UPDATE")
+    ).scalar_one()
+    result: dict[str, object] = {}
+
+    def run_reset() -> None:
+        with sessions() as db:
+            try:
+                result["outcome"] = auth.reset_password(
+                    db, ip="203.0.113.9", raw=token, password="a brand new pass"
+                )
+                db.commit()
+            except Exception as exc:  # reported by the assertion below
+                result["error"] = exc
+
+    worker = threading.Thread(target=run_reset)
+    worker.start()
+    try:
+        with sessions() as probe:
+            for _ in range(200):
+                waiting = probe.execute(
+                    text(
+                        "SELECT count(*) FROM pg_stat_activity"
+                        " WHERE wait_event_type = 'Lock' AND datname = current_database()"
+                    )
+                ).scalar_one()
+                probe.rollback()
+                if waiting:
+                    break
+                time.sleep(0.05)
+        holder.execute(text("SET LOCAL lock_timeout = '2s'"))
+        holder.execute(
+            text("UPDATE auth_tokens SET used_at = now() WHERE user_id = :u AND used_at IS NULL"),
+            {"u": uid},
+        )
+        holder.commit()
+    finally:
+        holder.close()
+        worker.join(10)
+    assert "error" not in result, result
+    assert result["outcome"] is auth.Outcome.BAD_LINK

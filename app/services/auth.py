@@ -47,6 +47,7 @@ class Outcome(Enum):
     EMAIL_TAKEN = "email_taken"
     GOOGLE_ALREADY_LINKED = "google_already_linked"
     GOOGLE_TAKEN = "google_taken"
+    GOOGLE_EMAIL_TAKEN = "google_email_taken"
     CLAIM_PENDING = "claim_pending"
     CLAIM_REJECTED = "claim_rejected"
 
@@ -83,6 +84,24 @@ def _issue_token(db: Session, user: User, purpose: str, ttl: timedelta) -> str:
 
 def _consume_token(db: Session, purpose: str, raw: str) -> User | None:
     """Mark the token used and return its user. Atomic, so a link works exactly once."""
+    owner = db.scalar(
+        select(AuthToken.user_id).where(
+            AuthToken.token_hash == hash_token(raw), AuthToken.purpose == purpose
+        )
+    )
+    if owner is None:
+        return None
+    # Lock the user before the token row, in the same order as the Google handover, so the two
+    # cannot deadlock (a deadlock would end one request with a 500). Reload it under the lock:
+    # a copy read earlier in this session could miss a block committed while we waited.
+    user = db.scalar(
+        select(User)
+        .where(User.id == owner)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if user is None or not _is_active(user):
+        return None
     row = db.execute(
         update(AuthToken)
         .where(
@@ -95,9 +114,6 @@ def _consume_token(db: Session, purpose: str, raw: str) -> User | None:
         .returning(AuthToken.user_id)
     ).first()
     if row is None:
-        return None
-    user = db.get(User, row.user_id)
-    if user is None or not _is_active(user):
         return None
     return user
 
@@ -347,7 +363,8 @@ def request_password_reset(
     if not rate_limit.allow(db, "reset_ip", ip, limit=20, window=HOUR):
         return Outcome.RATE_LIMITED
     if not rate_limit.allow(db, "reset_email", email, limit=3, window=HOUR):
-        return Outcome.RATE_LIMITED
+        # Silent like resend: a visible 429 would show that someone asked for this address.
+        return Outcome.SENT
     user = db.scalar(select(User).where(User.email == email))
     if user is not None and _is_active(user):
         raw = _issue_token(db, user, "reset_password", RESET_TTL)
@@ -513,6 +530,9 @@ def link_google(db: Session, user: User, identity: GoogleIdentity) -> Outcome:
     taken = db.scalar(select(User.id).where(User.google_sub == identity.sub))
     if taken is not None:
         return Outcome.GOOGLE_TAKEN
+    email_owner = db.scalar(select(User.id).where(User.email == identity.email, User.id != user.id))
+    if email_owner is not None:
+        return Outcome.GOOGLE_EMAIL_TAKEN
     try:
         with db.begin_nested():
             user.google_sub = identity.sub
