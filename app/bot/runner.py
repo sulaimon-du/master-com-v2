@@ -10,6 +10,7 @@ import asyncio
 import hmac
 import logging
 import os
+import re
 import traceback
 
 from aiogram import Bot, Dispatcher, F
@@ -38,6 +39,15 @@ logger = logging.getLogger("app.bot")
 WEBHOOK_PATH = "/telegram/webhook"
 
 Markup = InlineKeyboardMarkup | ReplyKeyboardMarkup | ReplyKeyboardRemove
+
+
+# Telegram's rule for setWebhook secret_token.
+SECRET_TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{1,256}")
+
+
+def clean_setting(value: str | None) -> str:
+    """Strip the spaces and line breaks a value often picks up when pasted into a dashboard."""
+    return (value or "").strip()
 
 
 def check_webhook_secret(header: str | None, expected: str) -> bool:
@@ -212,14 +222,16 @@ def main() -> None:
         level=settings.log_level,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
-    token = settings.telegram_bot_token.get_secret_value() if settings.telegram_bot_token else ""
+    token = clean_setting(
+        settings.telegram_bot_token.get_secret_value() if settings.telegram_bot_token else None
+    )
     if not token:
         raise SystemExit("TELEGRAM_BOT_TOKEN is not set; the bot cannot start.")
     webhook_url = settings.telegram_webhook_url or ""
-    secret = (
+    secret = clean_setting(
         settings.telegram_webhook_secret.get_secret_value()
         if settings.telegram_webhook_secret
-        else ""
+        else None
     )
     if not webhook_url and settings.is_production_like:
         # Polling would make Telegram drop this bot's webhook (D8: one bot per environment).
@@ -229,6 +241,13 @@ def main() -> None:
         )
     if webhook_url and not secret:
         raise SystemExit("TELEGRAM_WEBHOOK_SECRET is required in webhook mode.")
+    if webhook_url and not SECRET_TOKEN_RE.fullmatch(secret):
+        # Telegram's own error ("illegal characters") is easy to misread; never echo the value.
+        raise SystemExit(
+            "TELEGRAM_WEBHOOK_SECRET may contain only letters, digits, _ and - "
+            "(1-256 characters). Generate one with: "
+            'python3 -c "import secrets; print(secrets.token_urlsafe(32))"'
+        )
 
     dp = build_dispatcher()
     bot = Bot(token)
