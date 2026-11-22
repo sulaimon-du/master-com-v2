@@ -29,5 +29,26 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
 
+  # Telegram bot, long polling with the development bot's token from .env (README "Telegram bot").
+  # Its own process (R-003); no migrations or seed: the web service owns the schema.
+  bot:
+    # Off by default: it needs TELEGRAM_BOT_TOKEN. Start with `docker compose --profile bot up`.
+    profiles: ["bot"]
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://mc:mc@db:5432/mastercom
+      TELEGRAM_WEBHOOK_URL: ""
+    command: ["python", "-m", "app.bot"]
+    # Polling serves no HTTP, so the image's /health check does not apply.
+    healthcheck:
+      disable: true
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
   db-data:

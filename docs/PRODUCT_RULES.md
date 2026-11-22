@@ -41,7 +41,7 @@ Each item has my proposed default. "Needed by" refers to the 12-week plan in `BR
 | C6 | Review rules | Client can edit for 14 days; master can reply once publicly; master cannot delete | Week 10 |
 | C7 | Complaint reasons | Fixed list: spam, fraud, insult, fake photos, other (+ text) | Week 10 |
 | C8 | Chat history | Kept while both accounts exist; a deleted user shows as "Deleted user" | Week 10 |
-| C9 | Telegram bot texts and tone | Claude drafts ru and tg; owner approves | Week 4 |
+| C9 | Telegram bot texts and tone | Claude drafts ru and tg; owner approves. **Status (2026-11-22):** drafted by Claude, owner to approve (`bot.*` and `telegram.*` in `app/locales/{ru,tg}.json`, R-021) | Week 4 |
 
 ## D. Design and brand
 

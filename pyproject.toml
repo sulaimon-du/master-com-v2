@@ -12,6 +12,10 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.4",
     "jinja2>=3.1",
+    "argon2-cffi>=23.1",
+    "pyjwt[crypto]>=2.9",
+    "python-multipart>=0.0.20",
+    "aiogram>=3.31.0",
 ]
 
 [dependency-groups]
@@ -26,8 +30,9 @@ dev = [
 # Resolve only releases published at least two weeks before this date (supply-chain hygiene).
 exclude-newer = "2026-10-10T00:00:00Z"
 # Security fixes may be newer than the cutoff: allow them per package, with the advisory noted.
-# certifi PYSEC-2026-4320; filelock CVE-2026-112906 and related (fixed in 4.2.1).
-exclude-newer-package = { certifi = "2026-10-24T00:00:00Z", filelock = "2026-10-24T00:00:00Z" }
+# certifi PYSEC-2026-4320; filelock CVE-2026-112906 and related (fixed in 4.2.1);
+# opentelemetry-api CVE-2026-126360 (fixed in 1.45.2).
+exclude-newer-package = { certifi = "2026-10-24T00:00:00Z", filelock = "2026-10-24T00:00:00Z", opentelemetry-api = "2026-10-30T00:00:00Z" }
 package = false
 
 [tool.ruff]

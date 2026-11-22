@@ -17,6 +17,21 @@ class Settings(BaseSettings):
     database_url: PostgresDsn
     allowed_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]
     log_level: str = "INFO"
+    # Header a trusted proxy fills with the visitor's address, e.g. CF-Connecting-IP on Render
+    # (Cloudflare in front). Unset: the connection address is used. Set it only when every
+    # request passes through that proxy, or visitors could forge it (R-019).
+    client_ip_header: str | None = None
+    # Google sign-in (BRIEF §4.1). Both must be set to show the Google button.
+    google_client_id: str | None = None
+    google_client_secret: SecretStr | None = None
+    # Telegram bot: sign-in, linking and phone sharing. The username alone shows the Telegram
+    # buttons on the site; the token, webhook secret and URL are used only by the bot process.
+    telegram_bot_token: SecretStr | None = None
+    telegram_bot_username: str | None = None
+    telegram_webhook_secret: SecretStr | None = None
+    telegram_webhook_url: str | None = None
+    # Public address of the site, no trailing slash; the bot builds absolute links from it.
+    site_url: str = "http://localhost:8000"
 
     @field_validator("database_url", mode="before")
     @classmethod
@@ -40,6 +55,23 @@ class Settings(BaseSettings):
     @property
     def is_production_like(self) -> bool:
         return self.app_env in {"staging", "production"}
+
+    @property
+    def google_enabled(self) -> bool:
+        return bool(self.google_client_id and self.google_client_secret)
+
+    @property
+    def telegram_enabled(self) -> bool:
+        # The site only links to the bot, so the username is enough; the token lives only on
+        # the bot service (least privilege, R-021 D8).
+        return bool(self.telegram_bot_username)
+
+    @property
+    def secure_cookies(self) -> bool:
+        # Staging and production are HTTPS, so cookies get the __Host- prefix and Secure.
+        # Development and tests run on plain http://localhost, where the prefix would be
+        # refused by some browsers; they use the same names without the prefix (dev-only).
+        return self.is_production_like
 
 
 @lru_cache

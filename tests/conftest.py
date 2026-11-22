@@ -10,14 +10,21 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-that-is-long-enough-123456"
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://mc:mc@localhost:5432/mastercom_test")
 # Process env wins over a developer's .env, so a local .env cannot drop the test host.
 os.environ.setdefault("ALLOWED_HOSTS", '["testserver", "localhost", "127.0.0.1"]')
+# Telegram off in tests whatever a developer's .env says; tests that need it set it themselves.
+os.environ.setdefault("TELEGRAM_BOT_TOKEN", "")
+os.environ.setdefault("TELEGRAM_BOT_USERNAME", "")
+os.environ.setdefault("TELEGRAM_WEBHOOK_SECRET", "")
+os.environ.setdefault("TELEGRAM_WEBHOOK_URL", "")
 
 from alembic import command
 from alembic.config import Config
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
 from app.core.db import get_engine
 from app.main import create_app
+from app.services.email import OutgoingEmail, get_email_sender
 
 ALEMBIC_INI = os.path.join(os.path.dirname(__file__), "..", "alembic.ini")
 
@@ -28,9 +35,39 @@ def settings() -> Settings:
     return get_settings()
 
 
+class RecordingSender:
+    """Keeps sent emails in memory so tests can open the links they contain."""
+
+    def __init__(self) -> None:
+        self.sent: list[OutgoingEmail] = []
+
+    def send(self, message: OutgoingEmail) -> None:
+        self.sent.append(message)
+
+
 @pytest.fixture
-def client(settings: Settings) -> TestClient:
-    return TestClient(create_app(settings))
+def outbox() -> RecordingSender:
+    return RecordingSender()
+
+
+@pytest.fixture
+def client(settings: Settings, outbox: RecordingSender) -> TestClient:
+    app = create_app(settings)
+    app.dependency_overrides[get_email_sender] = lambda: outbox
+    # Redirects are asserted on directly (status, Location, Set-Cookie).
+    return TestClient(app, follow_redirects=False)
+
+
+@pytest.fixture
+def clean_auth(migrated_engine) -> None:
+    """Start from empty account tables. Routes commit for real, so tests cannot roll back."""
+    with migrated_engine.begin() as conn:
+        conn.execute(
+            text(
+                "TRUNCATE auth_sessions, auth_tokens, oauth_flows, rate_limits, "
+                "telegram_signins, users RESTART IDENTITY CASCADE"
+            )
+        )
 
 
 @pytest.fixture(scope="session")

@@ -14,7 +14,9 @@ CSP = "; ".join(
         "connect-src 'self'",
         "object-src 'none'",
         "base-uri 'self'",
-        "form-action 'self'",
+        # "Link Google" and "Sign in with Telegram" are POST forms answered by a redirect to
+        # Google or Telegram; browsers check form-action against that redirect too (R-019).
+        "form-action 'self' https://accounts.google.com https://t.me",
         "frame-ancestors 'none'",
     ]
 )

@@ -16,8 +16,8 @@ jobs:
   lint:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.11.32"
       - run: uv sync --frozen
@@ -42,14 +42,14 @@ jobs:
       SECRET_KEY: ci-secret-key-that-is-long-enough-1234567890
       DATABASE_URL: postgresql+psycopg://mc:mc@localhost:5432/mastercom_test
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22.22.0"
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npm run build
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.11.32"
       - run: uv sync --frozen
@@ -68,13 +68,13 @@ jobs:
   audit:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
         with:
           version: "0.11.32"
       - run: uv sync --frozen
       - run: uv run pip-audit
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22.22.0"
       - run: npm audit --audit-level=high
@@ -83,6 +83,6 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [lint, test]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build the production image
         run: docker build -t master-com:ci .
