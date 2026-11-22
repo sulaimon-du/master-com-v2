@@ -211,5 +211,17 @@
   "account.master_become": "Я мастер",
   "account.master_profile": "Моя анкета мастера",
   "account.master_edit": "Редактировать анкету",
-  "account.heading_master": "Мастер"
+  "account.heading_master": "Мастер",
+  "profile.draft": "Черновик — анкета пока не публичная",
+  "profile.notice_published": "Анкета опубликована. Теперь её видят все.",
+  "profile.available": "Принимает заказы",
+  "profile.unavailable": "Сейчас не принимает заказы",
+  "profile.experience": "опыт {years} лет",
+  "profile.specialties": "Специальности",
+  "profile.areas": "Где работает",
+  "profile.contacts_signin": "Войдите, чтобы увидеть контакты",
+  "profile.works": "Работы",
+  "profile.works_empty": "Пока нет фото работ.",
+  "profile.works_owner_hint": "Портфолио с фото работ появится на следующем шаге.",
+  "profile.since": "На сайте с {date}"
 }

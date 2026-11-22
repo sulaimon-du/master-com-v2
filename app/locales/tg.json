@@ -211,5 +211,17 @@
   "account.master_become": "Ман уста ҳастам",
   "account.master_profile": "Анкетаи устои ман",
   "account.master_edit": "Таҳрири анкета",
-  "account.heading_master": "Уста"
+  "account.heading_master": "Уста",
+  "profile.draft": "Нусхаи пешакӣ — анкета ҳанӯз ҷамъиятӣ нест",
+  "profile.notice_published": "Анкета нашр шуд. Акнун ҳама онро мебинанд.",
+  "profile.available": "Фармоиш қабул мекунад",
+  "profile.unavailable": "Ҳоло фармоиш қабул намекунад",
+  "profile.experience": "таҷриба {years} сол",
+  "profile.specialties": "Ихтисосҳо",
+  "profile.areas": "Дар куҷо кор мекунад",
+  "profile.contacts_signin": "Барои дидани тамос ворид шавед",
+  "profile.works": "Корҳо",
+  "profile.works_empty": "Ҳоло аксҳои корҳо нестанд.",
+  "profile.works_owner_hint": "Портфолио бо аксҳои корҳо дар қадами оянда пайдо мешавад.",
+  "profile.since": "Дар сомона аз {date}"
 }
