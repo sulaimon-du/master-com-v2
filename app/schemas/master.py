@@ -50,6 +50,25 @@ class ContactsView(BaseModel):
     instagram: str | None
 
 
+class CollectionCard(BaseModel):
+    id: int
+    title: str
+    description: str | None
+    cover_thumb_url: str | None
+    photo_count: int
+    hidden: bool
+
+
+class PhotoView(BaseModel):
+    id: int
+    url: str
+    thumb_url: str
+    width: int
+    height: int
+    position: int
+    deleted: bool
+
+
 class ProfileView(BaseModel):
     """Everything the public profile page shows. `contacts` is None for guests."""
 
