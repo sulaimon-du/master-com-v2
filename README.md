@@ -57,10 +57,35 @@ Schema and rules: [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md). Reference data liv
 | `/confirm`, `/confirm/resend` | Email confirmation |
 | `/password/forgot`, `/password/reset` | Password reset |
 | `/auth/google/start`, `/auth/google/callback` | Google sign-in (only when configured) |
-| `/account` | Account settings: sign-in methods, link Google, sign out everywhere |
+| `/auth/telegram/{token}` | Telegram sign-in: GET shows "Sign in as …?", POST signs in (link from the bot, one use, 10 minutes) |
+| `/account` | Account settings: sign-in methods, link Google or Telegram, verify phone, sign out everywhere |
 | `POST /account/google/link` | Start linking Google to the signed-in account |
+| `POST /account/telegram/link` | Start linking Telegram or verifying the phone: redirects to the bot |
 | `POST /account/sessions/revoke` | Sign out on every device |
 | `/lang/{code}` | Switch language (`ru`, `tg`) and return to the same page |
+
+The bot process (webhook mode only) serves `POST /telegram/webhook` (Telegram's updates, checked by the `X-Telegram-Bot-Api-Secret-Token` header) and `GET /health`.
+
+## Telegram bot
+
+The bot (`app/bot/`) is a separate process with aiogram, the only async code; the web app never imports it (R-003, R-021). It reaches the database through the same sync services.
+
+**Two bots, one per environment.** Telegram refuses polling while a webhook is set, so create two bots in [@BotFather](https://t.me/BotFather) with `/newbot`: a development bot (any name, e.g. `MasterComDevBot`) and the staging bot `MasterComStagingBot`. Production gets a third one later. Never put the staging token in a local `.env`; the bot refuses polling when `APP_ENV` is `staging` or `production`.
+
+**Locally** (long polling, no public URL needed). In `.env` set `TELEGRAM_BOT_TOKEN` and `TELEGRAM_BOT_USERNAME` of the development bot, leave `TELEGRAM_WEBHOOK_URL` empty and keep `SITE_URL=http://localhost:8000`. Then either:
+
+```bash
+docker compose up --build        # web + db + bot
+uv run python -m app.bot         # or the bot alone, next to `uvicorn` from "Run locally"
+```
+
+Open the development bot in Telegram and send `/start`. The site shows the Telegram buttons once both values are set. The bot never runs migrations or the seed; start the web app (or `alembic upgrade head`) first. In Docker the same image starts the bot when a command is given: `deploy/entrypoint.sh` runs its arguments (`python -m app.bot`) instead of migrations, seed and uvicorn.
+
+**Staging** (webhook). `render.yaml` defines a second free web service, `master-com-bot-staging`, from the same image with `dockerCommand: python -m app.bot`. In the Render dashboard:
+
+1. Bot service: paste `DATABASE_URL` (same Neon string as the site), `SECRET_KEY` (exactly the site's value: it signs the bot's button data), `TELEGRAM_BOT_TOKEN` (staging bot) and `TELEGRAM_WEBHOOK_SECRET` (random, e.g. `python -c "import secrets; print(secrets.token_urlsafe(32))"`). `TELEGRAM_WEBHOOK_URL` is `https://master-com-bot-staging.onrender.com/telegram/webhook`; the bot registers it with Telegram on every start.
+2. Site service: check `TELEGRAM_BOT_USERNAME=MasterComStagingBot` and `SITE_URL=https://master-com-staging.onrender.com`, and paste the same `TELEGRAM_BOT_TOKEN` (the site shows the Telegram buttons only when token and username are both set; it never calls Telegram). A Blueprint change may not reach an existing service, so check Environment by hand.
+3. The free service sleeps after 15 minutes; Telegram's next update wakes it and Telegram retries until it answers, so the first reply after a pause can take about a minute.
 
 ## Staging
 

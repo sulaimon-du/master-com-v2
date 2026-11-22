@@ -1,5 +1,11 @@
 #!/bin/sh
 set -eu
+# With arguments, run them instead of the web app, before migrations and seed: the bot service
+# starts as `entrypoint.sh python -m app.bot` (compose `command`, Render `dockerCommand`)
+# and never touches the schema or reference data.
+if [ "$#" -gt 0 ]; then
+  exec "$@"
+fi
 # Staging runs migrations on start (free hosting has no pre-deploy step).
 # Production runs them as a separate one-off command before switching traffic.
 if [ "${RUN_MIGRATIONS:-0}" = "1" ]; then

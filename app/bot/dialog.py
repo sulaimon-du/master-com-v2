@@ -32,6 +32,8 @@ class Reply:
     buttons: tuple[Button, ...] = ()
     ask_contact: bool = False
     remove_keyboard: bool = False
+    # Language of the contact keyboard button label (set where ask_contact is True).
+    lang: str = "ru"
 
 
 @dataclass(frozen=True)
@@ -99,7 +101,7 @@ def on_start(user: TgUser, payload: str) -> Reply:
             linked = telegram.user_by_telegram_id(db, user.id)
             if linked is None or not auth._is_active(linked):
                 return _not_linked(lang)
-            return Reply(translate(lang, "bot.ask_phone"), ask_contact=True)
+            return Reply(translate(lang, "bot.ask_phone"), ask_contact=True, lang=lang)
         return Reply(translate(lang, "bot.welcome"))
 
     return _run(run)
@@ -131,7 +133,7 @@ def on_callback(user: TgUser, data: str) -> Reply:
         key = _LINK_OUTCOMES.get(outcome, "bot.link_expired")
         # The account may have just gained a Telegram ID, and with it its own language.
         lang = _lang(db, user)
-        return Reply(translate(lang, key), ask_contact=outcome is Outcome.OK)
+        return Reply(translate(lang, key), ask_contact=outcome is Outcome.OK, lang=lang)
 
     return _run(run)
 

@@ -1,4 +1,4 @@
-# Staging on Render: free web service built from the Dockerfile.
+# Staging on Render: two free web services built from the same Dockerfile (site and Telegram bot).
 # Database: Neon free Postgres (Render's free Postgres is deleted 30 days after creation).
 # Free web services sleep after 15 minutes without traffic; the first request then takes about a minute.
 services:
@@ -29,3 +29,38 @@ services:
         sync: false # optional; add in the Render dashboard when Google sign-in is set up
       - key: GOOGLE_CLIENT_SECRET
         sync: false # optional; secret, dashboard only
+      - key: TELEGRAM_BOT_USERNAME
+        value: MasterComStagingBot # shows the Telegram button together with the token
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false # optional; the staging bot's token, the same as on the bot service
+      - key: SITE_URL
+        value: https://master-com-staging.onrender.com
+
+  # Telegram bot (spec 2026-11-22, D5): its own process, webhook mode, no migrations or seed.
+  # A sleeping free service is woken by Telegram's webhook POST; Telegram retries meanwhile.
+  - type: web
+    name: master-com-bot-staging
+    runtime: docker
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeploy: true
+    dockerCommand: python -m app.bot
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: DATABASE_URL
+        sync: false # the same Neon connection string as the web service
+      - key: SECRET_KEY
+        sync: false # must equal the web service's SECRET_KEY (it signs the bot's callback data)
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false # the staging bot from BotFather (never the development bot)
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false # random, e.g. python -c "import secrets; print(secrets.token_urlsafe(32))"
+      - key: TELEGRAM_BOT_USERNAME
+        value: MasterComStagingBot
+      - key: TELEGRAM_WEBHOOK_URL
+        value: https://master-com-bot-staging.onrender.com/telegram/webhook
+      - key: SITE_URL
+        value: https://master-com-staging.onrender.com
