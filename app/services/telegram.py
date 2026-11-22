@@ -82,7 +82,7 @@ def issue_signin(
     ):
         return None
     owner = db.scalar(select(User).where(User.telegram_id == telegram_id))
-    if owner is not None and not auth._is_active(owner):
+    if owner is not None and not auth.is_active(owner):
         return None
     raw = new_token()
     now = utcnow()
@@ -141,7 +141,7 @@ def sign_in_with_telegram(
         .values(used_at=utcnow())
         .returning(TelegramSignin.first_name, TelegramSignin.language_code)
     ).first()
-    if row is None or (user is not None and not auth._is_active(user)):
+    if row is None or (user is not None and not auth.is_active(user)):
         return auth.Outcome.BAD_LINK, None
     if user is None:
         first_name, language_code = row
@@ -158,7 +158,7 @@ def sign_in_with_telegram(
         except IntegrityError:
             # Another request created this account first: use it.
             user = _lock_user(db, telegram_id)
-        if user is None or not auth._is_active(user):
+        if user is None or not auth.is_active(user):
             return auth.Outcome.BAD_LINK, None
     return auth.Outcome.OK, user
 
@@ -211,7 +211,7 @@ def link_preview(db: Session, raw: str) -> LinkPreview | None:
             AuthToken.expires_at > utcnow(),
         )
     ).first()
-    if row is None or not auth._is_active(row[1]):
+    if row is None or not auth.is_active(row[1]):
         return None
     return LinkPreview(token_id=row[0], account=mask_account(row[1]))
 
@@ -277,7 +277,7 @@ def confirm_link(
         .values(used_at=utcnow())
         .returning(AuthToken.user_id)
     ).first()
-    if row is None or user is None or not auth._is_active(user):
+    if row is None or user is None or not auth.is_active(user):
         return auth.Outcome.BAD_LINK, None
     if user.telegram_id == telegram_id:
         return auth.Outcome.OK, user
@@ -322,7 +322,7 @@ def verify_phone(
     if contact_user_id is None or contact_user_id != telegram_id:
         return auth.Outcome.NOT_OWN_CONTACT
     user = _lock_user(db, telegram_id)
-    if user is None or not auth._is_active(user):
+    if user is None or not auth.is_active(user):
         return auth.Outcome.NOT_LINKED
     phone = normalize_phone(phone_number)
     if phone is None:

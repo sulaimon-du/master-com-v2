@@ -99,7 +99,7 @@ def on_start(user: TgUser, payload: str) -> Reply:
             )
         if payload == "phone":
             linked = telegram.user_by_telegram_id(db, user.id)
-            if linked is None or not auth._is_active(linked):
+            if linked is None or not auth.is_active(linked):
                 return _not_linked(lang)
             return Reply(translate(lang, "bot.ask_phone"), ask_contact=True, lang=lang)
         return Reply(translate(lang, "bot.welcome"))
