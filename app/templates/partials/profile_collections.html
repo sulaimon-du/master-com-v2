@@ -1,0 +1,14 @@
+{# Portfolio grid. Task 9 fills `profile.collections`; the empty state shows until then. #}
+{% macro grid(profile, is_owner) -%}
+<section aria-labelledby="works-title" class="grid gap-3">
+  <h2 id="works-title" class="text-2xl">{{ t('profile.works') }}</h2>
+  {% if profile.collections %}
+  <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    {% for c in profile.collections %}<li class="card">{{ c.title }}</li>{% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-muted">{{ t('profile.works_empty') }}</p>
+  {% if is_owner %}<p class="notice">{{ t('profile.works_owner_hint') }}</p>{% endif %}
+  {% endif %}
+</section>
+{%- endmacro %}

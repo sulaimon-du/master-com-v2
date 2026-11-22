@@ -176,6 +176,31 @@ Implements BRIEF §4.1 (Telegram sign-in) and §4.2 (phone through the bot's "Sh
 - **`/start` handler:** `CommandStart()`, not `CommandStart(deep_link=True)`, so a bare `/start` gets the welcome text instead of falling through to help. `/phone` is the same as `/start phone`. Callback buttons are always answered, even when handling fails.
 - **New dependency (reason for the PR):** `aiogram` 3.31 (brings `aiohttp`), the bot framework named in the stack (R-003), and its aiohttp server for the webhook. aiogram requires `pydantic<2.14`, which forces `pydantic` down from 2.14.0 to 2.13.5 (`pydantic-core` 2.50.0 → 2.46.5); the full test suite passes on it.
 
+## R-022 Master profiles, portfolio and uploads (2026-11-23, weeks 5–6; Claude's calls, owner to confirm)
+Implements BRIEF §4.2–§4.6, §4.13 and PRODUCT_RULES C1, C2. Design: `docs/superpowers/specs/2026-11-23-master-onboarding-profile-portfolio-design.md`. Delivered in two PRs: **PR A** (this entry as built: D1–D8, D10, D11) and **PR B** (portfolio management, onboarding step 5 and the collection gallery page: D9). Every item is **Claude's call, owner to confirm**:
+- **D1. Who is a master:** a user who owns a `master_profiles` row (`origin='self'`); no role column. Creating the profile rotates the session (R-011).
+- **D2. Onboarding:** `/master/onboarding/basics|specialties|area|phone`, one server-rendered step per page, each saved on submit; basics creates the draft profile. Step 5 (first collection) comes in PR B.
+- **D3. Publishing (C1):** `published_at` is set only with a verified phone, at least 1 specialty, at least 1 area, not hidden and an active owner; it is re-checked after every edit and cleared when a condition stops holding. Drafts are visible only to the owner (404 to others). Photos are optional.
+- **D4. Slug (C2):** transliterated from the display name (Russian plus Tajik letters), lowercase, `[a-z0-9-]`, up to 40 characters, minimum 3, `-2`, `-3` on a clash; editable, with a live HTMX check. Uniqueness is final at save (friendly error, never 500). No redirect from an old slug in v1 (no history table).
+- **D5. Contacts:** the contact phone is always the verified phone, never typed. Telegram username, WhatsApp number and Instagram handle are optional. Contacts are rendered only for signed-in users; the guest HTML does not contain them.
+- **D6. Plan limits** from config (`PLAN_LIMITS`): 30 collections, 60 photos per collection, 10 specialties, 3 primary, 20 areas (the areas limit is a guess).
+- **D7. Upload pipeline** (`app/services/images.py`): JPEG, PNG and WebP by magic bytes only, up to 10 MB checked while reading, at most 40 megapixels, EXIF orientation applied, then re-encoded as WebP so all metadata is dropped; originals are never stored. Portfolio images 1600 px plus a 400 px thumbnail; avatar a 400 px centre-cropped square. Storage keys are random and server-made.
+- **D8. Storage and serving:** a `Storage` interface with `LocalDiskStorage` (`MEDIA_ROOT`, atomic writes), served at `/media/{key}` with a strict key regex, immutable caching and `nosniff`. R2 is a later drop-in. `UPLOADS_ENABLED` is true in development and test and false on staging and production until R2 exists (Render's free disk is wiped on every deploy); when false, upload controls are hidden and upload POSTs answer 404.
+- **D9. Portfolio management and the collection gallery:** lands in PR B.
+- **D10. Public page** `/m/<slug>`: published, not hidden, active owner; the owner sees their own draft with a banner. The collection grid is an empty state until PR B.
+- **D11. Security:** every write loads the master by the current user, never by an ID from the URL; CSRF on every POST; upload tests for wrong magic bytes, size limit, decompression bomb, EXIF removal and orientation; `/media/` refuses `..` and anything off the key regex.
+
+Decisions taken during the build:
+- **Pillow 13.0.0 through a per-package `exclude-newer` exception:** pip-audit reports 42 advisories for 12.3.0, the newest version inside the project's date cutoff, so 13.0.0 is pinned on purpose.
+- **Request body cap before parsing** (`app/core/body_limit.py`): 64 KiB for normal POSTs, `MAX_UPLOAD_BYTES` + 64 KiB on upload paths; bigger bodies get 413 (chunked or lying bodies are cut off while reading; FastAPI may answer 400), so a huge body is never buffered.
+- **`auth.is_active` is public** (renamed from private) because the profile services need the same "active account" test.
+- **Services validate lengths and ranges themselves** (`MasterError` codes), so a database CHECK error never turns into a 500.
+- **Animated images keep the first frame, and any unreadable image gives a friendly error,** never a traceback.
+- **A district whose city is selected as a whole is dropped,** so an area is never listed twice.
+- **The contact phone is always the verified phone; WhatsApp is normalised like the bot's phone** (`normalize_phone`), so both use one format.
+- **Profile pages send `Cache-Control: no-store`; drafts also send `noindex`,** so a draft is neither cached nor indexed.
+- **Note for week 7:** search must list only published profiles whose owner is active. `published_at` stays set when an owner is blocked, and `public_master` re-checks the owner at read time; search has to do the same.
+
 ## Open
 - Final name and positioning (round 6): postponed by the owner; working name Master COM stays.
 - Visual direction: tentative pick in R-014; final confirmation pending.

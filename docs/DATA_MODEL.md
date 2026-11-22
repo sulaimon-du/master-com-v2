@@ -31,6 +31,8 @@ Conventions: `bigint` identity keys (small `int` for reference tables); timestam
 | `google_claims` | Google user asking for an unconfirmed account with the same email (R-019) | status `pending`, `approved` or `rejected`; `resolved_at` set exactly when not pending; one pending claim per account and Google user; the handover needs the stored email unchanged; cascades with the user |
 | `telegram_signins` | Telegram user waiting to finish signing in on the site | hash of the one-time token is unique; `expires_at` and `used_at` make it short-lived and single-use; indexed by `telegram_id` |
 
+Weeks 5–6 PR A (master profiles, R-022) needed no schema change: `master_profiles`, `master_specialties` and `master_areas` from migration 0002 already hold everything.
+
 ## Rating (BRIEF §4.11)
 
 `rating_score = (C · m + Σ ratings) / (C + n)`, with `C = 5` reviews of weight and prior mean `m = 4.0`. A newcomer with one 5 scores 4.17, which is below a master with 40 reviews averaging 4.8 (4.71). Recalculated by a background job; `rating_avg` keeps the plain average for display.

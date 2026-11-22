@@ -25,8 +25,20 @@ from app.core.config import Settings, get_settings
 from app.core.db import get_engine
 from app.main import create_app
 from app.services.email import OutgoingEmail, get_email_sender
+from app.services.storage import get_storage
 
 ALEMBIC_INI = os.path.join(os.path.dirname(__file__), "..", "alembic.ini")
+
+
+@pytest.fixture(autouse=True)
+def media_root_tmp(tmp_path, monkeypatch) -> None:
+    """Every test writes uploads under its own tmp dir, never into the repo's ./media."""
+    monkeypatch.setenv("MEDIA_ROOT", str(tmp_path / "media"))
+    get_settings.cache_clear()
+    get_storage.cache_clear()
+    yield
+    get_settings.cache_clear()
+    get_storage.cache_clear()
 
 
 @pytest.fixture
@@ -65,7 +77,7 @@ def clean_auth(migrated_engine) -> None:
         conn.execute(
             text(
                 "TRUNCATE auth_sessions, auth_tokens, oauth_flows, rate_limits, "
-                "telegram_signins, users RESTART IDENTITY CASCADE"
+                "telegram_signins, master_profiles, users RESTART IDENTITY CASCADE"
             )
         )
 

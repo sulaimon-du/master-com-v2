@@ -16,6 +16,7 @@ dependencies = [
     "pyjwt[crypto]>=2.9",
     "python-multipart>=0.0.20",
     "aiogram>=3.31.0",
+    "pillow>=12.3.0",
 ]
 
 [dependency-groups]
@@ -32,7 +33,8 @@ exclude-newer = "2026-10-10T00:00:00Z"
 # Security fixes may be newer than the cutoff: allow them per package, with the advisory noted.
 # certifi PYSEC-2026-4320; filelock CVE-2026-112906 and related (fixed in 4.2.1);
 # opentelemetry-api CVE-2026-126360 (fixed in 1.45.2).
-exclude-newer-package = { certifi = "2026-10-24T00:00:00Z", filelock = "2026-10-24T00:00:00Z", opentelemetry-api = "2026-10-30T00:00:00Z" }
+# pillow: pip-audit found 42 advisories in 12.3.0 (e.g. CVE-2026-96778), fixed in 13.0.0.
+exclude-newer-package = { certifi = "2026-10-24T00:00:00Z", filelock = "2026-10-24T00:00:00Z", opentelemetry-api = "2026-10-30T00:00:00Z", pillow = "2026-10-17T00:00:00Z" }
 package = false
 
 [tool.ruff]

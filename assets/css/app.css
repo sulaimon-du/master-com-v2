@@ -119,6 +119,8 @@
   .notice { border-radius: var(--radius-card); background: var(--mc-tint); color: var(--mc-on-tint); padding: .75rem 1rem; }
   .notice-error { background: var(--mc-danger-tint); color: var(--mc-danger); border: 1px solid var(--mc-danger); font-weight: 600; }
   .field-error { color: var(--mc-danger); font-weight: 600; }
+  .pill { border: 1px solid var(--mc-border-strong); border-radius: 999px; padding: .25rem .75rem; background: var(--mc-surface); color: var(--mc-muted); }
+  .pill-current { background: var(--mc-accent); border-color: var(--mc-accent); color: var(--mc-on-accent); font-weight: 600; }
   .link { color: var(--mc-text); text-decoration: underline; text-underline-offset: 3px; }
 }
 

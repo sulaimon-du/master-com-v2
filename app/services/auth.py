@@ -60,7 +60,7 @@ class Outcome(Enum):
     ALREADY = "already"
 
 
-def _is_active(user: User) -> bool:
+def is_active(user: User) -> bool:
     return user.blocked_at is None and user.deleted_at is None
 
 
@@ -108,7 +108,7 @@ def _consume_token(db: Session, purpose: str, raw: str) -> User | None:
         .with_for_update()
         .execution_options(populate_existing=True)
     )
-    if user is None or not _is_active(user):
+    if user is None or not is_active(user):
         return None
     row = db.execute(
         update(AuthToken)
@@ -217,7 +217,7 @@ def resend_confirmation(
     # here would tell a stranger whether this address had just received emails.
     may_email = rate_limit.allow(db, "confirm_email", email, limit=3, window=HOUR)
     user = db.scalar(select(User).where(User.email == email))
-    if may_email and user is not None and _is_active(user) and user.email_verified_at is None:
+    if may_email and user is not None and is_active(user) and user.email_verified_at is None:
         raw = _issue_token(db, user, "confirm_email", CONFIRM_TTL)
         _send(sender, email, user.locale, "confirm", url=url_for("confirm_page", {"token": raw}))
     return Outcome.SENT
@@ -242,7 +242,7 @@ def confirm_email(db: Session, *, ip: str, raw: str, password: str) -> tuple[Out
         )
     )
     user = db.get(User, token.user_id) if token else None
-    if user is None or not _is_active(user):
+    if user is None or not is_active(user):
         return Outcome.BAD_LINK, None
     # A valid link is a way to try passwords: share the sign-in limit for this address. Only a
     # link holder gets this far, so it reveals nothing to strangers.
@@ -284,7 +284,7 @@ def sign_in_with_password(
 
     user = db.scalar(select(User).where(User.email == email))
     password_ok = verify_password(user.password_hash if user else None, password)
-    if user is None or not password_ok or not _is_active(user):
+    if user is None or not password_ok or not is_active(user):
         return Outcome.WRONG_CREDENTIALS, None
     if user.email_verified_at is None:
         # Own counter, never shown as 429: sharing one with "resend" would make it observable.
@@ -330,7 +330,7 @@ def user_for_session(db: Session, raw: str | None) -> User | None:
         return None
     now = utcnow()
     user = db.get(User, row.user_id)
-    if user is None or not _is_active(user) or row.expires_at <= now:
+    if user is None or not is_active(user) or row.expires_at <= now:
         db.delete(row)
         return None
     if row.last_seen_at <= now - SESSION_IDLE:
@@ -374,7 +374,7 @@ def request_password_reset(
         # Silent like resend: a visible 429 would show that someone asked for this address.
         return Outcome.SENT
     user = db.scalar(select(User).where(User.email == email))
-    if user is not None and _is_active(user):
+    if user is not None and is_active(user):
         raw = _issue_token(db, user, "reset_password", RESET_TTL)
         _send(sender, email, user.locale, "reset", url=url_for("reset_page", {"token": raw}))
     return Outcome.SENT
@@ -413,14 +413,14 @@ def sign_in_with_google(
     """Sign in by Google `sub`. A confirmed account with the same email is refused, never merged."""
     user = db.scalar(select(User).where(User.google_sub == identity.sub))
     if user is not None:
-        if not _is_active(user):
+        if not is_active(user):
             return Outcome.WRONG_CREDENTIALS, None
         return Outcome.OK, user
     # Locked until commit: a confirmation or reset racing with a handover waits, then the
     # handover sees the confirmed account and refuses.
     existing = db.scalar(select(User).where(User.email == identity.email).with_for_update())
     if existing is not None:
-        if not _is_active(existing):
+        if not is_active(existing):
             return Outcome.WRONG_CREDENTIALS, None
         if not claimable(existing):
             # The account is proven some other way: sign in with it first, then link Google.

@@ -46,6 +46,18 @@
   </div>
 
   <div class="grid gap-3">
+    <h2 class="text-xl">{{ t('account.heading_master') }}</h2>
+    <div class="card grid gap-3">
+      {% if master_slug %}
+      <p><a class="link" href="/m/{{ master_slug }}">{{ t('account.master_profile') }}</a></p>
+      <a class="btn btn-secondary no-underline" href="{{ url_for('master_edit').path }}">{{ t('account.master_edit') }}</a>
+      {% else %}
+      <a class="btn btn-secondary no-underline" href="{{ url_for('master_basics').path }}">{{ t('account.master_become') }}</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="grid gap-3">
     <h2 class="text-xl">{{ t('account.heading_sessions') }}</h2>
     <div class="card grid gap-4">
       <p class="text-sm text-muted">{{ t('account.sessions_text') }}</p>

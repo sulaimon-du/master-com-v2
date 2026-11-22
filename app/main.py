@@ -7,9 +7,10 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api import health
+from app.core.body_limit import BodyLimitMiddleware
 from app.core.config import Settings, get_settings
 from app.core.security_headers import SecurityHeadersMiddleware
-from app.web import account, auth, pages, telegram
+from app.web import account, auth, master, media, pages, profile, telegram
 from app.web.csrf import CSRFError
 from app.web.render import render
 
@@ -32,6 +33,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.add_middleware(SecurityHeadersMiddleware, hsts=settings.is_production_like)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
+    # Added last, so it runs first: the body is capped before anything else sees it.
+    app.add_middleware(BodyLimitMiddleware)
 
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
     app.include_router(health.router)
@@ -39,6 +42,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(account.router)
     app.include_router(telegram.router)
+    app.include_router(master.router)
+    app.include_router(profile.router)
+    app.include_router(media.router)
     app.add_exception_handler(CSRFError, csrf_failed)
     return app
 

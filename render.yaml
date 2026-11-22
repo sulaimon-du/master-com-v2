@@ -33,6 +33,9 @@ services:
         value: MasterComStagingBot # shows the Telegram buttons; the bot token is never set here (R-021)
       - key: SITE_URL
         value: https://master-com-staging.onrender.com
+      # Render's disk is ephemeral, so uploads stay off until R2 storage is wired in.
+      - key: UPLOADS_ENABLED
+        value: "false"
 
   # Telegram bot (spec 2026-11-22, D5): its own process, webhook mode, no migrations or seed.
   # A sleeping free service is woken by Telegram's webhook POST; Telegram retries meanwhile.

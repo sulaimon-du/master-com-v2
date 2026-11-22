@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% import "partials/profile_collections.html" as pc with context %}
+{% block title %}{{ profile.display_name }} · {{ app_name }}{% endblock %}
+{% block head %}{% if profile.is_draft %}<meta name="robots" content="noindex">{% endif %}{% endblock %}
+{% block content %}
+<article class="mx-auto grid max-w-2xl gap-6">
+  {% if notice == 'published' %}
+  <p class="notice" id="notice-published" role="status">{{ t('profile.notice_published') }}</p>
+  {% endif %}
+  {% if missing %}
+  <div class="notice" id="{{ 'notice-incomplete' if notice == 'incomplete' else 'draft-banner' }}" role="status">
+    {% if profile.is_draft %}<p class="font-semibold">{{ t('profile.draft') }}</p>{% endif %}
+    <p>{{ t('master.missing') }}</p>
+    <ul class="list-disc pl-5">
+      {% for item in missing %}
+      <li>{% if item.href %}<a href="{{ item.href }}">{{ t(item.text_key) }}</a>{% else %}{{ t(item.text_key) }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% elif profile.is_draft %}
+  <p class="notice" role="status">{{ t('profile.draft') }}</p>
+  {% endif %}
+
+  <header class="flex items-center gap-4">
+    {% if profile.avatar_url %}
+    <img src="{{ profile.avatar_url }}" alt="" width="96" height="96" class="size-24 rounded-full object-cover">
+    {% endif %}
+    <div class="grid gap-1">
+      <h1 class="text-4xl">{{ profile.display_name }}</h1>
+      {% if profile.headline %}<p class="text-muted">{{ profile.headline }}</p>{% endif %}
+      <p class="text-sm">{{ t('profile.available') if profile.is_available else t('profile.unavailable') }}
+        {% if profile.experience_years is not none %} · {{ t('profile.experience', years=profile.experience_years) }}{% endif %}</p>
+    </div>
+  </header>
+
+  {% if profile.specialties %}
+  <ul class="flex flex-wrap gap-2" aria-label="{{ t('profile.specialties') }}">
+    {% for s in profile.specialties %}<li class="pill {% if s.primary %}pill-current{% endif %}">{{ s.name }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if profile.areas %}
+  <section class="grid gap-1">
+    <h2 class="text-2xl">{{ t('profile.areas') }}</h2>
+    <p>{{ profile.areas | join(', ') }}</p>
+  </section>
+  {% endif %}
+
+  {% if profile.bio %}
+  <section class="grid gap-1">
+    <h2 class="text-2xl">{{ t('master.bio') }}</h2>
+    <p class="whitespace-pre-line">{{ profile.bio }}</p>
+  </section>
+  {% endif %}
+
+  <section class="card grid gap-2" aria-labelledby="contacts-title">
+    <h2 id="contacts-title" class="text-2xl">{{ t('master.contacts_title') }}</h2>
+    {% set c = profile.contacts %}
+    {% if c is none %}
+      <p><a class="btn btn-primary no-underline" href="{{ signin_next }}">{{ t('profile.contacts_signin') }}</a></p>
+    {% else %}
+      <ul class="grid gap-2">
+        {% if c.phone %}<li><a href="tel:{{ c.phone }}">{{ c.phone }}</a></li>{% endif %}
+        {% if c.telegram %}<li><a href="https://t.me/{{ c.telegram }}" rel="noopener nofollow">Telegram: @{{ c.telegram }}</a></li>{% endif %}
+        {% if c.whatsapp %}<li><a href="https://wa.me/{{ c.whatsapp | replace('+', '') }}" rel="noopener nofollow">WhatsApp: {{ c.whatsapp }}</a></li>{% endif %}
+        {% if c.instagram %}<li><a href="https://instagram.com/{{ c.instagram }}" rel="noopener nofollow">Instagram: @{{ c.instagram }}</a></li>{% endif %}
+      </ul>
+    {% endif %}
+  </section>
+
+  {{ pc.grid(profile, is_owner) }}
+
+  <p class="text-sm text-muted">{{ t('profile.since', date=profile.since.strftime('%d.%m.%Y')) }}</p>
+  {% if is_owner %}<p><a class="btn btn-secondary no-underline" href="/master/edit">{{ t('account.master_edit') }}</a></p>{% endif %}
+</article>
+{% endblock %}

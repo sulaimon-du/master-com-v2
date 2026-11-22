@@ -11,7 +11,7 @@ from fastapi.responses import RedirectResponse, Response
 from app.core.config import get_settings
 from app.core.db import DbSession
 from app.models.user import User
-from app.services import auth
+from app.services import auth, masters
 from app.web.auth import NOTICES, google_redirect, notice_page
 from app.web.cookies import SESSION, delete_cookie
 from app.web.csrf import CSRFProtected
@@ -24,15 +24,18 @@ router = APIRouter(include_in_schema=False)
 @router.get("/account", name="account_page")
 def account_page(
     request: Request,
+    db: DbSession,
     user: Annotated[User | None, Depends(current_user)],
     notice: str = "",
 ) -> Response:
     if user is None:
         return RedirectResponse("/signin?next=/account", status_code=303)
+    master = masters.master_for_user(db, user)
     return render(
         request,
         "pages/account.html",
         user=user,
+        master_slug=master.slug if master else None,
         notice=NOTICES.get(notice),
     )
 
