@@ -151,7 +151,9 @@ Phone step (also reachable later by `/phone` for any linked user):
 `TELEGRAM_BOT_TOKEN` (secret), `TELEGRAM_BOT_USERNAME`, `TELEGRAM_WEBHOOK_SECRET` (secret, staging),
 `TELEGRAM_WEBHOOK_URL` (staging bot service URL; unset → polling), `SITE_URL` (absolute base for
 links the bot sends; the bot has no request to build them from). Telegram buttons on the site are
-hidden unless the token and username are set (like Google).
+hidden unless `TELEGRAM_BOT_USERNAME` is set. **Amended 2026-11-22 (task review, owner to confirm):**
+the site needs only the username; the bot token lives only on the bot service (least privilege),
+and the bot refuses to start without it.
 
 **Two bots, one per environment.** Telegram refuses polling while a webhook is set, so one bot
 cannot serve both local polling and the staging webhook. The owner creates two bots in BotFather:

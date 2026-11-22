@@ -24,8 +24,8 @@ class Settings(BaseSettings):
     # Google sign-in (BRIEF §4.1). Both must be set to show the Google button.
     google_client_id: str | None = None
     google_client_secret: SecretStr | None = None
-    # Telegram bot: sign-in, linking and phone sharing. Token and username must both be set to
-    # show the Telegram button. The webhook secret and URL are used only by the bot process.
+    # Telegram bot: sign-in, linking and phone sharing. The username alone shows the Telegram
+    # buttons on the site; the token, webhook secret and URL are used only by the bot process.
     telegram_bot_token: SecretStr | None = None
     telegram_bot_username: str | None = None
     telegram_webhook_secret: SecretStr | None = None
@@ -62,7 +62,9 @@ class Settings(BaseSettings):
 
     @property
     def telegram_enabled(self) -> bool:
-        return bool(self.telegram_bot_token and self.telegram_bot_username)
+        # The site only links to the bot, so the username is enough; the token lives only on
+        # the bot service (least privilege, R-021 D8).
+        return bool(self.telegram_bot_username)
 
     @property
     def secure_cookies(self) -> bool:

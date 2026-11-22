@@ -141,10 +141,13 @@ async def on_text(message: Message, bot: Bot) -> None:
 
 async def on_callback(query: CallbackQuery, bot: Bot) -> None:
     user = _tg_user(query)
-    if user is None:
-        return
-    reply = await asyncio.to_thread(dialog.on_callback, user, query.data or "")
-    await query.answer()
+    try:
+        if user is None:
+            return
+        reply = await asyncio.to_thread(dialog.on_callback, user, query.data or "")
+    finally:
+        # Always answered, even when the dialog fails, so the button stops spinning.
+        await query.answer()
     await _send(bot, user.id, reply)
     kind = "cancel" if query.data == dialog.CANCEL else "confirm"
     logger.info("bot update=callback kind=%s outcome=replied", kind)

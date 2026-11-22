@@ -14,8 +14,7 @@ BOT = "https://t.me/MasterComTestBot"
 
 @pytest.fixture
 def tg(monkeypatch, settings):  # type: ignore[no-untyped-def]
-    """Telegram sign-in on."""
-    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:test")
+    """Telegram sign-in on. The site needs only the username; the token stays unset (R-021)."""
     monkeypatch.setenv("TELEGRAM_BOT_USERNAME", "MasterComTestBot")
     get_settings.cache_clear()
     yield
@@ -130,6 +129,20 @@ def test_routes_are_404_when_not_configured(client: TestClient) -> None:
 
 def test_empty_telegram_settings_count_as_unset(settings) -> None:  # type: ignore[no-untyped-def]
     assert settings.telegram_enabled is False
+
+
+def test_site_needs_only_the_username(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "")
+    monkeypatch.setenv("TELEGRAM_BOT_USERNAME", "MasterComTestBot")
+    get_settings.cache_clear()
+    try:
+        assert get_settings().telegram_enabled is True
+        monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:test")
+        monkeypatch.setenv("TELEGRAM_BOT_USERNAME", "")
+        get_settings.cache_clear()
+        assert get_settings().telegram_enabled is False
+    finally:
+        get_settings.cache_clear()
 
 
 def test_signin_post_hits_the_rate_limit(client: TestClient, tg) -> None:  # type: ignore[no-untyped-def]

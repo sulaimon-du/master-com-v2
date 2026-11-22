@@ -32,7 +32,7 @@ class Reply:
     buttons: tuple[Button, ...] = ()
     ask_contact: bool = False
     remove_keyboard: bool = False
-    # Language of the contact keyboard button label (set where ask_contact is True).
+    # Language of the contact keyboard button label (set wherever ask_contact is True).
     lang: str = "ru"
 
 
@@ -161,11 +161,10 @@ def on_contact(user: TgUser, contact_user_id: int | None, phone_number: str) -> 
         buttons: tuple[Button, ...] = ()
         if outcome in (Outcome.OK, Outcome.ALREADY, Outcome.NOT_LINKED):
             buttons = (Button(translate(lang, "bot.open_account"), url=_site("/account")),)
-        return Reply(
-            translate(lang, key),
-            buttons=buttons,
-            remove_keyboard=outcome not in _KEEP_KEYBOARD,
-        )
+        if outcome in _KEEP_KEYBOARD:
+            # Show the contact button again: the one-time keyboard hid itself after use.
+            return Reply(translate(lang, key), ask_contact=True, lang=lang)
+        return Reply(translate(lang, key), buttons=buttons, remove_keyboard=True)
 
     return _run(run)
 

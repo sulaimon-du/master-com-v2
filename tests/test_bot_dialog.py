@@ -198,6 +198,15 @@ def test_contact_not_own_or_invalid() -> None:
     assert dialog.on_contact(_tg(), TG_ID, "abc").text == _t("bot.phone_not_own")
 
 
+@pytest.mark.parametrize(("contact_id", "phone"), [(1234, "+992900112233"), (TG_ID, "abc")])
+def test_contact_refused_shows_the_contact_button_again(contact_id: int, phone: str) -> None:
+    uid = _linked_user()
+    r = dialog.on_contact(_tg(lang="tg"), contact_id, phone)
+    assert r.ask_contact is True
+    assert r.remove_keyboard is False
+    assert r.lang == _db_user(uid).locale  # the account's language wins over Telegram's
+
+
 def test_contact_phone_taken() -> None:
     other = make_user(email="o@example.com", name="О")
     with get_sessionmaker()() as db:

@@ -143,3 +143,90 @@ def test_webhook_app_checks_secret_and_has_health(bot_env) -> None:
             return health.status, missing.status, wrong.status
 
     assert asyncio.run(scenario()) == (200, 401, 401)
+
+
+def _update(chat_type: str, *, callback: bool) -> "object":
+    from datetime import UTC, datetime
+
+    from aiogram.types import CallbackQuery, Chat, Message, Update, User
+
+    user = User(id=555, is_bot=False, first_name="Дилшод", language_code="ru")
+    chat_id = 555 if chat_type == "private" else -100555
+    message = Message(
+        message_id=1,
+        date=datetime.now(UTC),
+        chat=Chat(id=chat_id, type=chat_type),
+        from_user=user,
+        text="/start login",
+    )
+    if callback:
+        query = CallbackQuery(id="q1", from_user=user, chat_instance="c", message=message, data="x")
+        return Update(update_id=1, callback_query=query)
+    return Update(update_id=1, message=message)
+
+
+@pytest.fixture
+def offline_bot(monkeypatch):  # type: ignore[no-untyped-def]
+    """A dispatcher whose dialog calls are recorded and whose Telegram calls go nowhere."""
+    from aiogram import Bot
+    from aiogram.types import CallbackQuery
+
+    calls: list[str] = []
+    answered: list[str] = []
+
+    async def no_send(*args, **kwargs):  # type: ignore[no-untyped-def]
+        return None
+
+    async def answer(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        answered.append(self.id)
+
+    def record(name: str):  # type: ignore[no-untyped-def]
+        def stub(*args, **kwargs):  # type: ignore[no-untyped-def]
+            calls.append(name)
+            return Reply("ok")
+
+        return stub
+
+    monkeypatch.setattr(runner, "_send", no_send)
+    monkeypatch.setattr(CallbackQuery, "answer", answer)
+    monkeypatch.setattr(runner.dialog, "on_start", record("start"))
+    monkeypatch.setattr(runner.dialog, "on_callback", record("callback"))
+
+    def feed(update: object) -> None:
+        async def run() -> None:
+            bot = Bot(FAKE_TOKEN)
+            try:
+                await runner.build_dispatcher().feed_update(bot, update)
+            finally:
+                await bot.session.close()
+
+        asyncio.run(run())
+
+    return calls, answered, feed, monkeypatch
+
+
+@pytest.mark.parametrize("chat_type", ["group", "supergroup", "channel"])
+def test_group_chats_are_ignored(offline_bot, chat_type: str) -> None:
+    calls, _answered, feed, _ = offline_bot
+    feed(_update(chat_type, callback=False))
+    feed(_update(chat_type, callback=True))
+    assert calls == []
+
+
+def test_private_chat_reaches_the_dialog(offline_bot) -> None:
+    calls, answered, feed, _ = offline_bot
+    feed(_update("private", callback=False))
+    feed(_update("private", callback=True))
+    assert calls == ["start", "callback"]
+    assert answered == ["q1"]
+
+
+def test_callback_is_answered_when_the_dialog_fails(offline_bot) -> None:
+    _calls, answered, feed, monkeypatch = offline_bot
+
+    def boom(*args, **kwargs):  # type: ignore[no-untyped-def]
+        raise RuntimeError("database down")
+
+    monkeypatch.setattr(runner.dialog, "on_callback", boom)
+    feed(_update("private", callback=True))
+    assert answered == ["q1"]
