@@ -1,6 +1,6 @@
 # Data model (v1)
 
-Week 2. Source: `app/models/`. Migration: `migrations/versions/*_0002_data_model.py`. Choices not in the brief: R-018.
+Weeks 2–3. Source: `app/models/`. Migrations: `migrations/versions/*_0002_data_model.py` (data model), `*_0003_auth.py` and `*_0004_google_claims.py` (sign-in). Choices not in the brief: R-018, R-019.
 
 Conventions: `bigint` identity keys (small `int` for reference tables); timestamps are `timestamptz`; status fields are short strings with a named CHECK (not Postgres ENUMs); constraint names follow `app/core/db.py`. Nothing user-facing is hard-deleted: moderation sets `hidden_at`, photo deletion sets `deleted_at` (undo), account deletion clears personal columns and sets `users.deleted_at`. The one hard delete is "Remove my data" on an unclaimed profile: it takes the profile's complaints, claims, specialties, areas and portfolio with it (unclaimed profiles have no responses or reviews).
 
@@ -24,6 +24,11 @@ Conventions: `bigint` identity keys (small `int` for reference tables); timestam
 | `profile_claims` | "This is me" on imported profiles | one pending claim per user and profile |
 | `data_removal_requests` | "Remove my data" | resolved ⇔ `resolved_at` |
 | `import_blocklist` | Never re-import removed people | only HMAC-SHA256 hex values (keyed with a server secret), unique per kind |
+| `auth_sessions` | Signed-in browsers (week 3, R-019) | only the SHA-256 of the session ID is stored; cascades with the user |
+| `auth_tokens` | One-time confirmation and reset links | purpose `confirm_email` or `reset_password`; hash only; `used_at` makes each link single-use |
+| `rate_limits` | Fixed-window counters (BRIEF §6.3) | key is a hash of scope and identity |
+| `oauth_flows` | Google sign-in or link in progress | state hash, nonce and PKCE verifier; deleted when the callback runs |
+| `google_claims` | Google user asking for an unconfirmed account with the same email (R-019) | status `pending`, `approved` or `rejected`; `resolved_at` set exactly when not pending; one pending claim per account and Google user; the handover needs the stored email unchanged; cascades with the user |
 
 ## Rating (BRIEF §4.11)
 

@@ -23,3 +23,9 @@ services:
         sync: false # paste the Neon connection string in the Render dashboard
       - key: FORWARDED_ALLOW_IPS
         value: "*" # traffic reaches the container only through Render's proxy
+      - key: CLIENT_IP_HEADER
+        value: CF-Connecting-IP # Render serves through Cloudflare, which sets this header (R-019)
+      - key: GOOGLE_CLIENT_ID
+        sync: false # optional; add in the Render dashboard when Google sign-in is set up
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false # optional; secret, dashboard only

@@ -5,7 +5,9 @@ The whole app is synchronous (decision R-001): never mix in async sessions.
 
 from collections.abc import Iterator
 from functools import lru_cache
+from typing import Annotated
 
+from fastapi import Depends
 from sqlalchemy import Engine, MetaData, create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
@@ -53,6 +55,13 @@ def get_db() -> Iterator[Session]:
         raise
     finally:
         session.close()
+
+
+# Use this in routes and dependencies, never get_db directly. scope="function" commits
+# before the response is sent: a redirect that sets a session cookie must not reach the browser
+# before its session row exists, and a failed commit must not look like success. Every
+# dependency that asks for it in one request shares the same session.
+DbSession = Annotated[Session, Depends(get_db, scope="function")]
 
 
 def ping(session: Session) -> bool:

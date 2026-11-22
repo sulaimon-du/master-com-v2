@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ t('account.title') }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-2xl gap-8">
+  <h1 class="text-4xl">{{ t('account.title') }}</h1>
+  {% if notice %}<p role="status" class="notice">{{ t(notice) }}</p>{% endif %}
+
+  <div class="card grid gap-2 text-sm">
+    <p><span class="text-muted">{{ t('account.name') }}:</span> {{ user.name or '—' }}</p>
+    <p><span class="text-muted">{{ t('account.email') }}:</span> {{ user.email or '—' }}
+      <span class="text-muted">({{ t('account.email_confirmed') if user.email_confirmed else t('account.email_unconfirmed') }})</span></p>
+  </div>
+
+  <div class="grid gap-3">
+    <h2 class="text-xl">{{ t('account.heading_methods') }}</h2>
+    <div class="card grid gap-3">
+      <p><strong>{{ t('account.password') }}</strong>: {{ t('account.password_set') if user.has_password else t('account.password_none') }}</p>
+    </div>
+    <div class="card grid gap-3">
+      <p><strong>{{ t('account.google') }}</strong>: {{ t('account.google_linked') if user.google_linked else t('account.google_not_linked') }}</p>
+      {% if google_enabled and not user.google_linked %}
+      <form method="post" action="{{ url_for('google_link').path }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-secondary" type="submit">{{ t('account.google_link') }}</button>
+      </form>
+      {% elif not google_enabled and not user.google_linked %}
+      <p class="text-sm text-muted">{{ t('account.google_unavailable') }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="grid gap-3">
+    <h2 class="text-xl">{{ t('account.heading_sessions') }}</h2>
+    <div class="card grid gap-4">
+      <p class="text-sm text-muted">{{ t('account.sessions_text') }}</p>
+      <form method="post" action="{{ url_for('revoke_sessions').path }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-secondary" type="submit">{{ t('account.signout_all') }}</button>
+      </form>
+    </div>
+    <form method="post" action="{{ url_for('signout').path }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-primary" type="submit">{{ t('account.signout') }}</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

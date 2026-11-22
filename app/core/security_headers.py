@@ -14,7 +14,9 @@ CSP = "; ".join(
         "connect-src 'self'",
         "object-src 'none'",
         "base-uri 'self'",
-        "form-action 'self'",
+        # "Link Google" is a POST form answered by a redirect to Google; browsers check
+        # form-action against that redirect too (R-019).
+        "form-action 'self' https://accounts.google.com",
         "frame-ancestors 'none'",
     ]
 )
