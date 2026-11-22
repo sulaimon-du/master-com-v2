@@ -163,6 +163,11 @@ def sign_in_with_telegram(
     return auth.Outcome.OK, user
 
 
+def user_by_telegram_id(db: Session, telegram_id: int) -> User | None:
+    """The account bound to this Telegram user, or None. Read only, no lock."""
+    return db.scalar(select(User).where(User.telegram_id == telegram_id))
+
+
 def _lock_user(db: Session, telegram_id: int) -> User | None:
     """Reload under the lock: a block committed while we waited must not be missed."""
     return db.scalar(

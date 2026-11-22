@@ -486,3 +486,11 @@ def test_telegram_taken_race_is_telegram_taken_not_error(db, monkeypatch):
         None,
     )
     assert user.telegram_id is None
+
+
+def test_user_by_telegram_id(db):
+    user = User(name="A", telegram_id=4242)
+    db.add(user)
+    db.flush()
+    assert telegram.user_by_telegram_id(db, 4242) is user
+    assert telegram.user_by_telegram_id(db, 4243) is None
