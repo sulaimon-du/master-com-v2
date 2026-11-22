@@ -1,14 +1,25 @@
-{# Portfolio grid. Task 9 fills `profile.collections`; the empty state shows until then. #}
+{# Portfolio grid on the public profile: square tiles, cover = first visible photo. #}
 {% macro grid(profile, is_owner) -%}
 <section aria-labelledby="works-title" class="grid gap-3">
   <h2 id="works-title" class="text-2xl">{{ t('profile.works') }}</h2>
   {% if profile.collections %}
   <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-    {% for c in profile.collections %}<li class="card">{{ c.title }}</li>{% endfor %}
+    {% for c in profile.collections %}
+    <li>
+      <a href="/m/{{ profile.slug }}/c/{{ c.id }}" class="grid gap-1 no-underline">
+        {% if c.cover_thumb_url %}
+        <img src="{{ c.cover_thumb_url }}" alt="" width="400" height="400" loading="lazy" class="aspect-square w-full rounded-xl object-cover">
+        {% endif %}
+        <span class="font-semibold">{{ c.title }}</span>
+        <span class="text-sm text-muted">{{ t('portfolio.photos_count') }} {{ c.photo_count }}</span>
+      </a>
+    </li>
+    {% endfor %}
   </ul>
   {% else %}
   <p class="text-muted">{{ t('profile.works_empty') }}</p>
   {% if is_owner %}<p class="notice">{{ t('profile.works_owner_hint') }}</p>{% endif %}
   {% endif %}
+  {% if is_owner %}<p><a class="btn btn-secondary no-underline" href="/master/portfolio">{{ t('profile.manage_portfolio') }}</a></p>{% endif %}
 </section>
 {%- endmacro %}

@@ -84,7 +84,7 @@ class ProfileView(BaseModel):
     areas: list[str]
     contacts: ContactsView | None
     is_draft: bool
-    collections: list[dict[str, object]] = []
+    collections: list[CollectionCard] = []
 
 
 class SpecialtyOption(BaseModel):

@@ -222,7 +222,7 @@
   "profile.contacts_signin": "Барои дидани тамос ворид шавед",
   "profile.works": "Корҳо",
   "profile.works_empty": "Ҳоло аксҳои корҳо нестанд.",
-  "profile.works_owner_hint": "Портфолио бо аксҳои корҳо дар қадами оянда пайдо мешавад.",
+  "profile.works_owner_hint": "Аввалин коллексияро бо аксҳои корҳо ба портфолио илова кунед.",
   "profile.since": "Дар сомона аз {date}",
   "master.step5": "Коллексияи аввал",
   "portfolio.manage": "Портфолиои ман",
@@ -272,5 +272,10 @@
   "portfolio.step_create": "Сохтан ва анҷом додан",
   "portfolio.step_created": "Коллексия сохта шуд. Баъзе файлҳо бор нашуданд. Онҳоро дар поён боз бор кунед ё анҷом диҳед.",
   "portfolio.skip_hint": "Омода нестед? Аксҳоро баъдтар илова кардан мумкин аст.",
-  "portfolio.skip": "Гузаштан"
+  "portfolio.skip": "Гузаштан",
+  "profile.manage_portfolio": "Идоракунии портфолио",
+  "collection.breadcrumb": "Паймоиш",
+  "collection.photos": "Аксҳои корҳо",
+  "collection.thumbs": "Тасвирҳои хурд",
+  "collection.edit": "Таҳрири коллексия"
 }

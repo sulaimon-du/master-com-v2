@@ -222,7 +222,7 @@
   "profile.contacts_signin": "Войдите, чтобы увидеть контакты",
   "profile.works": "Работы",
   "profile.works_empty": "Пока нет фото работ.",
-  "profile.works_owner_hint": "Портфолио с фото работ появится на следующем шаге.",
+  "profile.works_owner_hint": "Добавьте первую коллекцию с фото работ в портфолио.",
   "profile.since": "На сайте с {date}",
   "master.step5": "Первая коллекция",
   "portfolio.manage": "Моё портфолио",
@@ -272,5 +272,10 @@
   "portfolio.step_create": "Создать и завершить",
   "portfolio.step_created": "Коллекция создана. Часть файлов не загрузилась. Можно загрузить их ещё раз ниже или завершить.",
   "portfolio.skip_hint": "Не готовы? Фото можно добавить позже.",
-  "portfolio.skip": "Пропустить"
+  "portfolio.skip": "Пропустить",
+  "profile.manage_portfolio": "Управлять портфолио",
+  "collection.breadcrumb": "Навигация",
+  "collection.photos": "Фото работ",
+  "collection.thumbs": "Миниатюры",
+  "collection.edit": "Редактировать коллекцию"
 }

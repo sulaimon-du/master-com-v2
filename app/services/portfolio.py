@@ -313,3 +313,26 @@ def collection_photos(
         )
         for p in db.scalars(stmt.order_by(PortfolioPhoto.position, PortfolioPhoto.id))
     ]
+
+
+def collection_page(
+    db: Session, master: MasterProfile, collection_id: int, *, owner: bool
+) -> tuple[CollectionCard, list[PhotoView]]:
+    """One collection with its photos for the gallery page.
+
+    Outsiders get "not found" for a hidden collection and for one with no visible photo (the
+    profile grid leaves it out too); the owner sees both.
+    """
+    collection = _collection(db, master, collection_id)
+    photos = collection_photos(db, master, collection_id, owner=owner)
+    if not owner and not photos:
+        raise PortfolioError("not_found")
+    card = CollectionCard(
+        id=collection.id,
+        title=collection.title,
+        description=collection.description,
+        cover_thumb_url=photos[0].thumb_url if photos else None,
+        photo_count=len(photos),
+        hidden=collection.hidden_at is not None,
+    )
+    return card, photos

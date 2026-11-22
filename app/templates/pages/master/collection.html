@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ collection.title }} · {{ profile.display_name }} · {{ app_name }}{% endblock %}
+{% block head %}
+{% if profile.is_draft %}<meta name="robots" content="noindex">{% endif %}
+<script src="{{ url_for('static', path='js/gallery.js').path }}" defer></script>
+{% endblock %}
+{% block content %}
+<article class="mx-auto grid max-w-3xl gap-6">
+  <nav aria-label="{{ t('collection.breadcrumb') }}"><a href="/m/{{ profile.slug }}">&larr; {{ profile.display_name }}</a></nav>
+  {% if profile.is_draft %}<p class="notice" role="status">{{ t('profile.draft') }}</p>{% endif %}
+  {% if collection.hidden %}<p class="notice" role="status">{{ t('portfolio.hidden_badge') }}</p>{% endif %}
+  <h1 class="text-4xl">{{ collection.title }}</h1>
+
+  {% if photos %}
+  <section x-data="gallery" aria-label="{{ t('collection.photos') }}" class="grid gap-3">
+    <div x-ref="strip" @scroll.passive="onScroll" class="flex snap-x snap-mandatory overflow-x-auto rounded-xl">
+      {% for p in photos %}
+      <figure id="photo-{{ loop.index }}" class="w-full shrink-0 snap-center">
+        <img src="{{ p.url }}" alt="{{ collection.title }} — {{ loop.index }}" width="{{ p.width }}" height="{{ p.height }}" loading="lazy" class="mx-auto h-auto max-h-[80dvh] w-auto max-w-full object-contain">
+      </figure>
+      {% endfor %}
+    </div>
+    <p class="text-sm text-muted" aria-live="polite"><span x-text="label">1 / {{ photos | length }}</span></p>
+    <ul class="flex gap-2 overflow-x-auto" aria-label="{{ t('collection.thumbs') }}">
+      {% for p in photos %}
+      <li class="shrink-0"><a href="#photo-{{ loop.index }}"><img src="{{ p.thumb_url }}" alt="{{ loop.index }}" width="64" height="64" loading="lazy" class="size-16 rounded-lg object-cover"></a></li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% else %}
+  <p class="text-muted">{{ t('portfolio.photos_empty') }}</p>
+  {% endif %}
+
+  {% if collection.description %}<p class="whitespace-pre-line">{{ collection.description }}</p>{% endif %}
+
+  <a href="/m/{{ profile.slug }}" class="card flex items-center gap-4 no-underline">
+    {% if profile.avatar_url %}
+    <img src="{{ profile.avatar_url }}" alt="" width="56" height="56" class="size-14 rounded-full object-cover">
+    {% endif %}
+    <span class="grid gap-0.5">
+      <span class="font-semibold">{{ profile.display_name }}</span>
+      {% if profile.headline %}<span class="text-sm text-muted">{{ profile.headline }}</span>{% endif %}
+    </span>
+  </a>
+  {% if is_owner %}<p><a class="btn btn-secondary no-underline" href="/master/portfolio/collections/{{ collection.id }}">{{ t('collection.edit') }}</a></p>{% endif %}
+</article>
+{% endblock %}

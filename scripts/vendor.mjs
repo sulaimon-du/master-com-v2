@@ -15,6 +15,9 @@ copyFileSync(nm("htmx.org", "dist", "htmx.min.js"), out("js", "htmx.min.js"));
 // Alpine CSP build: no eval/new Function, so the page CSP can stay strict (script-src 'self').
 copyFileSync(nm("@alpinejs", "csp", "dist", "cdn.min.js"), out("js", "alpine-csp.min.js"));
 
+// Our own small Alpine components (CSP build: no inline code, so they live in static files).
+copyFileSync(join(root, "assets", "js", "gallery.js"), out("js", "gallery.js"));
+
 // Subsets we need: cyrillic-ext carries the Tajik letters ғ ӣ қ ӯ ҳ ҷ.
 const SUBSETS = ["cyrillic-ext", "cyrillic", "latin-ext", "latin"];
 const sources = [
