@@ -1,0 +1,19 @@
+{# One photo tile on the owner's collection page; also the answer to "Undo" (htmx outerHTML swap). #}
+{% set base = '/master/portfolio/photos/' ~ photo.id %}
+<li id="photo-{{ photo.id }}" class="card grid gap-2">
+  <img src="{{ photo.thumb_url }}" width="{{ photo.width }}" height="{{ photo.height }}" alt="" loading="lazy" class="aspect-square w-full rounded-lg object-cover">
+  <div class="flex flex-wrap gap-2">
+    <form method="post" action="{{ base }}/move?dir=left">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-secondary" type="submit" aria-label="{{ t('portfolio.left') }}">&larr;</button>
+    </form>
+    <form method="post" action="{{ base }}/move?dir=right">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-secondary" type="submit" aria-label="{{ t('portfolio.right') }}">&rarr;</button>
+    </form>
+    <form method="post" action="{{ base }}/delete" hx-post="{{ base }}/delete" hx-target="#photo-{{ photo.id }}" hx-swap="outerHTML">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-secondary" type="submit">{{ t('portfolio.delete') }}</button>
+    </form>
+  </div>
+</li>

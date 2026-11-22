@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% import "partials/portfolio_forms.html" as pf with context %}
+{% block title %}{{ t('portfolio.title') }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-2xl gap-6">
+  <h1 class="text-4xl">{{ t('portfolio.title') }}</h1>
+  <p><a class="link" href="{{ url_for('master_edit').path }}">{{ t('portfolio.to_profile') }}</a></p>
+  {% if collections %}
+  <ul class="grid gap-3">
+    {% for c in collections %}
+    <li class="card flex flex-wrap items-center gap-3">
+      {% if c.cover_thumb_url %}<img src="{{ c.cover_thumb_url }}" width="64" height="64" alt="" class="size-16 rounded-lg object-cover">{% endif %}
+      <div class="grid min-w-0 flex-1 gap-1">
+        <a class="link font-semibold" href="{{ url_for('portfolio_collection', collection_id=c.id).path }}">{{ c.title }}</a>
+        <p class="text-sm text-muted">{{ t('portfolio.photos_count') }} {{ c.photo_count }}{% if c.hidden %} · {{ t('portfolio.hidden_badge') }}{% endif %}</p>
+      </div>
+      <div class="flex gap-2">
+        <form method="post" action="{{ url_for('portfolio_move', collection_id=c.id).path }}?dir=up">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-secondary" type="submit" aria-label="{{ t('portfolio.up') }}">&uarr;</button>
+        </form>
+        <form method="post" action="{{ url_for('portfolio_move', collection_id=c.id).path }}?dir=down">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-secondary" type="submit" aria-label="{{ t('portfolio.down') }}">&darr;</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-muted">{{ t('portfolio.empty') }}</p>
+  {% endif %}
+  <form method="post" action="{{ url_for('portfolio_create').path }}" class="card grid gap-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <h2 class="text-xl">{{ t('portfolio.new') }}</h2>
+    {{ pf.error_notice(error) }}
+    {{ pf.title_fields(form_title, form_description) }}
+    <button class="btn btn-primary" type="submit">{{ t('portfolio.create') }}</button>
+  </form>
+</section>
+{% endblock %}

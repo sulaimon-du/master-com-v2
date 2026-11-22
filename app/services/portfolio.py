@@ -68,6 +68,12 @@ def _photo(db: Session, master: MasterProfile, photo_id: int, *, lock: bool = Fa
     return photo, collection
 
 
+def photo_collection_id(db: Session, master: MasterProfile, photo_id: int) -> int:
+    """The collection a photo of this master is in (deleted or not); foreign ids are not found."""
+    _, collection = _photo(db, master, photo_id)
+    return collection.id
+
+
 def _live_count(db: Session, collection_id: int) -> int:
     return (
         db.scalar(

@@ -237,6 +237,8 @@ def test_phone_step_finishes_and_publishes_with_verified_phone(client: TestClien
     _ready(client)
     assert "+992901112233" in client.get("/master/onboarding/phone").text
     r = post(client, "/master/onboarding/phone", {"telegram": "@ali_master"})
+    assert r.status_code == 303 and r.headers["location"] == "/master/onboarding/collection"
+    r = post(client, "/master/onboarding/collection", {"skip": "1"})
     assert r.status_code == 303
     assert r.headers["location"] == "/m/ali-rahimov?notice=published"
     master = _master(uid)
@@ -249,6 +251,8 @@ def test_phone_step_shows_missing_without_phone(client: TestClient) -> None:
     _ready(client)
     assert "подтвердите телефон" in client.get("/master/onboarding/phone").text
     r = post(client, "/master/onboarding/phone", {})
+    assert r.headers["location"] == "/master/onboarding/collection"
+    r = post(client, "/master/onboarding/collection", {"skip": "1"})
     assert r.headers["location"] == "/m/ali-rahimov?notice=incomplete"
     assert _master(uid).published_at is None
     assert "телефона" in client.get("/master/edit").text
@@ -269,6 +273,8 @@ def test_finish_publishes_after_late_verification(client: TestClient) -> None:
     _ready(client)
     _verify_phone(uid)
     r = post(client, "/master/onboarding/phone", {})
+    assert r.headers["location"] == "/master/onboarding/collection"
+    r = post(client, "/master/onboarding/collection", {"skip": "1"})
     assert r.headers["location"].endswith("notice=published")
     assert _master(uid).published_at is not None
 

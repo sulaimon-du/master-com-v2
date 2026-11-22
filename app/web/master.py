@@ -1,5 +1,7 @@
 """Master onboarding wizard (steps 1-4), profile editing and the avatar upload.
 
+Step 5 (the first collection) lives in app/web/portfolio.py.
+
 Every route acts on the signed-in user's own profile: there is no master ID in any URL or form,
 so one user cannot reach another's profile. Rules live in app/services/masters.py.
 """
@@ -371,9 +373,15 @@ def master_phone_submit(
             error=_error_key(exc.code), errors={exc.code: _error_key(exc.code)},
             contacts=ContactsValues(telegram=telegram, whatsapp=whatsapp, instagram=instagram),
         )  # fmt: skip
-    published = masters.refresh_publication(db, master)
+    masters.refresh_publication(db, master)
     if next == "edit":
         return RedirectResponse("/master/edit?saved=1", status_code=303)
+    return RedirectResponse("/master/onboarding/collection", status_code=303)
+
+
+def finish_onboarding(db: Session, master: MasterProfile) -> RedirectResponse:
+    """The end of the wizard (step 5 or "Skip"): publish when ready, then show the profile."""
+    published = masters.refresh_publication(db, master)
     notice = "published" if published else "incomplete"
     return RedirectResponse(f"/m/{master.slug}?notice={notice}", status_code=303)
 
