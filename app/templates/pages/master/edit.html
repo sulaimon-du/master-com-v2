@@ -14,6 +14,7 @@
     </ul>
     {% endif %}
     <p><a class="link" href="/m/{{ state.slug }}">{{ t('master.view_public') }}</a></p>
+    <p><a class="link" href="{{ url_for('portfolio_page').path }}">{{ t('portfolio.manage') }}</a></p>
   </div>
   {{ mf.avatar() }}
   {{ mf.basics_form(show_bio=true) }}

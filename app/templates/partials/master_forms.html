@@ -141,6 +141,6 @@
   {{ text_field('telegram', t('master.telegram'), contacts.telegram, hint=t('master.telegram_hint')) }}
   {{ text_field('whatsapp', t('master.whatsapp'), contacts.whatsapp, type="tel", inputmode="tel", hint=t('master.whatsapp_hint')) }}
   {{ text_field('instagram', t('master.instagram'), contacts.instagram) }}
-  <button class="btn btn-primary" type="submit">{{ t('master.finish') if finish else t('master.save') }}</button>
+  <button class="btn btn-primary" type="submit">{{ t('master.next') if finish else t('master.save') }}</button>
 </form>
 {%- endmacro %}

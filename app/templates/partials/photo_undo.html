@@ -1,0 +1,10 @@
+{# What replaces a deleted photo tile: a message and an Undo button (htmx outerHTML swap). #}
+{% set base = '/master/portfolio/photos/' ~ photo_id %}
+<li id="photo-{{ photo_id }}" class="card grid gap-2">
+  <p role="status">{{ t('portfolio.deleted') }}</p>
+  {% if error %}<p role="alert" class="notice notice-error">{{ t(error) }}</p>{% endif %}
+  <form method="post" action="{{ base }}/undo" hx-post="{{ base }}/undo" hx-target="#photo-{{ photo_id }}" hx-swap="outerHTML">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button class="btn btn-secondary" type="submit">{{ t('portfolio.undo') }}</button>
+  </form>
+</li>

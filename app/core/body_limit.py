@@ -6,21 +6,44 @@ client could fill the disk. This pure-ASGI middleware refuses an oversized Conte
 before the body is read, and counts the bytes of bodies that have no (or a false) length.
 """
 
+import re
+
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.core.config import get_settings
 from app.services.images import MAX_UPLOAD_BYTES
 
 CHECKED_METHODS = {"POST", "PUT", "PATCH"}
 DEFAULT_CAP = 64 * 1024
-# One image plus multipart framing and the other form fields. A multi-photo portfolio upload will
-# need a larger named cap of its own.
+# One image plus multipart framing and the other form fields.
 UPLOAD_REQUEST_CAP = MAX_UPLOAD_BYTES + 64 * 1024
-# Prefixes of routes that accept files; extend when new upload routes are added.
+# Portfolio forms take several photos at once: the route refuses more than this many files, and
+# the body cap is that many full-size files plus framing.
+MAX_FILES_PER_UPLOAD = 10
+MULTI_UPLOAD_REQUEST_CAP = MAX_FILES_PER_UPLOAD * MAX_UPLOAD_BYTES + 64 * 1024
+# Single-image routes (prefixes) and multi-image routes (patterns); extend when routes are added.
 UPLOAD_PATH_PREFIXES = ("/master/avatar",)
+MULTI_UPLOAD_PATHS = (
+    re.compile(r"/master/portfolio/collections/[0-9]+/photos"),
+    re.compile(r"/master/onboarding/collection"),
+)
 
 
 def is_upload_path(path: str) -> bool:
     return any(path == p or path.startswith(p + "/") for p in UPLOAD_PATH_PREFIXES)
+
+
+def is_multi_upload_path(path: str) -> bool:
+    return any(pattern.fullmatch(path) for pattern in MULTI_UPLOAD_PATHS)
+
+
+def request_cap(path: str) -> int:
+    # With uploads off the upload routes answer 404, so nobody gets to send them big bodies.
+    if not get_settings().uploads_enabled:
+        return DEFAULT_CAP
+    if is_multi_upload_path(path):
+        return MULTI_UPLOAD_REQUEST_CAP
+    return UPLOAD_REQUEST_CAP if is_upload_path(path) else DEFAULT_CAP
 
 
 class BodyLimitMiddleware:
@@ -31,7 +54,7 @@ class BodyLimitMiddleware:
         if scope["type"] != "http" or scope["method"] not in CHECKED_METHODS:
             await self.app(scope, receive, send)
             return
-        cap = UPLOAD_REQUEST_CAP if is_upload_path(scope["path"]) else DEFAULT_CAP
+        cap = request_cap(scope["path"])
         for name, value in scope["headers"]:
             if name == b"content-length":
                 try:

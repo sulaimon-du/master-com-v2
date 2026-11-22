@@ -1,0 +1,34 @@
+{# Shared by the portfolio pages and wizard step 5. Import with context. #}
+{% macro file_errors_list(errors) -%}
+{% if errors %}
+<div role="alert" class="notice notice-error grid gap-1">
+  <p>{{ t('portfolio.some_failed') }}</p>
+  <ul class="list-disc ps-5">
+    {% for n, key in errors %}<li>{{ t('portfolio.file') }} {{ n }}: {{ t(key) }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+{%- endmacro %}
+
+{% macro error_notice(error) -%}
+{% if error %}<p role="alert" class="notice notice-error">{{ t(error) }}</p>{% endif %}
+{%- endmacro %}
+
+{% macro files_input() -%}
+<div class="grid gap-1.5">
+  <label for="photos" class="text-sm font-semibold">{{ t('portfolio.photos_label') }}</label>
+  <input id="photos" name="photos" type="file" multiple accept="image/jpeg,image/png,image/webp" class="input">
+  <p class="text-sm text-muted">{{ t('portfolio.upload_hint') }}</p>
+</div>
+{%- endmacro %}
+
+{% macro title_fields(title, description) -%}
+<div class="grid gap-1.5">
+  <label for="title" class="text-sm font-semibold">{{ t('portfolio.collection_title') }}</label>
+  <input id="title" name="title" type="text" value="{{ title }}" required maxlength="120" class="input">
+</div>
+<div class="grid gap-1.5">
+  <label for="description" class="text-sm font-semibold">{{ t('portfolio.collection_desc') }}</label>
+  <textarea id="description" name="description" rows="3" maxlength="1000" class="input">{{ description }}</textarea>
+</div>
+{%- endmacro %}

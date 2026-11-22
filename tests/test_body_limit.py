@@ -97,3 +97,54 @@ def test_normal_avatar_upload_still_works(client: TestClient) -> None:
         files={"upload": ("a.png", buf.getvalue(), "image/png")},
     )
     assert r.status_code == 303
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/master/portfolio/collections/1/photos", "/master/onboarding/collection", "/master/avatar"],
+)
+def test_upload_paths_get_the_small_cap_when_uploads_are_off(
+    client: TestClient, monkeypatch, path: str
+) -> None:  # type: ignore[no-untyped-def]
+    from app.core.config import get_settings
+
+    monkeypatch.setenv("UPLOADS_ENABLED", "false")
+    get_settings.cache_clear()
+    assert client.post(path, content=b"x" * (DEFAULT_CAP + 1)).status_code == 413
+    # Under the small cap the body is read and the route answers (CSRF or 404), not 413.
+    assert client.post(path, content=b"x" * 1000).status_code != 413
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/master/portfolio/collections/1/photos",
+        "/master/onboarding/collection",
+        "/master/avatar",
+    ],
+)
+def test_upload_paths_keep_the_big_cap_when_uploads_are_on(
+    client: TestClient, monkeypatch, path: str
+) -> None:  # type: ignore[no-untyped-def]
+    from app.core.config import get_settings
+
+    monkeypatch.setenv("UPLOADS_ENABLED", "true")
+    get_settings.cache_clear()
+    assert client.post(path, content=b"x" * (DEFAULT_CAP + 1)).status_code != 413
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/master/portfolio/collections/١/photos",  # Arabic-Indic digit
+        "/master/portfolio/collections/1/photos\n",
+        "/master/onboarding/collection\n",
+    ],
+)
+def test_lookalike_paths_get_the_default_cap(monkeypatch, path: str) -> None:  # type: ignore[no-untyped-def]
+    from app.core.body_limit import request_cap
+    from app.core.config import get_settings
+
+    monkeypatch.setenv("UPLOADS_ENABLED", "true")
+    get_settings.cache_clear()
+    assert request_cap(path) == DEFAULT_CAP

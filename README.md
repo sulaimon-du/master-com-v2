@@ -63,11 +63,14 @@ Schema and rules: [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md). Reference data liv
 | `POST /account/telegram/link` | Start linking Telegram or verifying the phone: redirects to the bot |
 | `POST /account/sessions/revoke` | Sign out on every device |
 | `/master/onboarding/basics`, `/specialties`, `/area`, `/phone` | Master onboarding wizard steps (signed in) |
+| `/master/onboarding/collection` | Onboarding step 5: first collection, optional (signed in) |
 | `/master/onboarding/phone/check` | "Check again" for the verified phone |
 | `/master/slug-check` | Live check of a profile address (HTMX) |
 | `/master/edit` | Edit the master profile |
 | `POST /master/avatar` | Upload the profile photo (only when `UPLOADS_ENABLED`) |
+| `/master/portfolio`, `/master/portfolio/collections/{id}` (+ POSTs: create, edit, hide, move, upload photos, move/delete/undo photo) | Portfolio management (signed in; uploads only when `UPLOADS_ENABLED`) |
 | `/m/{slug}` | Public master profile (drafts only for the owner) |
+| `/m/{slug}/c/{id}` | Public collection gallery (hidden or empty collections and drafts: 404, except for the owner) |
 | `/media/{key}` | Uploaded images from local disk |
 | `/lang/{code}` | Switch language (`ru`, `tg`) and return to the same page |
 

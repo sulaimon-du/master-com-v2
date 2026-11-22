@@ -1,11 +1,23 @@
+import io
+import re
+
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image
 from sqlalchemy import select
 
 from app.core.db import get_sessionmaker
 from app.core.time import utcnow
-from app.models import City, MasterProfile, MasterSpecialty, Specialty, User
-from app.services import masters
+from app.models import (
+    City,
+    MasterProfile,
+    MasterSpecialty,
+    PortfolioPhoto,
+    Specialty,
+    User,
+)
+from app.services import masters, portfolio
+from app.services.storage import get_storage
 from tests.support import PASSWORD, make_user, post, sign_in
 
 pytestmark = pytest.mark.usefixtures("clean_auth")
@@ -17,14 +29,18 @@ INSTAGRAM = "ali.builds"
 
 
 def _make_master(
-    email: str = "owner@example.com", slug: str = "ali-rahimov", *, publish: bool = True
+    email: str = "owner@example.com",
+    slug: str = "ali-rahimov",
+    *,
+    publish: bool = True,
+    phone: str = PHONE,
 ) -> int:
     uid = make_user(email)
     _known.add(email)
     with get_sessionmaker()() as db:
         user = db.get(User, uid)
         if publish:
-            user.phone, user.phone_verified_at = PHONE, utcnow()
+            user.phone, user.phone_verified_at = phone, utcnow()
         master = masters.create_profile(
             db,
             user,
@@ -176,3 +192,140 @@ def test_profile_responses_are_not_cached(client: TestClient) -> None:
         (client, "nobody"),
     ):
         assert c.get(f"/m/{slug}").headers["cache-control"] == "no-store"
+
+
+# --- public collections and the gallery page --------------------------------------------------
+
+
+def _png(size: tuple[int, int] = (64, 48)) -> bytes:
+    buf = io.BytesIO()
+    Image.new("RGB", size, (30, 90, 200)).save(buf, "PNG")
+    return buf.getvalue()
+
+
+def _add_collection(
+    title: str = "Кухня", photos: int = 2, *, hidden: bool = False, slug: str = "ali-rahimov"
+) -> tuple[int, list[int]]:
+    """A collection with `photos` live photos for the master `slug`; returns (id, photo ids)."""
+    with get_sessionmaker()() as db:
+        master = db.scalars(select(MasterProfile).where(MasterProfile.slug == slug)).one()
+        collection = portfolio.create_collection(db, master, title, "Плитка и фартук")
+        ids = [
+            portfolio.add_photo(db, get_storage(), master, collection.id, _png((64 + i, 48))).id
+            for i in range(photos)
+        ]
+        if hidden:
+            portfolio.set_collection_hidden(db, master, collection.id, True)
+        db.commit()
+        return collection.id, ids
+
+
+def test_profile_shows_square_grid_of_public_collections(client: TestClient) -> None:
+    _make_master()
+    shown, photo_ids = _add_collection("Кухня")
+    _add_collection("Спрятанная", hidden=True)
+    _add_collection("Пустая", photos=0)
+    with get_sessionmaker()() as db:
+        cover = db.get(PortfolioPhoto, photo_ids[0]).thumb_key
+    text = client.get("/m/ali-rahimov").text
+    assert "Кухня" in text
+    assert "Спрятанная" not in text and "Пустая" not in text
+    assert f"/m/ali-rahimov/c/{shown}" in text
+    assert f"/media/{cover}" in text
+    assert "aspect-square" in text and "object-cover" in text
+    assert "/master/portfolio" not in text  # the manage link is for the owner only
+
+
+def test_owner_sees_manage_portfolio_link(client: TestClient) -> None:
+    _make_master()
+    owner = _client(client, "owner@example.com")
+    assert 'href="/master/portfolio"' in owner.get("/m/ali-rahimov").text
+
+
+def test_collection_page_lists_photos_in_order_without_deleted(client: TestClient) -> None:
+    _make_master()
+    cid, ids = _add_collection(photos=3)
+    with get_sessionmaker()() as db:
+        photos = [db.get(PortfolioPhoto, i) for i in ids]
+        photos[1].deleted_at = utcnow()
+        keys = [photos[0].storage_key, photos[1].storage_key, photos[2].storage_key]
+        db.commit()
+    r = client.get(f"/m/ali-rahimov/c/{cid}")
+    assert r.status_code == 200
+    assert "Кухня" in r.text and "Плитка и фартук" in r.text
+    assert f"/media/{keys[1]}" not in r.text
+    assert r.text.index(f"/media/{keys[0]}") < r.text.index(f"/media/{keys[2]}")
+    assert 'id="photo-1"' in r.text and 'id="photo-2"' in r.text and 'id="photo-3"' not in r.text
+    assert 'href="#photo-2"' in r.text
+    assert "1 / 2" in r.text
+    assert 'loading="lazy"' in r.text and 'width="64"' in r.text and 'height="48"' in r.text
+    assert 'href="/m/ali-rahimov"' in r.text and "Али Рахимов" in r.text
+
+
+def test_hidden_collection_404(client: TestClient) -> None:
+    _make_master()
+    cid, _ = _add_collection(hidden=True)
+    assert client.get(f"/m/ali-rahimov/c/{cid}").status_code == 404
+    assert client.get("/m/ali-rahimov/c/999999").status_code == 404
+    assert _client(client, "x@example.com").get(f"/m/ali-rahimov/c/{cid}").status_code == 404
+    owner = _client(client, "owner@example.com")
+    assert owner.get(f"/m/ali-rahimov/c/{cid}").status_code == 200
+
+
+def test_collection_of_another_master_is_404(client: TestClient) -> None:
+    _make_master()
+    _make_master("other@example.com", slug="other-master", phone="+992902223344")
+    cid, _ = _add_collection("Кухня", slug="other-master")
+    assert client.get(f"/m/ali-rahimov/c/{cid}").status_code == 404
+    assert client.get(f"/m/other-master/c/{cid}").status_code == 200
+
+
+def test_collection_of_draft_master_404_for_others(client: TestClient) -> None:
+    _make_master(publish=False)
+    cid, _ = _add_collection()
+    assert client.get(f"/m/ali-rahimov/c/{cid}").status_code == 404
+    assert _client(client, "x@example.com").get(f"/m/ali-rahimov/c/{cid}").status_code == 404
+    r = _client(client, "owner@example.com").get(f"/m/ali-rahimov/c/{cid}")
+    assert r.status_code == 200 and 'content="noindex"' in r.text
+
+
+def test_empty_visible_collection_404_for_others_200_for_owner(client: TestClient) -> None:
+    _make_master()
+    cid, ids = _add_collection(photos=1)
+    with get_sessionmaker()() as db:
+        db.get(PortfolioPhoto, ids[0]).deleted_at = utcnow()
+        db.commit()
+    assert client.get(f"/m/ali-rahimov/c/{cid}").status_code == 404
+    assert _client(client, "owner@example.com").get(f"/m/ali-rahimov/c/{cid}").status_code == 200
+
+
+def test_moderated_photo_only_for_owner(client: TestClient) -> None:
+    _make_master()
+    cid, ids = _add_collection(photos=2)
+    with get_sessionmaker()() as db:
+        photo = db.get(PortfolioPhoto, ids[1])
+        photo.hidden_at, key = utcnow(), photo.storage_key
+        db.commit()
+    assert f"/media/{key}" not in client.get(f"/m/ali-rahimov/c/{cid}").text
+    owner = _client(client, "owner@example.com")
+    assert f"/media/{key}" in owner.get(f"/m/ali-rahimov/c/{cid}").text
+
+
+def test_collection_page_has_no_inline_script_or_style(client: TestClient) -> None:
+    _make_master()
+    cid, _ = _add_collection()
+    text = client.get(f"/m/ali-rahimov/c/{cid}").text
+    assert not re.search(r"<script(?![^>]*\bsrc=)", text)
+    assert "style=" not in text
+    assert "x-html" not in text
+
+
+def test_collection_page_is_no_store_and_loads_gallery_js_only_there(client: TestClient) -> None:
+    _make_master()
+    cid, _ = _add_collection()
+    r = client.get(f"/m/ali-rahimov/c/{cid}")
+    assert r.headers["cache-control"] == "no-store"
+    assert "/static/js/gallery.js" in r.text and 'x-data="gallery"' in r.text
+    assert "/static/js/gallery.js" not in client.get("/m/ali-rahimov").text
+    js = client.get("/static/js/gallery.js")
+    assert js.status_code == 200 and "Alpine.data" in js.text and "gallery" in js.text

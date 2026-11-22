@@ -20,6 +20,7 @@ from app.models.catalog import Category
 from app.models.master import SLUG_RE
 from app.schemas.master import ContactsView, ProfileView, SpecialtyView
 from app.services.auth import is_active
+from app.services.portfolio import public_collections
 from app.services.storage import get_storage
 from app.services.telegram import normalize_phone
 
@@ -379,4 +380,5 @@ def profile_view(
         areas=areas,
         contacts=contacts,
         is_draft=master.published_at is None,
+        collections=public_collections(db, master),
     )

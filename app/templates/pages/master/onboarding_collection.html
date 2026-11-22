@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% import "partials/portfolio_forms.html" as pf with context %}
+{% import "partials/wizard_steps.html" as ws with context %}
+{% block title %}{{ t('master.step5') }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-2xl gap-6">
+  <h1 class="text-4xl">{{ t('master.onboarding_title') }}</h1>
+  {{ ws.steps(5) }}
+  <form method="post" action="{{ url_for('master_collection_submit').path }}"{% if uploads_enabled %} enctype="multipart/form-data"{% endif %} class="card grid gap-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <h2 class="text-xl">{{ t('portfolio.step_title') }}</h2>
+    <p class="text-sm text-muted">{{ t('portfolio.step_hint') }}</p>
+    {{ pf.error_notice(error) }}
+    {{ pf.file_errors_list(file_errors) }}
+    {{ pf.title_fields(form_title, form_description) }}
+    {% if uploads_enabled %}{{ pf.files_input() }}{% endif %}
+    <button class="btn btn-primary" type="submit">{{ t('portfolio.step_create') }}</button>
+  </form>
+  <form method="post" action="{{ url_for('master_collection_submit').path }}" class="grid gap-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <p class="text-sm text-muted">{{ t('portfolio.skip_hint') }}</p>
+    <button class="btn btn-secondary" type="submit" name="skip" value="1">{{ t('portfolio.skip') }}</button>
+  </form>
+</section>
+{% endblock %}

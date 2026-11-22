@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% import "partials/portfolio_forms.html" as pf with context %}
+{% block title %}{{ collection.title }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-3xl gap-6">
+  <p><a class="link" href="{{ url_for('portfolio_page').path }}">{{ t('portfolio.back') }}</a></p>
+  <h1 class="text-4xl">{{ collection.title }}</h1>
+  {% if saved %}<p role="status" class="notice">{{ t('master.saved') }}</p>{% endif %}
+  {{ pf.error_notice(error) }}
+  {{ pf.file_errors_list(file_errors) }}
+  {% if undo_id %}
+  <div class="notice flex flex-wrap items-center gap-3">
+    <span role="status">{{ t('portfolio.deleted') }}</span>
+    <form method="post" action="/master/portfolio/photos/{{ undo_id }}/undo">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-secondary" type="submit">{{ t('portfolio.undo') }}</button>
+    </form>
+  </div>
+  {% endif %}
+  {% if finishing %}
+  <form method="post" action="{{ url_for('master_collection_submit').path }}" class="card grid gap-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="skip" value="1">
+    <p>{{ t('portfolio.step_created') }}</p>
+    <button class="btn btn-primary" type="submit">{{ t('master.finish') }}</button>
+  </form>
+  {% endif %}
+
+  {% if uploads_enabled %}
+  <form method="post" action="{{ url_for('portfolio_upload', collection_id=collection.id).path }}{% if finishing %}?finishing=1{% endif %}" enctype="multipart/form-data" class="card grid gap-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <h2 class="text-xl">{{ t('portfolio.upload_title') }}</h2>
+    {{ pf.files_input() }}
+    <button class="btn btn-primary" type="submit">{{ t('portfolio.upload_button') }}</button>
+  </form>
+  {% endif %}
+
+  {% if photos %}
+  <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    {% for photo in photos %}{% include "partials/photo_tile.html" %}{% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-muted">{{ t('portfolio.photos_empty') }}</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('portfolio_update', collection_id=collection.id).path }}" class="card grid gap-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <h2 class="text-xl">{{ t('portfolio.details') }}</h2>
+    {{ pf.title_fields(form_title, form_description) }}
+    <button class="btn btn-primary" type="submit">{{ t('master.save') }}</button>
+  </form>
+
+  <div class="card flex flex-wrap items-center gap-3">
+    <p class="flex-1">{{ t('portfolio.hidden_badge') if collection.hidden else t('portfolio.visible_badge') }}</p>
+    <form method="post" action="{{ url_for('portfolio_hide', collection_id=collection.id).path }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="hidden" value="{{ '0' if collection.hidden else '1' }}">
+      <button class="btn btn-secondary" type="submit">{{ t('portfolio.show') if collection.hidden else t('portfolio.hide') }}</button>
+    </form>
+  </div>
+</section>
+{% endblock %}
