@@ -44,7 +44,9 @@ def _master(db: Session, **user_kw) -> tuple[User, MasterProfile]:
 
 
 def _specialties(db: Session, n: int) -> list[int]:
-    return list(db.scalars(select(Specialty.id).where(Specialty.is_active).limit(n)))
+    return list(
+        db.scalars(select(Specialty.id).where(Specialty.is_active).order_by(Specialty.id).limit(n))
+    )
 
 
 def _city(db: Session) -> City:
@@ -178,7 +180,7 @@ def test_specialty_limits(db: Session) -> None:
     with pytest.raises(MasterError) as exc:
         masters.set_specialties(db, master, [ids[0], 10**9], [])
     assert _code(exc) == "unknown"
-    inactive = db.scalars(select(Specialty).limit(1)).one()
+    inactive = db.get(Specialty, ids[0])
     inactive.is_active = False
     db.flush()
     with pytest.raises(MasterError) as exc:
@@ -337,3 +339,47 @@ def test_profile_view_language_order_and_avatar(db: Session) -> None:
     assert ru.avatar_url and ru.avatar_url.endswith("/" + "0" * 32 + ".webp")
     assert ru.since == master.created_at.date() and ru.collections == []
     assert masters.profile_view(db, master, lang="xx", viewer=None).specialties == ru.specialties
+
+
+@pytest.mark.parametrize(
+    ("changes", "code"),
+    [
+        ({"display_name": "   "}, "name"),
+        ({"display_name": "x" * 81}, "name"),
+        ({"headline": "h" * 81}, "headline"),
+        ({"experience_years": 61}, "experience"),
+        ({"experience_years": -1}, "experience"),
+    ],
+)
+def test_basics_guard_in_service(db: Session, changes: dict, code: str) -> None:
+    data = _basics()
+    for key, value in changes.items():
+        setattr(data, key, value)
+    with pytest.raises(MasterError) as exc:
+        masters.create_profile(db, _user(db), data)
+    assert _code(exc) == code
+    _, master = _master(db)
+    with pytest.raises(MasterError) as exc:
+        masters.update_basics(db, master, data, bio=None)
+    assert _code(exc) == code
+
+
+def test_bio_guard_in_service(db: Session) -> None:
+    _, master = _master(db)
+    with pytest.raises(MasterError) as exc:
+        masters.update_basics(db, master, _basics(), bio="b" * 1001)
+    assert _code(exc) == "bio"
+    masters.update_basics(db, master, _basics(), bio="b" * 1000)
+
+
+def test_update_basics_reraises_non_slug_integrity_errors(db: Session, monkeypatch) -> None:
+    from sqlalchemy.exc import IntegrityError
+
+    _, master = _master(db)
+
+    def boom(*args, **kwargs):
+        raise IntegrityError("stmt", {}, Exception("some other constraint"))
+
+    monkeypatch.setattr(masters, "_apply_basics", boom)
+    with pytest.raises(IntegrityError):
+        masters.update_basics(db, master, _basics(), bio=None)

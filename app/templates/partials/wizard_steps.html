@@ -1,0 +1,8 @@
+{# Step indicator. `current` is 1-4; step 5 (first collection) arrives with the portfolio. #}
+{% macro steps(current) -%}
+<ol class="flex flex-wrap gap-2 text-sm" aria-label="{{ t('master.steps') }}">
+  {% for n, key in [(1, 'master.step1'), (2, 'master.step2'), (3, 'master.step3'), (4, 'master.step4')] %}
+  <li class="pill {% if n == current %}pill-current{% endif %}" {% if n == current %}aria-current="step"{% endif %}>{{ n }}. {{ t(key) }}</li>
+  {% endfor %}
+</ol>
+{%- endmacro %}

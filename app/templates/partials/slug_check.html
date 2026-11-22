@@ -1,0 +1,5 @@
+<p id="slug-status" role="status" class="text-sm {% if state == 'free' %}text-muted{% else %}field-error{% endif %}">
+  {% if state == 'free' %}{{ t('master.slug_free') }}
+  {% elif state == 'taken' %}{{ t('master.slug_taken') }}{% if suggestion %} <code>{{ suggestion }}</code>{% endif %}
+  {% else %}{{ t('master.slug_invalid') }}{% endif %}
+</p>

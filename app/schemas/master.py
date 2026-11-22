@@ -66,3 +66,54 @@ class ProfileView(BaseModel):
     contacts: ContactsView | None
     is_draft: bool
     collections: list[dict[str, object]] = []
+
+
+class SpecialtyOption(BaseModel):
+    id: int
+    name: str
+    selected: bool
+    primary: bool
+
+
+class CategoryOption(BaseModel):
+    name: str
+    specialties: list[SpecialtyOption]
+
+
+class DistrictOption(BaseModel):
+    id: int
+    name: str
+    selected: bool
+
+
+class CityOption(BaseModel):
+    id: int
+    name: str
+    whole: bool
+    districts: list[DistrictOption]
+
+
+class BasicsValues(BaseModel):
+    """What the basics form shows: the saved values, or the ones just submitted."""
+
+    display_name: str = ""
+    slug: str = ""
+    headline: str = ""
+    experience_years: str = ""
+    is_available: bool = True
+    bio: str = ""
+
+
+class ContactsValues(BaseModel):
+    telegram: str = ""
+    whatsapp: str = ""
+    instagram: str = ""
+
+
+class ProfileState(BaseModel):
+    """The owner's own status line: public address, avatar and what blocks publishing."""
+
+    slug: str
+    avatar_url: str | None
+    published: bool
+    missing: list[str]

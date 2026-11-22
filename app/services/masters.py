@@ -34,6 +34,10 @@ MasterCode = Literal[
     "telegram",
     "whatsapp",
     "instagram",
+    "name",
+    "headline",
+    "bio",
+    "experience",
 ]
 Missing = Literal["phone", "specialty", "area", "hidden", "inactive"]
 
@@ -109,6 +113,23 @@ def master_for_user(db: Session, user: User) -> MasterProfile | None:
     return db.scalar(select(MasterProfile).where(MasterProfile.user_id == user.id))
 
 
+def _check_basics(data: BasicsInput, bio: str | None = None) -> None:
+    """Service-level guard: the form validates too, but other callers must not skip the rules."""
+    if not 1 <= len(data.display_name.strip()) <= 80:
+        raise MasterError("name")
+    if data.headline is not None and len(data.headline) > 80:
+        raise MasterError("headline")
+    if bio is not None and len(bio) > 1000:
+        raise MasterError("bio")
+    if data.experience_years is not None and not 0 <= data.experience_years <= 60:
+        raise MasterError("experience")
+
+
+def _is_slug_conflict(exc: IntegrityError) -> bool:
+    diag = getattr(exc.orig, "diag", None)
+    return getattr(diag, "constraint_name", None) == "uq_master_profiles_slug"
+
+
 def _apply_basics(master: MasterProfile, data: BasicsInput) -> None:
     master.slug = data.slug
     master.display_name = data.display_name
@@ -122,6 +143,7 @@ def create_profile(db: Session, user: User, data: BasicsInput) -> MasterProfile:
         raise MasterError("exists")
     if not re.fullmatch(SLUG_RE, data.slug):
         raise MasterError("slug_invalid")
+    _check_basics(data)
     master = MasterProfile(user_id=user.id, origin="self", published_at=None)
     _apply_basics(master, data)
     try:
@@ -143,13 +165,16 @@ def update_basics(
 ) -> None:
     if not re.fullmatch(SLUG_RE, data.slug):
         raise MasterError("slug_invalid")
+    _check_basics(data, bio)
     try:
         with db.begin_nested():
             _apply_basics(master, data)
             master.bio = bio
-    except IntegrityError:
+    except IntegrityError as exc:
         db.expire(master)
-        raise MasterError("slug_taken") from None
+        if _is_slug_conflict(exc):
+            raise MasterError("slug_taken") from None
+        raise
     refresh_publication(db, master)
 
 

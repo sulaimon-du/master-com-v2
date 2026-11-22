@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% import "partials/master_forms.html" as mf with context %}
+{% import "partials/wizard_steps.html" as ws with context %}
+{% block title %}{{ t('master.step1') }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-2xl gap-6">
+  <h1 class="text-4xl">{{ t('master.onboarding_title') }}</h1>
+  {{ ws.steps(1) }}
+  {{ mf.basics_form() }}
+  {{ mf.avatar() }}
+  {% if has_profile %}<p><a class="btn btn-secondary no-underline" href="{{ url_for('master_specialties').path }}">{{ t('master.next') }}</a></p>{% endif %}
+</section>
+{% endblock %}

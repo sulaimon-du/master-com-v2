@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% import "partials/master_forms.html" as mf with context %}
+{% block title %}{{ t('master.edit_title') }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-2xl gap-6">
+  <h1 class="text-4xl">{{ t('master.edit_title') }}</h1>
+  {% if saved %}<p role="status" class="notice">{{ t('master.saved') }}</p>{% endif %}
+  <div class="card grid gap-2">
+    <p>{{ t('master.status_published') if state.published else t('master.status_draft') }}</p>
+    {% if state.missing %}
+    <p class="text-sm text-muted">{{ t('master.missing') }}</p>
+    <ul class="list-disc ps-5 text-sm">
+      {% for m in state.missing %}<li>{{ t(m) }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    <p><a class="link" href="/m/{{ state.slug }}">{{ t('master.view_public') }}</a></p>
+  </div>
+  {{ mf.avatar() }}
+  {{ mf.basics_form(show_bio=true) }}
+  {{ mf.specialties_form() }}
+  {{ mf.area_form() }}
+  {{ mf.phone_status() }}
+  {{ mf.contacts_form() }}
+</section>
+{% endblock %}

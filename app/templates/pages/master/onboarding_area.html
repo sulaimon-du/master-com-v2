@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% import "partials/master_forms.html" as mf with context %}
+{% import "partials/wizard_steps.html" as ws with context %}
+{% block title %}{{ t('master.step3') }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-2xl gap-6">
+  <h1 class="text-4xl">{{ t('master.onboarding_title') }}</h1>
+  {{ ws.steps(3) }}
+  {{ mf.area_form() }}
+</section>
+{% endblock %}

@@ -1,0 +1,146 @@
+{# Form sections shared by the wizard steps and the edit page. Import with context. #}
+{% macro action(route) -%}{{ url_for(route).path }}{% if next_ == 'edit' %}?next=edit{% endif %}{%- endmacro %}
+
+{% macro err(section_name) -%}
+{% if section == section_name and error %}<p role="alert" class="notice notice-error">{{ t(error) }}</p>{% endif %}
+{%- endmacro %}
+
+{% macro text_field(name, label, value, required=false, hint="", type="text", inputmode="") -%}
+<div class="grid gap-1.5">
+  <label for="{{ name }}" class="text-sm font-semibold">{{ label }}</label>
+  <input id="{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ value }}" class="input"
+    {% if required %}required{% endif %} {% if inputmode %}inputmode="{{ inputmode }}"{% endif %}
+    {% if name in errors %}aria-invalid="true" aria-describedby="{{ name }}-error"{% elif hint %}aria-describedby="{{ name }}-hint"{% endif %}>
+  {% if hint and name not in errors %}<p id="{{ name }}-hint" class="text-sm text-muted">{{ hint }}</p>{% endif %}
+  {% if name in errors %}<p id="{{ name }}-error" class="field-error text-sm">{{ t(errors[name]) }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro avatar() -%}
+{% if has_profile and uploads_enabled %}
+<form method="post" action="{{ action('master_avatar') }}" enctype="multipart/form-data" class="card grid gap-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <h2 class="text-xl">{{ t('master.avatar') }}</h2>
+  {% if state.avatar_url %}<img src="{{ state.avatar_url }}" width="96" height="96" alt="" class="rounded-full">{% endif %}
+  {% if avatar_error %}<p role="alert" class="notice notice-error">{{ t(avatar_error) }}</p>{% endif %}
+  <div class="grid gap-1.5">
+    <label for="upload" class="text-sm font-semibold">{{ t('master.avatar_file') }}</label>
+    <input id="upload" name="upload" type="file" accept="image/jpeg,image/png,image/webp" class="input">
+    <p class="text-sm text-muted">{{ t('master.avatar_hint') }}</p>
+  </div>
+  <button class="btn btn-secondary" type="submit">{{ t('master.avatar_save') }}</button>
+</form>
+{% endif %}
+{%- endmacro %}
+
+{% macro basics_form(show_bio=false) -%}
+<form method="post" action="{{ action('master_basics_submit') }}" class="card grid gap-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <h2 class="text-xl">{{ t('master.basics_title') }}</h2>
+  {{ err('basics') }}
+  {{ text_field('display_name', t('master.display_name'), basics.display_name, required=true) }}
+  <div class="grid gap-1.5">
+    <label for="slug" class="text-sm font-semibold">{{ t('master.slug') }}</label>
+    <input id="slug" name="slug" type="text" value="{{ basics.slug }}" required class="input" autocapitalize="none" spellcheck="false"
+      hx-get="{{ url_for('master_slug_check').path }}" hx-trigger="input changed delay:400ms" hx-target="#slug-status" hx-swap="outerHTML"
+      {% if 'slug' in errors %}aria-invalid="true"{% endif %}>
+    <p class="text-sm text-muted">{{ t('master.slug_hint') }}</p>
+    <p id="slug-status" role="status" class="text-sm field-error">{% if 'slug' in errors %}{{ t(errors['slug']) }}{% endif %}</p>
+  </div>
+  {{ text_field('headline', t('master.headline'), basics.headline, hint=t('master.headline_hint')) }}
+  {{ text_field('experience_years', t('master.experience'), basics.experience_years, type="number", inputmode="numeric") }}
+  <label class="flex items-center gap-2 text-sm">
+    <input type="checkbox" name="is_available" value="1" {% if basics.is_available %}checked{% endif %}>
+    {{ t('master.available') }}
+  </label>
+  {% if show_bio %}
+  <div class="grid gap-1.5">
+    <label for="bio" class="text-sm font-semibold">{{ t('master.bio') }}</label>
+    <textarea id="bio" name="bio" rows="5" maxlength="1000" class="input" {% if 'bio' in errors %}aria-invalid="true"{% endif %}>{{ basics.bio }}</textarea>
+    {% if 'bio' in errors %}<p class="field-error text-sm">{{ t(errors['bio']) }}</p>{% endif %}
+  </div>
+  {% endif %}
+  <button class="btn btn-primary" type="submit">{{ t('master.save') if next_ == 'edit' or has_profile else t('master.next') }}</button>
+</form>
+{%- endmacro %}
+
+{% macro specialties_form() -%}
+<form method="post" action="{{ action('master_specialties_submit') }}" class="card grid gap-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <h2 class="text-xl">{{ t('master.specialties_title') }}</h2>
+  <p class="text-sm text-muted">{{ t('master.specialties_hint') }}</p>
+  {{ err('specialties') }}
+  {% for cat in categories %}
+  <fieldset class="grid gap-2">
+    <legend class="font-semibold">{{ cat.name }}</legend>
+    {% for s in cat.specialties %}
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <label class="flex items-center gap-2"><input type="checkbox" name="specialty" value="{{ s.id }}" {% if s.selected %}checked{% endif %}> {{ s.name }}</label>
+      <label class="flex items-center gap-2 text-sm text-muted"><input type="checkbox" name="primary" value="{{ s.id }}" {% if s.primary %}checked{% endif %}> {{ t('master.primary') }}</label>
+    </div>
+    {% endfor %}
+  </fieldset>
+  {% endfor %}
+  <button class="btn btn-primary" type="submit">{{ t('master.save') if next_ == 'edit' else t('master.next') }}</button>
+</form>
+{%- endmacro %}
+
+{% macro area_form() -%}
+<form method="post" action="{{ action('master_area_submit') }}" class="card grid gap-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <h2 class="text-xl">{{ t('master.area_title') }}</h2>
+  <p class="text-sm text-muted">{{ t('master.area_hint') }}</p>
+  {{ err('area') }}
+  {% for c in cities %}
+  <fieldset class="grid gap-2">
+    <label class="flex items-center gap-2 font-semibold"><input type="checkbox" name="city" value="{{ c.id }}" {% if c.whole %}checked{% endif %}> {{ c.name }}{% if c.districts %} <span class="text-sm font-normal text-muted">({{ t('master.whole_city') }})</span>{% endif %}</label>
+    {% if c.districts %}
+    <div class="grid gap-2 ps-6">
+      {% for d in c.districts %}
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="district" value="{{ d.id }}" {% if d.selected %}checked{% endif %}> {{ d.name }}</label>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </fieldset>
+  {% endfor %}
+  <button class="btn btn-primary" type="submit">{{ t('master.save') if next_ == 'edit' else t('master.next') }}</button>
+</form>
+{%- endmacro %}
+
+{% macro phone_status() -%}
+<div class="card grid gap-3">
+  <h2 class="text-xl">{{ t('master.phone_title') }}</h2>
+  {% if user.phone_verified %}
+  <p>{{ user.phone }} <span class="text-muted">({{ t('account.phone_verified') }})</span></p>
+  {% else %}
+  <p class="notice">{{ t('master.phone_needed') }}</p>
+  {% if telegram_enabled and not user.telegram_linked %}
+  <form method="post" action="{{ url_for('telegram_link').path }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button class="btn btn-secondary" type="submit">{{ t('account.telegram_link') }}</button>
+  </form>
+  {% elif telegram_enabled %}
+  <a class="btn btn-secondary no-underline" href="{{ telegram_phone_url }}">{{ t('account.phone_verify') }}</a>
+  {% else %}
+  <p class="text-sm text-muted">{{ t('account.telegram_unavailable') }}</p>
+  {% endif %}
+  <form method="post" action="{{ action('master_phone_check') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button class="btn btn-secondary" type="submit">{{ t('master.check_again') }}</button>
+  </form>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{% macro contacts_form(finish=false) -%}
+<form method="post" action="{{ action('master_phone_submit') }}" class="card grid gap-4">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <h2 class="text-xl">{{ t('master.contacts_title') }}</h2>
+  <p class="text-sm text-muted">{{ t('master.contacts_hint') }}</p>
+  {{ err('phone') }}
+  {{ text_field('telegram', t('master.telegram'), contacts.telegram, hint=t('master.telegram_hint')) }}
+  {{ text_field('whatsapp', t('master.whatsapp'), contacts.whatsapp, type="tel", inputmode="tel", hint=t('master.whatsapp_hint')) }}
+  {{ text_field('instagram', t('master.instagram'), contacts.instagram) }}
+  <button class="btn btn-primary" type="submit">{{ t('master.finish') if finish else t('master.save') }}</button>
+</form>
+{%- endmacro %}
