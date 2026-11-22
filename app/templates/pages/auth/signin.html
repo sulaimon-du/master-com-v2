@@ -23,6 +23,9 @@
     <a class="btn btn-secondary no-underline" href="{{ url_for('google_start').path }}">{{ t('signin.google') }}</a>
   </div>
   {% endif %}
+  {% if telegram_enabled %}
+  <a class="btn btn-secondary no-underline" href="{{ telegram_signin_url }}">{{ t('telegram.signin_button') }}</a>
+  {% endif %}
   <p class="text-sm text-muted">{{ t('signin.more') }} <a class="link" href="{{ url_for('register_page').path }}">{{ t('signin.register') }}</a></p>
 </section>
 {% endblock %}

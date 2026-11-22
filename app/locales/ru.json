@@ -94,5 +94,18 @@
   "google.claim_title": "Заявка отправлена",
   "google.claim_text": "Аккаунт с этой почтой уже создан, но его почту никто не подтвердил. После проверки администратором он перейдёт к вашему Google-аккаунту, и вы просто войдёте через Google ещё раз. Быстрее: восстановите пароль по почте, и аккаунт станет вашим сразу.",
   "google.claim_refused_title": "Заявка отклонена",
-  "google.claim_refused_text": "Администратор не подтвердил передачу этого аккаунта. Если почта ваша, восстановите пароль: письмо придёт на этот адрес, и аккаунт станет вашим."
+  "google.claim_refused_text": "Администратор не подтвердил передачу этого аккаунта. Если почта ваша, восстановите пароль: письмо придёт на этот адрес, и аккаунт станет вашим.",
+  "telegram.signin_button": "Войти через Telegram",
+  "telegram.signin_title": "Вход через Telegram",
+  "telegram.signin_confirm": "Войти как {name}?",
+  "telegram.signin_submit": "Войти",
+  "telegram.signin_in_app_hint": "Если страница открылась внутри Telegram, можно выбрать «Открыть в браузере».",
+  "telegram.link_bad": "Ссылка устарела. Попросите новую в боте.",
+  "account.telegram": "Telegram",
+  "account.telegram_linked": "привязан",
+  "account.telegram_link": "Привязать Telegram и подтвердить телефон",
+  "account.phone": "Телефон",
+  "account.phone_verified": "подтверждён",
+  "account.phone_verify": "Подтвердить телефон в Telegram",
+  "account.telegram_unavailable": "Вход через Telegram сейчас недоступен."
 }

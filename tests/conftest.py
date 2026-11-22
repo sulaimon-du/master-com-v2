@@ -59,8 +59,8 @@ def clean_auth(migrated_engine) -> None:
     with migrated_engine.begin() as conn:
         conn.execute(
             text(
-                "TRUNCATE auth_sessions, auth_tokens, oauth_flows, rate_limits, users "
-                "RESTART IDENTITY CASCADE"
+                "TRUNCATE auth_sessions, auth_tokens, oauth_flows, rate_limits, "
+                "telegram_signins, users RESTART IDENTITY CASCADE"
             )
         )
 

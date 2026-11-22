@@ -13,6 +13,9 @@ class AccountView(BaseModel):
     email_confirmed: bool
     has_password: bool
     google_linked: bool
+    telegram_linked: bool
+    phone: str | None
+    phone_verified: bool
 
     @classmethod
     def from_user(cls, user: User) -> "AccountView":
@@ -22,4 +25,7 @@ class AccountView(BaseModel):
             email_confirmed=user.email_verified_at is not None,
             has_password=user.password_hash is not None,
             google_linked=user.google_sub is not None,
+            telegram_linked=user.telegram_id is not None,
+            phone=user.phone,
+            phone_verified=user.phone_verified_at is not None,
         )

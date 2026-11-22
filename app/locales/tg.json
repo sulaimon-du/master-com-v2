@@ -94,5 +94,18 @@
   "google.claim_title": "Дархост фиристода шуд",
   "google.claim_text": "Ҳисоб бо ин почта аллакай сохта шудааст, аммо почтаи онро касе тасдиқ накардааст. Пас аз санҷиши маъмур он ба ҳисоби Google-и шумо мегузарад ва шумо бори дигар бо Google ворид мешавед. Тезтар: рамзро тавассути почта барқарор кунед ва ҳисоб фавран аз они шумо мешавад.",
   "google.claim_refused_title": "Дархост рад шуд",
-  "google.claim_refused_text": "Маъмур супоридани ин ҳисобро тасдиқ накард. Агар почта аз они шумо бошад, рамзро барқарор кунед: мактуб ба ҳамин суроға меояд ва ҳисоб аз они шумо мешавад."
+  "google.claim_refused_text": "Маъмур супоридани ин ҳисобро тасдиқ накард. Агар почта аз они шумо бошад, рамзро барқарор кунед: мактуб ба ҳамин суроға меояд ва ҳисоб аз они шумо мешавад.",
+  "telegram.signin_button": "Ворид шудан бо Telegram",
+  "telegram.signin_title": "Воридшавӣ бо Telegram",
+  "telegram.signin_confirm": "Ҳамчун {name} ворид шавед?",
+  "telegram.signin_submit": "Ворид шудан",
+  "telegram.signin_in_app_hint": "Агар саҳифа дар дохили Telegram кушода шуд, «Кушодан дар браузер»-ро интихоб кунед.",
+  "telegram.link_bad": "Истинод кӯҳна шудааст. Аз бот истиноди нав талаб кунед.",
+  "account.telegram": "Telegram",
+  "account.telegram_linked": "пайваст шудааст",
+  "account.telegram_link": "Пайваст кардани Telegram ва тасдиқи телефон",
+  "account.phone": "Телефон",
+  "account.phone_verified": "тасдиқ шудааст",
+  "account.phone_verify": "Тасдиқи телефон дар Telegram",
+  "account.telegram_unavailable": "Воридшавӣ бо Telegram ҳоло дастрас нест."
 }
