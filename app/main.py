@@ -9,7 +9,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from app.api import health
 from app.core.config import Settings, get_settings
 from app.core.security_headers import SecurityHeadersMiddleware
-from app.web import account, auth, pages, telegram
+from app.web import account, auth, media, pages, telegram
 from app.web.csrf import CSRFError
 from app.web.render import render
 
@@ -39,6 +39,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(account.router)
     app.include_router(telegram.router)
+    app.include_router(media.router)
     app.add_exception_handler(CSRFError, csrf_failed)
     return app
 

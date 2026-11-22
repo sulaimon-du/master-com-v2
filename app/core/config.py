@@ -32,6 +32,20 @@ class Settings(BaseSettings):
     telegram_webhook_url: str | None = None
     # Public address of the site, no trailing slash; the bot builds absolute links from it.
     site_url: str = "http://localhost:8000"
+    # Uploaded images (avatars, portfolio) are stored here until R2 is wired in.
+    media_root: str = "media"
+    # None means "decide by APP_ENV": on in development and test, off on staging and production
+    # (Render's disk is ephemeral) unless set explicitly. Off hides upload controls, POSTs are 404.
+    uploads_enabled: bool | None = None
+    plan_limits: dict[str, dict[str, int]] = {
+        "free": {
+            "collections": 30,
+            "photos_per_collection": 60,
+            "specialties": 10,
+            "primary_specialties": 3,
+            "areas": 20,
+        }
+    }
 
     @field_validator("database_url", mode="before")
     @classmethod
@@ -50,7 +64,12 @@ class Settings(BaseSettings):
         host = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
         if host and host not in self.allowed_hosts:
             self.allowed_hosts = [*self.allowed_hosts, host]
+        if self.uploads_enabled is None:
+            self.uploads_enabled = not self.is_production_like
         return self
+
+    def limit(self, name: str, plan: str = "free") -> int:
+        return self.plan_limits[plan][name]
 
     @property
     def is_production_like(self) -> bool:
