@@ -24,6 +24,14 @@ class Settings(BaseSettings):
     # Google sign-in (BRIEF §4.1). Both must be set to show the Google button.
     google_client_id: str | None = None
     google_client_secret: SecretStr | None = None
+    # Telegram bot: sign-in, linking and phone sharing. Token and username must both be set to
+    # show the Telegram button. The webhook secret and URL are used only by the bot process.
+    telegram_bot_token: SecretStr | None = None
+    telegram_bot_username: str | None = None
+    telegram_webhook_secret: SecretStr | None = None
+    telegram_webhook_url: str | None = None
+    # Public address of the site, no trailing slash; the bot builds absolute links from it.
+    site_url: str = "http://localhost:8000"
 
     @field_validator("database_url", mode="before")
     @classmethod
@@ -51,6 +59,10 @@ class Settings(BaseSettings):
     @property
     def google_enabled(self) -> bool:
         return bool(self.google_client_id and self.google_client_secret)
+
+    @property
+    def telegram_enabled(self) -> bool:
+        return bool(self.telegram_bot_token and self.telegram_bot_username)
 
     @property
     def secure_cookies(self) -> bool:

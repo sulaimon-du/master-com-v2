@@ -16,7 +16,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.db import Base
 from app.models.common import CreatedAt, IdPk, one_of
 
-TOKEN_PURPOSES = ("confirm_email", "reset_password")
+TOKEN_PURPOSES = ("confirm_email", "reset_password", "tg_link")
 GOOGLE_CLAIM_STATUSES = ("pending", "approved", "rejected")
 
 
@@ -37,7 +37,7 @@ class AuthSession(IdPk, Base):
 
 
 class AuthToken(IdPk, Base):
-    """One-time link for email confirmation or password reset. Single use, expiring, hashed."""
+    """One-time link: email confirmation, password reset or linking Telegram. Single use, hashed."""
 
     __tablename__ = "auth_tokens"
 
@@ -114,3 +114,20 @@ class GoogleClaim(IdPk, CreatedAt, Base):
             postgresql_where=text("status = 'pending'"),
         ),
     )
+
+
+class TelegramSignin(IdPk, CreatedAt, Base):
+    """A Telegram user the bot has seen, waiting to finish signing in on the site.
+
+    The bot stores who wrote to it; the site trades the one-time token (hashed here) for a
+    session. Single use and short-lived.
+    """
+
+    __tablename__ = "telegram_signins"
+
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    first_name: Mapped[str] = mapped_column(String(80))
+    language_code: Mapped[str | None] = mapped_column(String(8))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

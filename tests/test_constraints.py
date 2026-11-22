@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.db import Base
 from app.models import (
+    AuthToken,
     Category,
     City,
     Complaint,
@@ -30,6 +31,7 @@ from app.models import (
     Specialty,
     SpecialtySynonym,
     SupportThread,
+    TelegramSignin,
     User,
 )
 
@@ -477,3 +479,28 @@ def test_blocklist_keeps_only_hashes(db: Session) -> None:
         "uq_import_blocklist_kind_value_sha256",
         ImportBlocklist(kind="phone", value_sha256="a" * 64),
     )
+
+
+# ---- auth tokens and Telegram sign-ins ----
+
+
+def _token(owner: User, purpose: str, token_hash: str) -> AuthToken:
+    return AuthToken(user_id=owner.id, purpose=purpose, token_hash=token_hash, expires_at=NOW)
+
+
+def test_auth_token_accepts_tg_link_purpose(db: Session, client_user: User) -> None:
+    accept(db, _token(client_user, "tg_link", "a" * 64))
+
+
+def test_auth_token_rejects_unknown_purpose(db: Session, client_user: User) -> None:
+    reject(db, "ck_auth_tokens_purpose", _token(client_user, "tg_other", "b" * 64))
+
+
+def test_telegram_signin_token_hash_is_unique(db: Session) -> None:
+    def signin() -> TelegramSignin:
+        return TelegramSignin(
+            token_hash="c" * 64, telegram_id=123456789012, first_name="Ali", expires_at=NOW
+        )
+
+    accept(db, signin())
+    reject(db, "uq_telegram_signins_token_hash", signin())
