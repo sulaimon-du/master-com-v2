@@ -74,10 +74,10 @@ def telegram_link(
     user: Annotated[User | None, Depends(current_user)],
 ) -> Response:
     settings = get_settings()
-    if user is None:
-        return RedirectResponse("/signin?next=/account", status_code=303)
     if not settings.telegram_enabled:
         return _not_found(request, user)
+    if user is None:
+        return RedirectResponse("/signin?next=/account", status_code=303)
     if not telegram.allow_link_start(db, user_id=user.id, ip=client_ip(request)):
         return notice_page(
             request, user, status=429, title="error.rate_limited_title", text="error.rate_limited"

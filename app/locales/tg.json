@@ -107,5 +107,6 @@
   "account.phone": "Телефон",
   "account.phone_verified": "тасдиқ шудааст",
   "account.phone_verify": "Тасдиқи телефон дар Telegram",
-  "account.telegram_unavailable": "Воридшавӣ бо Telegram ҳоло дастрас нест."
+  "account.telegram_unavailable": "Воридшавӣ бо Telegram ҳоло дастрас нест.",
+  "account.telegram_not_linked": "пайваст нашудааст"
 }

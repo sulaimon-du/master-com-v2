@@ -28,7 +28,7 @@
       {% endif %}
     </div>
     <div class="card grid gap-3">
-      <p><strong>{{ t('account.telegram') }}</strong>: {{ t('account.telegram_linked') if user.telegram_linked else t('account.google_not_linked') }}</p>
+      <p><strong>{{ t('account.telegram') }}</strong>: {{ t('account.telegram_linked') if user.telegram_linked else t('account.telegram_not_linked') }}</p>
       {% if user.phone %}
       <p><span class="text-muted">{{ t('account.phone') }}:</span> {{ user.phone }}{% if user.phone_verified %} <span class="text-muted">({{ t('account.phone_verified') }})</span>{% endif %}</p>
       {% endif %}

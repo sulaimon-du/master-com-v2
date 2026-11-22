@@ -107,5 +107,6 @@
   "account.phone": "Телефон",
   "account.phone_verified": "подтверждён",
   "account.phone_verify": "Подтвердить телефон в Telegram",
-  "account.telegram_unavailable": "Вход через Telegram сейчас недоступен."
+  "account.telegram_unavailable": "Вход через Telegram сейчас недоступен.",
+  "account.telegram_not_linked": "не привязан"
 }

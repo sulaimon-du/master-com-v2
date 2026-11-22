@@ -12,14 +12,6 @@ pytestmark = pytest.mark.usefixtures("clean_auth")
 BOT = "https://t.me/MasterComTestBot"
 
 
-@pytest.fixture(autouse=True)
-def _telegram_off(monkeypatch):  # type: ignore[no-untyped-def]
-    """Off by default, even when a developer's .env has a bot (process env wins over .env)."""
-    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "")
-    monkeypatch.setenv("TELEGRAM_BOT_USERNAME", "")
-    get_settings.cache_clear()
-
-
 @pytest.fixture
 def tg(monkeypatch, settings):  # type: ignore[no-untyped-def]
     """Telegram sign-in on."""
@@ -75,13 +67,20 @@ def test_signin_post_rotates_the_session(client: TestClient, tg) -> None:  # typ
     make_user()
     sign_in(client)
     old = client.cookies.get("mc_session")
+    old_csrf = client.cookies.get("mc_csrf")
     assert old
     r = post(client, f"/auth/telegram/{_issue()}")
     assert r.status_code == 303
     assert r.headers["location"] == "/account"
     new = client.cookies.get("mc_session")
     assert new and new != old
+    assert client.cookies.get("mc_csrf") != old_csrf
     assert client.get("/account").status_code == 200
+    # The old session ID no longer works.
+    client.cookies.set("mc_session", old)
+    r = client.get("/account")
+    assert r.status_code == 303
+    assert r.headers["location"].startswith("/signin")
 
 
 def test_bad_or_used_signin_link_shows_a_friendly_page(client: TestClient, tg) -> None:  # type: ignore[no-untyped-def]
@@ -121,10 +120,22 @@ def test_link_start_is_rate_limited(client: TestClient, tg) -> None:  # type: ig
     assert post(client, "/account/telegram/link").status_code == 429
 
 
-def test_link_start_is_404_when_not_configured(client: TestClient) -> None:
+def test_routes_are_404_when_not_configured(client: TestClient) -> None:
+    assert post(client, "/account/telegram/link").status_code == 404  # guest too
+    assert post(client, "/auth/telegram/x").status_code == 404
     make_user()
     sign_in(client)
     assert post(client, "/account/telegram/link").status_code == 404
+
+
+def test_empty_telegram_settings_count_as_unset(settings) -> None:  # type: ignore[no-untyped-def]
+    assert settings.telegram_enabled is False
+
+
+def test_signin_post_hits_the_rate_limit(client: TestClient, tg) -> None:  # type: ignore[no-untyped-def]
+    for _ in range(30):
+        assert post(client, "/auth/telegram/bad").status_code == 400
+    assert post(client, "/auth/telegram/bad").status_code == 429
 
 
 def test_account_shows_telegram_and_phone_state(client: TestClient, tg) -> None:  # type: ignore[no-untyped-def]
