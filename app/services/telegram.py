@@ -3,6 +3,8 @@
 Sync; never imports aiogram.
 """
 
+import hashlib
+import hmac
 import re
 from dataclasses import dataclass
 from datetime import timedelta
@@ -11,15 +13,17 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.i18n import LANGS, normalize_lang
 from app.core.security import hash_token, new_token
 from app.core.time import utcnow
-from app.models.auth import TelegramSignin
+from app.models.auth import AuthToken, TelegramSignin
 from app.models.common import PHONE_RE
 from app.models.user import User
 from app.services import auth, rate_limit
 
 SIGNIN_TTL = timedelta(minutes=10)
+LINK_TTL = timedelta(minutes=30)
 
 
 def normalize_phone(raw: str) -> str | None:
@@ -167,3 +171,164 @@ def _lock_user(db: Session, telegram_id: int) -> User | None:
         .with_for_update()
         .execution_options(populate_existing=True)
     )
+
+
+# --- Linking Telegram to a site account ---------------------------------------------------
+
+
+@dataclass(frozen=True)
+class LinkPreview:
+    token_id: int
+    account: str  # masked name and email
+
+
+def allow_link_start(db: Session, *, user_id: int, ip: str) -> bool:
+    """Site "Link Telegram" / "Verify phone": 10 per user per hour, 30 per IP per 15 minutes."""
+    user_ok = rate_limit.allow(db, "tg_link_user", str(user_id), limit=10, window=auth.HOUR)
+    ip_ok = rate_limit.allow(db, "tg_link_ip", ip, limit=30, window=auth.LOGIN_WINDOW)
+    return user_ok and ip_ok
+
+
+def issue_link(db: Session, user: User) -> str:
+    """One-time token that binds a Telegram user to `user` once they confirm in the bot."""
+    return auth._issue_token(db, user, "tg_link", LINK_TTL)
+
+
+def link_preview(db: Session, raw: str) -> LinkPreview | None:
+    """Which account the link is for, without using it. None when unknown, used or expired."""
+    row = db.execute(
+        select(AuthToken.id, User)
+        .join(User, User.id == AuthToken.user_id)
+        .where(
+            AuthToken.token_hash == hash_token(raw),
+            AuthToken.purpose == "tg_link",
+            AuthToken.used_at.is_(None),
+            AuthToken.expires_at > utcnow(),
+        )
+    ).first()
+    if row is None or not auth._is_active(row[1]):
+        return None
+    return LinkPreview(token_id=row[0], account=mask_account(row[1]))
+
+
+def _callback_mac(token_id: int, telegram_id: int) -> str:
+    key = get_settings().secret_key.get_secret_value().encode()
+    msg = f"{token_id}:{telegram_id}".encode()
+    return hmac.new(key, msg, hashlib.sha256).hexdigest()[:16]
+
+
+def link_callback_data(token_id: int, telegram_id: int) -> str:
+    """Callback data of the "Yes" button. Bound to the Telegram user it was shown to."""
+    return f"l:{token_id}:{_callback_mac(token_id, telegram_id)}"
+
+
+def token_id_from_callback(data: str, telegram_id: int) -> int | None:
+    """The token ID in valid callback data for this Telegram user, else None. Never raises."""
+    parts = data.split(":")
+    if len(parts) != 3 or parts[0] != "l":
+        return None
+    _, raw_id, mac = parts
+    if not (raw_id.isascii() and raw_id.isdigit()) or len(mac) != 16:
+        return None
+    token_id = int(raw_id)
+    if not hmac.compare_digest(mac.encode(), _callback_mac(token_id, telegram_id).encode()):
+        return None
+    return token_id
+
+
+def confirm_link(
+    db: Session, *, token_id: int, telegram_id: int
+) -> tuple[auth.Outcome, User | None]:
+    """Bind `telegram_id` to the account the link token belongs to. The token works once."""
+    if not rate_limit.allow(db, "tg_action", str(telegram_id), limit=20, window=auth.HOUR):
+        return auth.Outcome.RATE_LIMITED, None
+    # Lock the user before the token row, as `auth._consume_token` does. The first read is
+    # unlocked: it only finds out whose token this is.
+    owner = db.scalar(
+        select(AuthToken.user_id).where(AuthToken.id == token_id, AuthToken.purpose == "tg_link")
+    )
+    if owner is None:
+        return auth.Outcome.BAD_LINK, None
+    user = db.scalar(
+        select(User)
+        .where(User.id == owner)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    row = db.execute(
+        update(AuthToken)
+        .where(
+            AuthToken.id == token_id,
+            AuthToken.purpose == "tg_link",
+            AuthToken.used_at.is_(None),
+            AuthToken.expires_at > utcnow(),
+        )
+        .values(used_at=utcnow())
+        .returning(AuthToken.user_id)
+    ).first()
+    if row is None or user is None or not auth._is_active(user):
+        return auth.Outcome.BAD_LINK, None
+    if user.telegram_id == telegram_id:
+        return auth.Outcome.OK, user
+    if user.telegram_id is not None:
+        return auth.Outcome.TELEGRAM_OTHER_LINKED, None
+    taken = db.scalar(select(User.id).where(User.telegram_id == telegram_id))
+    if taken is not None:
+        return auth.Outcome.TELEGRAM_TAKEN, None
+    try:
+        with db.begin_nested():
+            user.telegram_id = telegram_id
+            db.flush()
+    except IntegrityError:
+        db.refresh(user)
+        return auth.Outcome.TELEGRAM_TAKEN, None
+    return auth.Outcome.OK, user
+
+
+# --- Phone verification through the bot's contact button ----------------------------------
+
+
+def _phone_verified_elsewhere(db: Session, phone: str, user_id: int) -> bool:
+    return (
+        db.scalar(
+            select(User.id).where(
+                User.phone == phone, User.phone_verified_at.is_not(None), User.id != user_id
+            )
+        )
+        is not None
+    )
+
+
+def verify_phone(
+    db: Session, *, telegram_id: int, contact_user_id: int | None, phone_number: str
+) -> auth.Outcome:
+    """Save the phone a Telegram user shared with the contact button, as verified.
+
+    Only the user's own contact counts. A verified phone is never replaced here: changing it
+    is a support action.
+    """
+    if not rate_limit.allow(db, "tg_action", str(telegram_id), limit=20, window=auth.HOUR):
+        return auth.Outcome.RATE_LIMITED
+    if contact_user_id is None or contact_user_id != telegram_id:
+        return auth.Outcome.NOT_OWN_CONTACT
+    user = _lock_user(db, telegram_id)
+    if user is None or not auth._is_active(user):
+        return auth.Outcome.NOT_LINKED
+    phone = normalize_phone(phone_number)
+    if phone is None:
+        return auth.Outcome.PHONE_INVALID
+    if user.phone_verified_at is not None:
+        return (
+            auth.Outcome.ALREADY if user.phone == phone else auth.Outcome.PHONE_CHANGE_NEEDS_SUPPORT
+        )
+    if _phone_verified_elsewhere(db, phone, user.id):
+        return auth.Outcome.PHONE_TAKEN
+    try:
+        with db.begin_nested():
+            user.phone = phone
+            user.phone_verified_at = utcnow()
+            db.flush()
+    except IntegrityError:
+        db.refresh(user)
+        return auth.Outcome.PHONE_TAKEN
+    return auth.Outcome.OK
