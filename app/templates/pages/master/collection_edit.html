@@ -27,7 +27,7 @@
   {% endif %}
 
   {% if uploads_enabled %}
-  <form method="post" action="{{ url_for('portfolio_upload', collection_id=collection.id).path }}" enctype="multipart/form-data" class="card grid gap-3">
+  <form method="post" action="{{ url_for('portfolio_upload', collection_id=collection.id).path }}{% if finishing %}?finishing=1{% endif %}" enctype="multipart/form-data" class="card grid gap-3">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <h2 class="text-xl">{{ t('portfolio.upload_title') }}</h2>
     {{ pf.files_input() }}

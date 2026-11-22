@@ -41,6 +41,24 @@ ERROR_CODES = set(get_args(PortfolioCode))
 FileError = tuple[int, str]
 
 
+FILE_ERROR_CODES = ("type", "size", "pixels", "unreadable", "limit", "save")
+
+
+def _encode_file_errors(errors: list[FileError]) -> str:
+    """`position-code` pairs for a redirect query; the key prefix is added back on read."""
+    prefix = "portfolio.file_err."
+    return ",".join(f"{n}-{key.removeprefix(prefix)}" for n, key in errors)
+
+
+def _decode_file_errors(raw: str) -> list[FileError]:
+    errors: list[FileError] = []
+    for part in raw.split(",")[:MAX_FILES_PER_UPLOAD]:
+        pos, _, code = part.partition("-")
+        if pos.isascii() and pos.isdigit() and len(pos) < 4 and code in FILE_ERROR_CODES:
+            errors.append((int(pos), f"portfolio.file_err.{code}"))
+    return errors
+
+
 def _collection_url(collection_id: int, query: str = "") -> str:
     return f"{PORTFOLIO}/collections/{collection_id}{query}"
 
@@ -118,6 +136,8 @@ def _collection_page(
     query_error = params.get("error", "")
     if error is None and query_error in ERROR_CODES:
         error = _err_key(query_error)
+    if file_errors is None:
+        file_errors = _decode_file_errors(params.get("fe", ""))
     return render(
         request,
         "pages/master/collection_edit.html",
@@ -133,7 +153,7 @@ def _collection_page(
         form_description=(card.description or "") if description is None else description,
         undo_id=int(undo) if undo.isascii() and undo.isdigit() and len(undo) < 10 else None,
         saved=params.get("saved") == "1",
-        finishing=finishing,
+        finishing=finishing or params.get("finishing") == "1",
     )
 
 
@@ -349,6 +369,7 @@ def portfolio_upload(
     user: CurrentUser,
     collection_id: int,
     photos: Uploads = None,
+    finishing: Annotated[str | None, Query()] = None,
 ) -> Response:
     if not get_settings().uploads_enabled:
         return _not_found(request, user)
@@ -371,8 +392,8 @@ def portfolio_upload(
         db.rollback()
         return _not_found(request, user)
     if errors:
-        return again(200 if saved else 422, file_errors=errors)
-    return _redirect(_collection_url(collection_id))
+        return again(200 if saved else 422, file_errors=errors, finishing=finishing == "1")
+    return _redirect(_collection_url(collection_id, "?finishing=1" if finishing == "1" else ""))
 
 
 # --- photos -----------------------------------------------------------------------------------
@@ -513,9 +534,8 @@ def master_collection_submit(
     if uploads_enabled:
         _saved, errors = _save_files(db, master, collection.id, photos)
         if errors:
-            # The collection exists now: show what failed on its own page, where the master can
-            # retry the files, and let them finish the wizard from there.
-            return _collection_page(
-                request, db, user, master, collection.id, file_errors=errors, finishing=True
-            )
+            # The collection exists now: send the master to its page (post/redirect/get, so a
+            # refresh cannot create a second one) to retry the files and finish from there.
+            query = f"?finishing=1&fe={_encode_file_errors(errors)}"
+            return _redirect(_collection_url(collection.id, query))
     return finish_onboarding(db, master)

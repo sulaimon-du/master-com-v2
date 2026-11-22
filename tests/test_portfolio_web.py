@@ -540,10 +540,12 @@ def test_step_five_bad_file_keeps_the_collection_and_waits_for_finish(client: Te
             ("photos", ("b.txt", b"nope", "text/plain")),
         ],
     )
-    assert r.status_code == 200 and "Файл 2" in r.text
+    assert r.status_code == 303
+    page = client.get(r.headers["location"])
+    assert "Файл 2" in page.text
     (collection,) = _collections(uid)
     assert len(_photos(collection.id)) == 1
-    assert 'name="skip"' in r.text
+    assert 'name="skip"' in page.text
     r = post(client, "/master/onboarding/collection", {"skip": "1"})
     assert r.headers["location"] == "/m/ali-rahimov?notice=published"
 
@@ -590,3 +592,50 @@ def test_locale_keys_exist_in_both_languages() -> None:
     for lang in ("ru", "tg"):
         catalog = json.loads((base / f"{lang}.json").read_text(encoding="utf-8"))
         assert [k for k in keys if k not in catalog] == []
+
+
+def _bad_step_five(client: TestClient):  # type: ignore[no-untyped-def]
+    return client.post(
+        "/master/onboarding/collection",
+        data={"csrf_token": client.cookies.get("mc_csrf"), "title": "Кухня"},
+        files=[
+            ("photos", ("a.png", _png(), "image/png")),
+            ("photos", ("b.txt", b"nope", "text/plain")),
+        ],
+    )
+
+
+def test_step_five_partial_failure_redirects_and_reload_is_safe(client: TestClient) -> None:
+    uid = _make_master(client)
+    r = _bad_step_five(client)
+    assert r.status_code == 303
+    target = r.headers["location"]
+    assert "finishing=1" in target
+    for _ in range(2):  # reloading the target never creates anything
+        page = client.get(target)
+        assert page.status_code == 200
+        assert "Файл 2" in page.text and 'name="skip"' in page.text
+    assert len(_collections(uid)) == 1
+
+
+def test_step_five_retry_upload_keeps_the_finish_card(client: TestClient) -> None:
+    _make_master(client)
+    target = _bad_step_five(client).headers["location"]
+    page = client.get(target)
+    assert "finishing=1" in page.text  # the upload form carries the flag
+    cid = target.split("/collections/")[1].split("?")[0]
+    r = client.post(
+        f"/master/portfolio/collections/{cid}/photos?finishing=1",
+        data={"csrf_token": client.cookies.get("mc_csrf")},
+        files=[("photos", ("c.png", _png(), "image/png"))],
+    )
+    assert r.status_code == 303 and "finishing=1" in r.headers["location"]
+    assert 'name="skip"' in client.get(r.headers["location"]).text
+
+
+def test_collection_page_ignores_junk_file_error_params(client: TestClient) -> None:
+    _make_master(client)
+    cid, _ids = _with_photos(client, 1)
+    r = client.get(f"/master/portfolio/collections/{cid}?fe=x-evil,2-type,99999999999-size,3-../x")
+    assert r.status_code == 200 and "Файл 2" in r.text
+    assert r.text.count("Файл ") == 1 and "portfolio.file_err" not in r.text
