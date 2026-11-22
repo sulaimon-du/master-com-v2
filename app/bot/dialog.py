@@ -135,6 +135,8 @@ def on_callback(user: TgUser, data: str) -> Reply:
         lang = _lang(db, user)
         # No contact request when the account's phone is already verified.
         ask = outcome is Outcome.OK and linked is not None and linked.phone_verified_at is None
+        if outcome is Outcome.OK and not ask:
+            key = "bot.linked_done"
         return Reply(translate(lang, key), ask_contact=ask, lang=lang)
 
     return _run(run)

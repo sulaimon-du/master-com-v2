@@ -118,7 +118,7 @@ def test_callback_yes_with_verified_phone_does_not_ask_for_contact() -> None:
     raw = _link_token(uid)
     yes = dialog.on_start(_tg(), f"link_{raw}").buttons[0]
     r = dialog.on_callback(_tg(), yes.callback or "")
-    assert r.text == _t("bot.linked")
+    assert r.text == _t("bot.linked_done")
     assert r.ask_contact is False
     assert _db_user(uid).telegram_id == TG_ID
 
