@@ -317,6 +317,9 @@ def test_callback_data_from_another_telegram_user_is_rejected():
         "l:42:" + "g" * 16,
         "l:42:0123456789abcdef:extra",
         "l:-1:0123456789abcdef",
+        "l:" + "1" * 5000 + ":" + "a" * 16,
+        "l:" + "1" * 20 + ":" + "a" * 16,
+        "l:" + "9" * 19 + ":" + "a" * 16,
     ],
 )
 def test_malformed_callback_data_is_none(data):

@@ -230,7 +230,7 @@ def token_id_from_callback(data: str, telegram_id: int) -> int | None:
     if len(parts) != 3 or parts[0] != "l":
         return None
     _, raw_id, mac = parts
-    if not (raw_id.isascii() and raw_id.isdigit()) or len(mac) != 16 or len(raw_id) > 19:
+    if not (raw_id.isascii() and raw_id.isdigit()) or len(mac) != 16 or len(raw_id) > 18:
         return None
     token_id = int(raw_id)
     if not hmac.compare_digest(mac.encode(), _callback_mac(token_id, telegram_id).encode()):
