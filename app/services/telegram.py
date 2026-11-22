@@ -224,16 +224,22 @@ def link_callback_data(token_id: int, telegram_id: int) -> str:
 
 def token_id_from_callback(data: str, telegram_id: int) -> int | None:
     """The token ID in valid callback data for this Telegram user, else None. Never raises."""
+    if len(data) > 64:  # Telegram's callback_data cap; also keeps int() cheap
+        return None
     parts = data.split(":")
     if len(parts) != 3 or parts[0] != "l":
         return None
     _, raw_id, mac = parts
-    if not (raw_id.isascii() and raw_id.isdigit()) or len(mac) != 16:
+    if not (raw_id.isascii() and raw_id.isdigit()) or len(mac) != 16 or len(raw_id) > 19:
         return None
     token_id = int(raw_id)
     if not hmac.compare_digest(mac.encode(), _callback_mac(token_id, telegram_id).encode()):
         return None
     return token_id
+
+
+def _telegram_taken(db: Session, telegram_id: int) -> bool:
+    return db.scalar(select(User.id).where(User.telegram_id == telegram_id)) is not None
 
 
 def confirm_link(
@@ -272,8 +278,7 @@ def confirm_link(
         return auth.Outcome.OK, user
     if user.telegram_id is not None:
         return auth.Outcome.TELEGRAM_OTHER_LINKED, None
-    taken = db.scalar(select(User.id).where(User.telegram_id == telegram_id))
-    if taken is not None:
+    if _telegram_taken(db, telegram_id):
         return auth.Outcome.TELEGRAM_TAKEN, None
     try:
         with db.begin_nested():

@@ -470,3 +470,16 @@ def test_verify_phone_is_limited_per_telegram_user(db):
     for _ in range(20):
         _verify(db, contact=999)
     assert _verify(db) is Outcome.RATE_LIMITED
+
+
+def test_telegram_taken_race_is_telegram_taken_not_error(db, monkeypatch):
+    # The pre-check misses, the unique index catches the account that holds the ID.
+    _web_user(db, email="x@b.tj", telegram_id=777)
+    user = _web_user(db)
+    _, token_id = _link_token_id(db, user)
+    monkeypatch.setattr(telegram, "_telegram_taken", lambda *a, **k: False)
+    assert telegram.confirm_link(db, token_id=token_id, telegram_id=777) == (
+        Outcome.TELEGRAM_TAKEN,
+        None,
+    )
+    assert user.telegram_id is None
