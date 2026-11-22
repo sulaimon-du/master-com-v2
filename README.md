@@ -90,4 +90,4 @@ Open the development bot in Telegram and send `/start`. The site shows the Teleg
 
 ## Staging
 
-Render free web service (Docker) + Neon free Postgres; see [`render.yaml`](render.yaml). Pushing to `main` deploys automatically; migrations and the seed run on start.
+Render free web service (Docker) + Neon free Postgres; details in [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md) and [`render.yaml`](render.yaml). Pushing to `main` deploys automatically; migrations and the seed run on start.
