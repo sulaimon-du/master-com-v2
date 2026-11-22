@@ -62,6 +62,13 @@ Schema and rules: [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md). Reference data liv
 | `POST /account/google/link` | Start linking Google to the signed-in account |
 | `POST /account/telegram/link` | Start linking Telegram or verifying the phone: redirects to the bot |
 | `POST /account/sessions/revoke` | Sign out on every device |
+| `/master/onboarding/basics`, `/specialties`, `/area`, `/phone` | Master onboarding wizard steps (signed in) |
+| `/master/onboarding/phone/check` | "Check again" for the verified phone |
+| `/master/slug-check` | Live check of a profile address (HTMX) |
+| `/master/edit` | Edit the master profile |
+| `POST /master/avatar` | Upload the profile photo (only when `UPLOADS_ENABLED`) |
+| `/m/{slug}` | Public master profile (drafts only for the owner) |
+| `/media/{key}` | Uploaded images from local disk |
 | `/lang/{code}` | Switch language (`ru`, `tg`) and return to the same page |
 
 The bot process (webhook mode only) serves `POST /telegram/webhook` (Telegram's updates, checked by the `X-Telegram-Bot-Api-Secret-Token` header) and `GET /health`.
