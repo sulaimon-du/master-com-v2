@@ -61,6 +61,28 @@ def test_webhook_needs_a_secret(bot_env) -> None:
     assert "TELEGRAM_WEBHOOK_SECRET" in str(exc.value.code)
 
 
+@pytest.mark.parametrize("bad", ["abc+def/ghi=", "with space inside", "back\\slash", "a" * 257])
+def test_webhook_secret_with_illegal_characters_is_explained(bot_env, bad: str) -> None:
+    # Telegram accepts only A-Z, a-z, 0-9, _ and - (1-256 characters) as secret_token.
+    bot_env.setenv("APP_ENV", "staging")
+    bot_env.setenv("TELEGRAM_WEBHOOK_URL", "https://bot.example.com/telegram/webhook")
+    bot_env.setenv("TELEGRAM_WEBHOOK_SECRET", bad)
+    bot_env.setattr(runner, "Bot", _no_network)
+    get_settings.cache_clear()
+    with pytest.raises(SystemExit) as exc:
+        runner.main()
+    message = str(exc.value.code)
+    assert "TELEGRAM_WEBHOOK_SECRET" in message
+    assert "letters, digits" in message
+    assert bad not in message  # never echo the secret
+
+
+def test_surrounding_whitespace_is_stripped_from_secret_and_token() -> None:
+    # Values pasted into a dashboard often carry a trailing space or line break.
+    assert runner.clean_setting("  abcDEF123_-\n") == "abcDEF123_-"
+    assert runner.clean_setting(None) == ""
+
+
 def test_main_needs_a_token(monkeypatch) -> None:
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "")
     monkeypatch.setattr(runner, "Bot", _no_network)
