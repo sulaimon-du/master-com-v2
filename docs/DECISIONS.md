@@ -201,8 +201,12 @@ Decisions taken during the build:
 - **Profile pages send `Cache-Control: no-store`; drafts also send `noindex`,** so a draft is neither cached nor indexed.
 - **Note for week 7:** search must list only published profiles whose owner is active. `published_at` stays set when an owner is blocked, and `public_master` re-checks the owner at read time; search has to do the same.
 
+## R-023 Working name and translation review (2026-11-23, owner)
+- **Working name: Ustoiman** (owner, 2026-11-23: "назовем пока"). It replaces "Master COM" as the working name; the final name and the `.tj` domain are still open. The site title and texts switch once the owner confirms the Cyrillic spelling (proposed: «Устоиман»); code identifiers and repository names stay as they are.
+- **Tajik texts are reviewed in bulk at the end** (owner): `docs/TRANSLATIONS.md` lists every text in ru and tg with a status, generated from the locale files; a test keeps it current. Texts the owner checked are recorded in `app/locales/tg_approved.json`; the week-3 texts (reviewed 2026-10-25 and 2026-11-22) start as approved, everything newer as draft.
+
 ## Open
-- Final name and positioning (round 6): postponed by the owner; working name Master COM stays.
+- Final name and positioning (round 6): working name **Ustoiman** (R-023); final name and domain still open.
 - Visual direction: tentative pick in R-014; final confirmation pending.
 - Logo designer: postponed by the owner.
 - n8n: not in v1; candidate for post-launch internal ops automation.
