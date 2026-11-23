@@ -80,6 +80,12 @@ def test_uploads_disabled_by_default_on_staging(monkeypatch) -> None:
         assert Settings(_env_file=None).uploads_enabled is expected  # type: ignore[call-arg]
     monkeypatch.setenv("APP_ENV", "staging")
     monkeypatch.setenv("UPLOADS_ENABLED", "true")
+    # Uploads on staging need R2 (otherwise the settings refuse to load, see test_r2_storage).
+    monkeypatch.setenv("R2_ENDPOINT", "https://acct.r2.cloudflarestorage.com")
+    monkeypatch.setenv("R2_ACCESS_KEY_ID", "id")
+    monkeypatch.setenv("R2_SECRET_ACCESS_KEY", "secret")
+    monkeypatch.setenv("R2_BUCKET", "bucket")
+    monkeypatch.setenv("R2_PUBLIC_URL", "https://pub.r2.dev")
     assert Settings(_env_file=None).uploads_enabled is True  # type: ignore[call-arg]
 
 
