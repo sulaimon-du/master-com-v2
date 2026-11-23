@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     # None means "decide by APP_ENV": on in development and test, off on staging and production
     # (Render's disk is ephemeral) unless set explicitly. Off hides upload controls, POSTs are 404.
     uploads_enabled: bool | None = None
+    # Sentry error monitoring (PRODUCT_RULES A3, R-024): on only when SENTRY_DSN is set.
+    # The release defaults to Render's RENDER_GIT_COMMIT when SENTRY_RELEASE is not set.
+    sentry_dsn: SecretStr | None = None
+    sentry_release: str | None = None
     plan_limits: dict[str, dict[str, int]] = {
         "free": {
             "collections": 30,
@@ -100,6 +104,8 @@ class Settings(BaseSettings):
         "r2_secret_access_key",
         "r2_bucket",
         "r2_public_url",
+        "sentry_dsn",
+        "sentry_release",
         mode="before",
     )
     @classmethod
@@ -125,6 +131,8 @@ class Settings(BaseSettings):
         host = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
         if host and host not in self.allowed_hosts:
             self.allowed_hosts = [*self.allowed_hosts, host]
+        if self.sentry_release is None:
+            self.sentry_release = os.environ.get("RENDER_GIT_COMMIT", "").strip() or None
         if self.uploads_enabled is None:
             self.uploads_enabled = not self.is_production_like
         # Uploads on staging/production without R2 would land on Render's wiped disk: refuse.

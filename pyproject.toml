@@ -18,6 +18,7 @@ dependencies = [
     "aiogram>=3.31.0",
     "pillow>=12.3.0",
     "boto3>=1.43.111",
+    "sentry-sdk>=2.71.0",
 ]
 
 [dependency-groups]

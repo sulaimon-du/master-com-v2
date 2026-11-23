@@ -36,6 +36,8 @@ def get_engine() -> Engine:
         pool_size=5,
         max_overflow=5,
         pool_recycle=300,
+        # Error messages (and so logs and Sentry) never quote bound values: names, phones.
+        hide_parameters=True,
     )
 
 
