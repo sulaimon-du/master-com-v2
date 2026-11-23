@@ -202,8 +202,12 @@ Decisions taken during the build:
 - **R2 adapter (D8, as built):** `R2Storage` in `app/services/storage.py` implements the same `Storage` protocol through the S3 API (`put_object` with `Cache-Control: public, max-age=31536000, immutable`, `delete_object`, URL = `R2_PUBLIC_URL/<key>`); it is used when all five `R2_*` settings are set, otherwise local disk. Both URLs must be `https://` (checked at startup; settings errors never echo values). With R2 on, the CSP `img-src` adds exactly the public bucket origin and `/media/` answers 404. Backend failures become `StorageError` and a friendly "could not save" message, never a 500. `boto3` is the dependency: the standard S3-compatible client, pre-approved by the owner 2026-11-23; `moto[s3]` (dev only) fakes S3 in tests. `UPLOADS_ENABLED` stays false on staging until the owner turns it on after the deploy. The `/media/` key regex now accepts ASCII digits only.
 - **Note for week 7:** search must list only published profiles whose owner is active. `published_at` stays set when an owner is blocked, and `public_master` re-checks the owner at read time; search has to do the same.
 
+## R-023 Working name and translation review (2026-11-23, owner)
+- **Working name: Ustoiman** (owner, 2026-11-23: "назовем пока"). It replaces "Master COM" as the working name; the final name and the `.tj` domain are still open. The site title and texts switch once the owner confirms the Cyrillic spelling (proposed: «Устоиман»); code identifiers and repository names stay as they are.
+- **Tajik texts are reviewed in bulk at the end** (owner): `docs/TRANSLATIONS.md` lists every text in ru and tg with a status, generated from the locale files; a test keeps it current. Texts the owner checked are recorded in `app/locales/tg_approved.json`; the week-3 texts (reviewed 2026-10-25 and 2026-11-22) start as approved, everything newer as draft.
+
 ## Open
-- Final name and positioning (round 6): postponed by the owner; working name Master COM stays.
+- Final name and positioning (round 6): working name **Ustoiman** (R-023); final name and domain still open.
 - Visual direction: tentative pick in R-014; final confirmation pending.
 - Logo designer: postponed by the owner.
 - n8n: not in v1; candidate for post-launch internal ops automation.
