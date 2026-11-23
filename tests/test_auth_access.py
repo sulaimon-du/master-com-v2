@@ -74,5 +74,21 @@ def _catalog(lang: str) -> dict[str, str]:
 
 
 def test_translate_falls_back_to_russian_when_tajik_is_missing() -> None:
-    assert translate("tg", "app.name") == "Master COM"
+    assert translate("tg", "app.name") == "UstoiMan"
     assert translate("tg", "no.such.key") == "no.such.key"
+
+
+def test_brand_name_is_ustoiman_everywhere() -> None:
+    # R-023: always "UstoiMan", exactly this casing, in every language.
+    import json
+    from pathlib import Path
+
+    from app.core.config import get_settings
+
+    assert get_settings().app_name == "UstoiMan"
+    for lang in ("ru", "tg"):
+        text = (
+            Path(__file__).resolve().parent.parent / "app" / "locales" / f"{lang}.json"
+        ).read_text(encoding="utf-8")
+        assert "Master COM" not in text
+        assert json.loads(text)["app.name"] == "UstoiMan"
