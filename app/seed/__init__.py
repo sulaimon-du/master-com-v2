@@ -2,7 +2,7 @@
 
 Run with `python -m app.seed`. Safe to run on every start:
 - rows are matched by slug; names, region and order are updated from the files;
-- synonyms of seeded specialties are made equal to the files (extra ones are removed);
+- synonyms of seeded specialties and of all places are made equal to the files (extras go);
 - cities, districts, categories and specialties are never deleted.
 
 Until the admin panel can edit these tables (week 10) the files are the source of truth (R-018).
@@ -18,10 +18,11 @@ from sqlalchemy import delete, select, tuple_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.models import Category, City, District, Specialty, SpecialtySynonym
+from app.models import Category, City, District, PlaceSynonym, Specialty, SpecialtySynonym
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 SEEDED_SYNONYM_LANGS = ("ru", "tg")
+PLACE_SYNONYM_LANGS = ("ru", "tg", "lat")
 
 
 class SeedDataError(ValueError):
@@ -36,6 +37,8 @@ class SeedStats:
     specialties: int = 0
     synonyms_added: int = 0
     synonyms_removed: int = 0
+    place_synonyms_added: int = 0
+    place_synonyms_removed: int = 0
 
 
 @dataclass
@@ -52,6 +55,15 @@ def _synonyms(raw: str | list[str]) -> list[str]:
         if word and word not in out:
             out.append(word)
     return out
+
+
+def _place_synonyms(place: dict) -> None:
+    """Normalise `place["synonyms"]` ({lang: [words]}) in place; unknown languages are an error."""
+    raw = place.get("synonyms", {})
+    unknown = set(raw) - set(PLACE_SYNONYM_LANGS)
+    if unknown:
+        raise SeedDataError(f"places.json: {place['slug']}: unknown synonym languages {unknown}")
+    place["synonyms"] = {lang: _synonyms(raw.get(lang, [])) for lang in PLACE_SYNONYM_LANGS}
 
 
 def _tg_rows(path: Path) -> dict[tuple[str, str], dict[str, str]]:
@@ -93,8 +105,10 @@ def load(data_dir: Path = DATA_DIR) -> SeedData:
 
     for city in places["cities"]:
         attach("city", city["slug"], city)
+        _place_synonyms(city)
         for district in city.get("districts", []):
             attach("district", f"{city['slug']}/{district['slug']}", district)
+            _place_synonyms(district)
     for category in catalog["categories"]:
         attach("category", category["slug"], category)
         for specialty in category["specialties"]:
@@ -152,7 +166,8 @@ def apply(session: Session, data: SeedData | None = None) -> SeedStats:
         for c in data.cities
         for i, d in enumerate(c.get("districts", []))
     ]
-    stats.districts = len(_upsert(session, District, district_rows, ["city_id", "slug"]))
+    district_ids = _upsert(session, District, district_rows, ["city_id", "slug"])
+    stats.districts = len(district_ids)
 
     category_ids = _upsert(
         session,
@@ -217,5 +232,59 @@ def apply(session: Session, data: SeedData | None = None) -> SeedStats:
             )
         )
     stats.synonyms_added, stats.synonyms_removed = len(missing), len(stale)
+    _sync_place_synonyms(session, data, city_ids, district_ids, stats)
     session.flush()
     return stats
+
+
+def _sync_place_synonyms(
+    session: Session, data: SeedData, city_ids: dict, district_ids: dict, stats: SeedStats
+) -> None:
+    """Make the synonyms of all seeded places equal to the files (city id, district id, ...)."""
+    wanted: set[tuple[int | None, int | None, str, str]] = set()
+    for c in data.cities:
+        cid = city_ids[(c["slug"],)]
+        for lang, words in c["synonyms"].items():
+            wanted.update((cid, None, lang, w) for w in words)
+        for d in c.get("districts", []):
+            did = district_ids[(cid, d["slug"])]
+            for lang, words in d["synonyms"].items():
+                wanted.update((None, did, lang, w) for w in words)
+    existing: set[tuple[int | None, int | None, str, str]] = {
+        tuple(r)
+        for r in session.execute(
+            select(
+                PlaceSynonym.city_id, PlaceSynonym.district_id, PlaceSynonym.lang, PlaceSynonym.text
+            ).where(
+                PlaceSynonym.city_id.in_(list(city_ids.values()))
+                | PlaceSynonym.district_id.in_(list(district_ids.values()))
+            )
+        )
+    }
+    stale = existing - wanted
+    for city_id, district_id, lang, text in stale:
+        session.execute(
+            delete(PlaceSynonym).where(
+                PlaceSynonym.city_id.is_(None)
+                if city_id is None
+                else PlaceSynonym.city_id == city_id,
+                PlaceSynonym.district_id.is_(None)
+                if district_id is None
+                else PlaceSynonym.district_id == district_id,
+                PlaceSynonym.lang == lang,
+                PlaceSynonym.text == text,
+            )
+        )
+    missing = wanted - existing
+    if missing:
+        session.execute(
+            insert(PlaceSynonym).values(
+                [
+                    {"city_id": cid, "district_id": did, "lang": lang, "text": text}
+                    for cid, did, lang, text in sorted(
+                        missing, key=lambda r: (r[0] or 0, r[1] or 0, r[2], r[3])
+                    )
+                ]
+            )
+        )
+    stats.place_synonyms_added, stats.place_synonyms_removed = len(missing), len(stale)

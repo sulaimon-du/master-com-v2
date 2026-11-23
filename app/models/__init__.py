@@ -16,6 +16,7 @@ from app.models.place import City, District
 from app.models.portfolio import PortfolioCollection, PortfolioPhoto
 from app.models.request import JobRequest, JobResponse, RequestPhoto, RequestSpecialty
 from app.models.review import Review
+from app.models.search import MasterSearch, PlaceSynonym
 from app.models.support import SupportMessage, SupportThread
 from app.models.user import User
 
@@ -33,8 +34,10 @@ __all__ = [
     "JobResponse",
     "MasterArea",
     "MasterProfile",
+    "MasterSearch",
     "MasterSpecialty",
     "OAuthFlow",
+    "PlaceSynonym",
     "PortfolioCollection",
     "PortfolioPhoto",
     "ProfileClaim",

@@ -1,16 +1,16 @@
 {
   "_comment": "Cities and rural districts (nohiyas) of Tajikistan, grouped by region; districts only where a city has official subdivisions. Tajik names: tg_names.csv. Order here is the display order. See R-018.",
   "cities": [
-    {"slug": "dushanbe", "name_ru": "Душанбе", "region": "dushanbe", "kind": "city", "districts": [
+    {"slug": "dushanbe", "name_ru": "Душанбе", "region": "dushanbe", "kind": "city", "synonyms": {"lat": ["dushanbe", "dyushambe", "dushambe"], "ru": ["сталинабад"]}, "districts": [
       {"slug": "ismoili-somoni", "name_ru": "Исмоили Сомони"},
       {"slug": "sino", "name_ru": "Сино"},
       {"slug": "firdavsi", "name_ru": "Фирдавси"},
       {"slug": "shohmansur", "name_ru": "Шохмансур"}
     ]},
 
-    {"slug": "vahdat", "name_ru": "Вахдат", "region": "rrs", "kind": "city"},
+    {"slug": "vahdat", "name_ru": "Вахдат", "region": "rrs", "kind": "city", "synonyms": {"ru": ["орджоникидзеабад", "кофарнихон"], "lat": ["vahdat", "vakhdat"]}},
     {"slug": "hisor", "name_ru": "Гиссар", "region": "rrs", "kind": "city"},
-    {"slug": "tursunzoda", "name_ru": "Турсунзаде", "region": "rrs", "kind": "city"},
+    {"slug": "tursunzoda", "name_ru": "Турсунзаде", "region": "rrs", "kind": "city", "synonyms": {"lat": ["tursunzoda", "tursunzade"]}},
     {"slug": "roghun", "name_ru": "Рогун", "region": "rrs", "kind": "city"},
     {"slug": "rudaki", "name_ru": "Рудаки", "region": "rrs", "kind": "rural_district"},
     {"slug": "varzob", "name_ru": "Варзоб", "region": "rrs", "kind": "rural_district"},
@@ -22,13 +22,13 @@
     {"slug": "lakhsh", "name_ru": "Лахш", "region": "rrs", "kind": "rural_district"},
     {"slug": "sangvor", "name_ru": "Сангвор", "region": "rrs", "kind": "rural_district"},
 
-    {"slug": "khujand", "name_ru": "Худжанд", "region": "sughd", "kind": "city"},
-    {"slug": "istaravshan", "name_ru": "Истаравшан", "region": "sughd", "kind": "city"},
-    {"slug": "panjakent", "name_ru": "Пенджикент", "region": "sughd", "kind": "city"},
-    {"slug": "isfara", "name_ru": "Исфара", "region": "sughd", "kind": "city"},
-    {"slug": "konibodom", "name_ru": "Канибадам", "region": "sughd", "kind": "city"},
-    {"slug": "buston", "name_ru": "Бустон", "region": "sughd", "kind": "city"},
-    {"slug": "guliston", "name_ru": "Гулистон", "region": "sughd", "kind": "city"},
+    {"slug": "khujand", "name_ru": "Худжанд", "region": "sughd", "kind": "city", "synonyms": {"ru": ["ленинабад"], "lat": ["khujand", "khodjent", "khudzhand", "hujand"]}},
+    {"slug": "istaravshan", "name_ru": "Истаравшан", "region": "sughd", "kind": "city", "synonyms": {"ru": ["ура-тюбе"], "lat": ["istaravshan", "ura-tyube"]}},
+    {"slug": "panjakent", "name_ru": "Пенджикент", "region": "sughd", "kind": "city", "synonyms": {"lat": ["panjakent", "penjikent", "pendzhikent"]}},
+    {"slug": "isfara", "name_ru": "Исфара", "region": "sughd", "kind": "city", "synonyms": {"lat": ["isfara"]}},
+    {"slug": "konibodom", "name_ru": "Канибадам", "region": "sughd", "kind": "city", "synonyms": {"lat": ["konibodom", "kanibadam", "kanibodom"]}},
+    {"slug": "buston", "name_ru": "Бустон", "region": "sughd", "kind": "city", "synonyms": {"ru": ["чкаловск"]}},
+    {"slug": "guliston", "name_ru": "Гулистон", "region": "sughd", "kind": "city", "synonyms": {"ru": ["кайраккум"]}},
     {"slug": "istiqlol", "name_ru": "Истиклол", "region": "sughd", "kind": "city"},
     {"slug": "bobojon-ghafurov", "name_ru": "Бободжон Гафуров", "region": "sughd", "kind": "rural_district"},
     {"slug": "spitamen", "name_ru": "Спитамен", "region": "sughd", "kind": "rural_district"},
@@ -41,11 +41,11 @@
     {"slug": "shahriston", "name_ru": "Шахристан", "region": "sughd", "kind": "rural_district"},
     {"slug": "devashtich", "name_ru": "Деваштич", "region": "sughd", "kind": "rural_district"},
 
-    {"slug": "bokhtar", "name_ru": "Бохтар", "region": "khatlon", "kind": "city"},
-    {"slug": "kulob", "name_ru": "Куляб", "region": "khatlon", "kind": "city"},
+    {"slug": "bokhtar", "name_ru": "Бохтар", "region": "khatlon", "kind": "city", "synonyms": {"ru": ["курган-тюбе", "курган-тепа"], "lat": ["bokhtar", "bohtar", "kurgan-tyube", "qurghonteppa"]}},
+    {"slug": "kulob", "name_ru": "Куляб", "region": "khatlon", "kind": "city", "synonyms": {"lat": ["kulob", "kulyab", "kulyob"]}},
     {"slug": "norak", "name_ru": "Нурек", "region": "khatlon", "kind": "city"},
     {"slug": "levakant", "name_ru": "Левакант", "region": "khatlon", "kind": "city"},
-    {"slug": "abdurahmoni-jomi", "name_ru": "Абдурахмони Джоми", "region": "khatlon", "kind": "rural_district"},
+    {"slug": "abdurahmoni-jomi", "name_ru": "Абдурахмони Джоми", "region": "khatlon", "kind": "rural_district", "synonyms": {"ru": ["колхозобод"]}},
     {"slug": "baljuvon", "name_ru": "Бальджуван", "region": "khatlon", "kind": "rural_district"},
     {"slug": "vakhsh", "name_ru": "Вахш", "region": "khatlon", "kind": "rural_district"},
     {"slug": "vose", "name_ru": "Восе", "region": "khatlon", "kind": "rural_district"},
