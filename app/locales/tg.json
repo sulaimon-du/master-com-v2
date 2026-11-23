@@ -162,6 +162,7 @@
   "master.avatar_err.size": "Файл аз 10 МБ калонтар аст.",
   "master.avatar_err.pixels": "Андозаи тасвир аз ҳад зиёд калон аст.",
   "master.avatar_err.unreadable": "Тасвирро хондан нашуд. Файли дигарро санҷед.",
+  "master.avatar_err.save": "Аксро сабт кардан нашуд. Боз кӯшиш кунед.",
   "master.specialties_title": "Ихтисосҳо",
   "master.specialties_hint": "То 10 ихтисос интихоб кунед ва то 3 асосӣ қайд намоед.",
   "master.primary": "асосӣ",

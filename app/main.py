@@ -31,7 +31,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url=None,
         openapi_url=None if settings.app_env == "production" else "/openapi.json",
     )
-    app.add_middleware(SecurityHeadersMiddleware, hsts=settings.is_production_like)
+    app.add_middleware(
+        SecurityHeadersMiddleware,
+        hsts=settings.is_production_like,
+        img_origin=settings.r2_public_origin,
+    )
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
     # Added last, so it runs first: the body is capped before anything else sees it.
     app.add_middleware(BodyLimitMiddleware)

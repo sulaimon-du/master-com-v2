@@ -306,6 +306,29 @@ def test_integrity_error_on_save_is_a_friendly_error(client: TestClient, monkeyp
     assert _photos(cid) == []
 
 
+def test_storage_failure_on_save_is_a_friendly_error(client: TestClient, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from botocore.exceptions import EndpointConnectionError
+
+    from app.services.storage import R2Storage
+
+    class Down:
+        def put_object(self, **kwargs):  # type: ignore[no-untyped-def]
+            raise EndpointConnectionError(endpoint_url="https://r2.example.invalid")
+
+        delete_object = put_object
+
+    _make_master(client)
+    cid = _new_collection(client)
+    storage = R2Storage(Down(), "bucket", "https://pub.example.r2.dev")
+    monkeypatch.setattr("app.web.portfolio.get_storage", lambda: storage)
+    failing = TestClient(client.app, follow_redirects=False, raise_server_exceptions=False)
+    failing.cookies.update(client.cookies)
+    r = _upload(failing, cid, [("a.png", _png())])
+    assert r.status_code == 422 and "Файл 1" in r.text
+    assert "r2.example.invalid" not in r.text
+    assert _photos(cid) == []
+
+
 def test_upload_routes_404_when_uploads_disabled(client: TestClient, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     uid = _make_master(client)
     cid = _new_collection(client)

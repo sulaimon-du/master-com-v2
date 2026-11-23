@@ -378,6 +378,30 @@ def test_avatar_new_file_removed_when_db_fails(client: TestClient, monkeypatch) 
     assert _master(uid).avatar_key is None
 
 
+def test_avatar_storage_failure_is_a_friendly_save_error(client: TestClient, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from botocore.exceptions import EndpointConnectionError
+
+    from app.services.storage import R2Storage
+
+    class Down:
+        def put_object(self, **kwargs):  # type: ignore[no-untyped-def]
+            raise EndpointConnectionError(endpoint_url="https://r2.example.invalid")
+
+        delete_object = put_object
+
+    uid = _signed_in(client)
+    post(client, "/master/onboarding/basics", BASICS)
+    storage = R2Storage(Down(), "bucket", "https://pub.example.r2.dev")
+    monkeypatch.setattr("app.web.master.get_storage", lambda: storage)
+    failing = TestClient(client.app, follow_redirects=False, raise_server_exceptions=False)
+    failing.cookies.update(client.cookies)
+    r = _upload(failing, _png())
+    assert r.status_code == 503
+    assert "Не удалось сохранить фото" in r.text
+    assert "r2.example.invalid" not in r.text
+    assert _master(uid).avatar_key is None
+
+
 def test_ru_error_keys_exist_in_both_locales() -> None:
     import json
     from typing import get_args
@@ -386,7 +410,7 @@ def test_ru_error_keys_exist_in_both_locales() -> None:
 
     base = Path(__file__).resolve().parent.parent / "app" / "locales"
     keys = [f"master.err.{c}" for c in get_args(MasterCode)]
-    keys += [f"master.avatar_err.{c}" for c in ("type", "size", "pixels", "unreadable")]
+    keys += [f"master.avatar_err.{c}" for c in ("type", "size", "pixels", "unreadable", "save")]
     keys += [f"master.missing_{m}" for m in ("phone", "specialty", "area", "hidden", "inactive")]
     for lang in ("ru", "tg"):
         catalog = json.loads((base / f"{lang}.json").read_text(encoding="utf-8"))

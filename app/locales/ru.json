@@ -162,6 +162,7 @@
   "master.avatar_err.size": "Файл больше 10 МБ.",
   "master.avatar_err.pixels": "Изображение слишком большое по размеру в пикселях.",
   "master.avatar_err.unreadable": "Не удалось прочитать изображение. Попробуйте другой файл.",
+  "master.avatar_err.save": "Не удалось сохранить фото. Попробуйте ещё раз.",
   "master.specialties_title": "Специальности",
   "master.specialties_hint": "Выберите до 10 специальностей и отметьте до 3 основных.",
   "master.primary": "основная",

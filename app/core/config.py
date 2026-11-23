@@ -1,6 +1,7 @@
 import os
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import urlsplit
 
 from pydantic import Field, PostgresDsn, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -9,7 +10,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Application settings, read from environment variables (and `.env` in development)."""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    # hide_input_in_errors: a failed setting is reported by name only, so a startup error can
+    # never print a secret (SECRET_KEY, R2 keys) or a URL with credentials in it.
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore", hide_input_in_errors=True
+    )
 
     app_env: Literal["development", "test", "staging", "production"] = "development"
     app_name: str = "Master COM"
@@ -32,8 +37,15 @@ class Settings(BaseSettings):
     telegram_webhook_url: str | None = None
     # Public address of the site, no trailing slash; the bot builds absolute links from it.
     site_url: str = "http://localhost:8000"
-    # Uploaded images (avatars, portfolio) are stored here until R2 is wired in.
+    # Uploaded images (avatars, portfolio) are stored here when R2 is not configured.
     media_root: str = "media"
+    # Cloudflare R2 (spec 2026-11-23 §D8). All five set: images go to the bucket and are served
+    # from R2_PUBLIC_URL (no trailing slash); otherwise local disk. Only the site needs them.
+    r2_endpoint: str | None = None
+    r2_access_key_id: SecretStr | None = None
+    r2_secret_access_key: SecretStr | None = None
+    r2_bucket: str | None = None
+    r2_public_url: str | None = None
     # None means "decide by APP_ENV": on in development and test, off on staging and production
     # (Render's disk is ephemeral) unless set explicitly. Off hides upload controls, POSTs are 404.
     uploads_enabled: bool | None = None
@@ -57,6 +69,27 @@ class Settings(BaseSettings):
                 if value.startswith(prefix):
                     return "postgresql+psycopg://" + value[len(prefix) :]
         return value
+
+    @field_validator("r2_endpoint", "r2_bucket", "r2_public_url", mode="before")
+    @classmethod
+    def _blank_is_unset(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("r2_endpoint", "r2_public_url")
+    @classmethod
+    def _https_url(cls, value: str | None, info) -> str | None:  # type: ignore[no-untyped-def]
+        if value is None:
+            return None
+        name = info.field_name.upper()
+        parts = urlsplit(value)
+        # The message names the setting only; the value is never echoed (it could hold secrets).
+        if parts.scheme != "https" or not parts.hostname:
+            raise ValueError(f"{name} must be an https:// URL")
+        if parts.username or parts.password or parts.query or parts.fragment:
+            raise ValueError(f"{name} must be a plain https:// URL without credentials or query")
+        return value.removesuffix("/") if name == "R2_PUBLIC_URL" else value
 
     @model_validator(mode="after")
     def _add_platform_host(self) -> "Settings":
@@ -84,6 +117,24 @@ class Settings(BaseSettings):
         # The site only links to the bot, so the username is enough; the token lives only on
         # the bot service (least privilege, R-021 D8).
         return bool(self.telegram_bot_username)
+
+    @property
+    def r2_enabled(self) -> bool:
+        secrets = (self.r2_access_key_id, self.r2_secret_access_key)
+        return bool(
+            self.r2_endpoint
+            and self.r2_bucket
+            and self.r2_public_url
+            and all(s is not None and s.get_secret_value() for s in secrets)
+        )
+
+    @property
+    def r2_public_origin(self) -> str | None:
+        """Scheme and host of the public bucket URL (for the CSP), or None when R2 is off."""
+        if not self.r2_enabled or self.r2_public_url is None:
+            return None
+        parts = urlsplit(self.r2_public_url)
+        return f"{parts.scheme}://{parts.netloc.lower()}"
 
     @property
     def secure_cookies(self) -> bool:

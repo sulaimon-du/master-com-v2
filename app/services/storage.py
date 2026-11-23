@@ -1,7 +1,7 @@
 """Where uploaded images live. Keys are generated here and never contain user input.
 
-Local disk is used in development and tests; a Cloudflare R2 implementation can replace it behind
-the same `Storage` interface (CLAUDE.md stack).
+Local disk is used in development and tests; Cloudflare R2 (S3 API) is used when all R2 settings
+are present (spec 2026-11-23 §D8), so photos survive deploys on staging and production.
 """
 
 import os
@@ -11,11 +11,21 @@ import tempfile
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
-from app.core.config import get_settings
+import boto3
+from botocore.config import Config
+from botocore.exceptions import BotoCoreError, ClientError
 
-KEY_RE = re.compile(r"^(a|p/\d{4}/\d{2})/[0-9a-f]{32}(-t)?\.webp$")
+from app.core.config import Settings, get_settings
+
+# ASCII digits only: `\d` would also accept other scripts' digits.
+KEY_RE = re.compile(r"^(a|p/[0-9]{4}/[0-9]{2})/[0-9a-f]{32}(-t)?\.webp$")
+CACHE_CONTROL = "public, max-age=31536000, immutable"  # keys are random and never rewritten
+
+
+class StorageError(Exception):
+    """The storage backend failed. Carries no backend detail; callers show a friendly error."""
 
 
 class Storage(Protocol):
@@ -64,9 +74,65 @@ class LocalDiskStorage:
         return f"/media/{key}"
 
 
+class R2Storage:
+    """Cloudflare R2 through its S3 API; objects are read by visitors from the public bucket URL."""
+
+    def __init__(self, client: Any, bucket: str, public_url: str) -> None:
+        self.client = client
+        self.bucket = bucket
+        self.public_url = public_url.removesuffix("/")
+
+    def put(self, key: str, data: bytes, content_type: str) -> None:
+        _check(key)
+        try:
+            self.client.put_object(
+                Bucket=self.bucket,
+                Key=key,
+                Body=data,
+                ContentType=content_type,
+                CacheControl=CACHE_CONTROL,
+            )
+        except (BotoCoreError, ClientError) as exc:
+            raise StorageError("storage put failed") from exc
+
+    def delete(self, key: str) -> None:
+        _check(key)
+        try:
+            # S3 answers a delete of a missing object with success, so "missing" is not an error.
+            self.client.delete_object(Bucket=self.bucket, Key=key)
+        except (BotoCoreError, ClientError) as exc:
+            raise StorageError("storage delete failed") from exc
+
+    def url(self, key: str) -> str:
+        _check(key)
+        return f"{self.public_url}/{key}"
+
+
+def make_r2_client(settings: Settings) -> Any:
+    """An S3 client for the R2 account endpoint. Only call it when `settings.r2_enabled`."""
+    assert settings.r2_access_key_id is not None and settings.r2_secret_access_key is not None  # noqa: S101
+    return boto3.client(
+        "s3",
+        endpoint_url=settings.r2_endpoint,
+        region_name="auto",
+        aws_access_key_id=settings.r2_access_key_id.get_secret_value(),
+        aws_secret_access_key=settings.r2_secret_access_key.get_secret_value(),
+        config=Config(
+            signature_version="s3v4",
+            retries={"max_attempts": 3, "mode": "standard"},
+            connect_timeout=5,
+            read_timeout=30,
+        ),
+    )
+
+
 @lru_cache
 def get_storage() -> Storage:
-    return LocalDiskStorage(get_settings().media_root)
+    settings = get_settings()
+    if settings.r2_enabled:
+        assert settings.r2_bucket is not None and settings.r2_public_url is not None  # noqa: S101
+        return R2Storage(make_r2_client(settings), settings.r2_bucket, settings.r2_public_url)
+    return LocalDiskStorage(settings.media_root)
 
 
 def new_key(kind: Literal["a", "p"], *, thumb_of: str | None = None) -> str:

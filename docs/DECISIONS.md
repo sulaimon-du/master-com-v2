@@ -199,6 +199,7 @@ Decisions taken during the build:
 - **A district whose city is selected as a whole is dropped,** so an area is never listed twice.
 - **The contact phone is always the verified phone; WhatsApp is normalised like the bot's phone** (`normalize_phone`), so both use one format.
 - **Profile pages send `Cache-Control: no-store`; drafts also send `noindex`,** so a draft is neither cached nor indexed.
+- **R2 adapter (D8, as built):** `R2Storage` in `app/services/storage.py` implements the same `Storage` protocol through the S3 API (`put_object` with `Cache-Control: public, max-age=31536000, immutable`, `delete_object`, URL = `R2_PUBLIC_URL/<key>`); it is used when all five `R2_*` settings are set, otherwise local disk. Both URLs must be `https://` (checked at startup; settings errors never echo values). With R2 on, the CSP `img-src` adds exactly the public bucket origin and `/media/` answers 404. Backend failures become `StorageError` and a friendly "could not save" message, never a 500. `boto3` is the dependency: the standard S3-compatible client, pre-approved by the owner 2026-11-23; `moto[s3]` (dev only) fakes S3 in tests. `UPLOADS_ENABLED` stays false on staging until the owner turns it on after the deploy. The `/media/` key regex now accepts ASCII digits only.
 - **Note for week 7:** search must list only published profiles whose owner is active. `published_at` stays set when an owner is blocked, and `public_master` re-checks the owner at read time; search has to do the same.
 
 ## Open

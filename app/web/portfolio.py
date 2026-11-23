@@ -21,7 +21,7 @@ from app.schemas.master import CollectionCard, PhotoView
 from app.services import masters, portfolio
 from app.services.images import ImageError, read_limited
 from app.services.portfolio import PortfolioCode, PortfolioError
-from app.services.storage import get_storage
+from app.services.storage import StorageError, get_storage
 from app.web.csrf import CSRFProtected
 from app.web.deps import current_user
 from app.web.master import _not_found, _signin, _to_basics, finish_onboarding
@@ -227,6 +227,10 @@ def _save_files(
         except IntegrityError:  # a storage-key collision: practically impossible, never a 500
             db.rollback()
             log.warning("portfolio photo insert hit an integrity error")
+            errors.append((position, "portfolio.file_err.save"))
+        except (StorageError, OSError):  # the storage backend failed; detail stays out
+            db.rollback()
+            log.warning("could not store a portfolio photo")
             errors.append((position, "portfolio.file_err.save"))
     return saved, errors
 
