@@ -5,14 +5,15 @@ every event and `scrub_breadcrumb` on every breadcrumb before they are queued fo
 This module must never import aiogram (the web process never loads it) or app.web.
 """
 
+import ipaddress
 import logging
 import re
 from typing import Any, Literal
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 import sentry_sdk
 from pydantic import SecretStr
-from sentry_sdk.integrations.logging import LoggingIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration, ignore_logger
 
 from app.core.config import Settings
 
@@ -24,8 +25,19 @@ PHONE_RE = re.compile(r"\+?\d[\d\s()-]{6,}")
 # Hex and base64url strings of 32+ characters: session IDs, sign-in tokens, API keys.
 TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{32,}")
 TELEGRAM_SIGNIN_RE = re.compile(r"(/auth/telegram/)[^/]+")
+# A query string inside a message (an access-log line, a URL in an error): `?` up to a space/quote.
+QUERY_RE = re.compile(r"\?[^\s\"']+")
+IPV4_RE = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
+# Candidates only; each match is checked with `ipaddress`, so times like 12:30:45 stay.
+IPV6_RE = re.compile(r"(?<![\w:.])[0-9A-Fa-f.]*(?::[0-9A-Fa-f.]*){2,}(?![\w:])")
+# SQLAlchemy appends bound values as "[parameters: ...]" before "(Background on this error ...)";
+# psycopg's DETAIL line quotes the offending row values.
+SQL_PARAMS_RE = re.compile(r"\[parameters:.*?(?=\n?\(Background on this error|\Z)", re.DOTALL)
+SQL_DETAIL_RE = re.compile(r"DETAIL:[^\n]*")
 KEPT_CONTEXTS = frozenset({"runtime", "os", "trace"})
-DROPPED_LOGGERS = ("botocore", "urllib3")
+# Access logs carry the visitor's address and the full query string: never recorded at all.
+ACCESS_LOGGERS = ("uvicorn.access", "aiohttp.access")
+DROPPED_LOGGERS = ("botocore", "urllib3", *ACCESS_LOGGERS)
 # Secrets shorter than this are not matched as substrings (they would redact ordinary words).
 MIN_SECRET_LEN = 6
 
@@ -48,7 +60,7 @@ def _secret_values(settings: Settings) -> tuple[str, ...]:
     except ValueError:
         password = None
     if password:
-        values.add(password)
+        values.update({password, unquote(password)})
     return tuple(sorted((v for v in values if len(v) >= MIN_SECRET_LEN), key=len, reverse=True))
 
 
@@ -56,6 +68,8 @@ def sentry_options(settings: Settings, *, component: Component) -> dict[str, Any
     """The `sentry_sdk.init` arguments; also arms `scrub` with this process's secret values."""
     _state["secrets"] = _secret_values(settings)
     _state["component"] = component
+    for name in ACCESS_LOGGERS:
+        ignore_logger(name)
     dsn = settings.sentry_dsn.get_secret_value() if settings.sentry_dsn else None
     return {
         "dsn": dsn,
@@ -68,6 +82,8 @@ def sentry_options(settings: Settings, *, component: Component) -> dict[str, Any
         "max_breadcrumbs": 30,
         "include_local_variables": False,
         "max_request_body_size": "never",
+        # Errors only, no tracing: never add sentry-trace/baggage headers to outgoing requests.
+        "trace_propagation_targets": [],
         "before_send": scrub,
         "before_breadcrumb": scrub_breadcrumb,
         # Expected answers, not errors. HTTPException < 500 is also dropped in `scrub`.
@@ -89,10 +105,26 @@ def init_sentry(settings: Settings, *, component: Component) -> bool:
     return True
 
 
+def _redact_ip(match: re.Match[str]) -> str:
+    text = match.group(0)
+    candidate = text.rstrip(".")
+    try:
+        ipaddress.ip_address(candidate)
+    except ValueError:
+        return text
+    return REDACTED + text[len(candidate) :]
+
+
 def redact(value: str) -> str:
-    """Replace secrets, email addresses, phone numbers and long tokens in a string."""
+    """Replace secrets, SQL parameters, query strings, IP and email addresses, phone numbers
+    and long tokens in a string."""
     for secret in _state["secrets"]:
         value = value.replace(secret, REDACTED)
+    value = SQL_PARAMS_RE.sub("[parameters: " + REDACTED + "]", value)
+    value = SQL_DETAIL_RE.sub("DETAIL: " + REDACTED, value)
+    value = QUERY_RE.sub("", value)
+    value = IPV6_RE.sub(_redact_ip, value)
+    value = IPV4_RE.sub(_redact_ip, value)
     value = EMAIL_RE.sub(REDACTED, value)
     value = TOKEN_RE.sub(REDACTED, value)
     return PHONE_RE.sub(REDACTED, value)

@@ -1,6 +1,7 @@
 """Sentry error monitoring (PRODUCT_RULES A3, R-024): off without a DSN, no personal data sent."""
 
 import json
+import logging
 from collections.abc import Iterator
 from typing import Any
 
@@ -20,6 +21,9 @@ PHONE = "+992 93 123 45 67"
 TOKEN = "Abcdefghijklmnopqrstuvwxyz0123456789_-ABCDE"  # 43 characters, like token_urlsafe(32)
 BOT_TOKEN = "123456789:AAH-bot-token-value-xyz"
 SECRET_KEY = "test-secret-key-that-is-long-enough-123456"
+# Kept here, away from the raising line, so the stack trace's source context does not quote them.
+VISITOR = "203.0.113.9:0"
+ACCESS_PATH = "/x?q=secret"
 
 
 def make_settings(**overrides: Any) -> Settings:
@@ -88,6 +92,7 @@ def test_init_with_dsn(recorded) -> None:
     assert kwargs["server_name"] == "bot"
     assert kwargs["before_send"] is monitoring.scrub
     assert kwargs["before_breadcrumb"] is monitoring.scrub_breadcrumb
+    assert kwargs["trace_propagation_targets"] == []
 
 
 def test_init_is_idempotent(recorded) -> None:
@@ -229,6 +234,53 @@ def test_secret_settings_are_collected(configured) -> None:
     assert "google-client-secret-value" in secrets and "dbpass-secret" in secrets
 
 
+def test_url_encoded_db_password_is_collected() -> None:
+    settings = make_settings(database_url="postgresql+psycopg://mc:p%40ss-w0rd%21@db:5432/x")
+    secrets = monitoring._secret_values(settings)
+    assert "p@ss-w0rd!" in secrets
+
+
+def test_access_log_crumbs_are_dropped(configured) -> None:
+    for name in ("uvicorn.access", "aiohttp.access"):
+        assert monitoring.scrub_breadcrumb({"category": name, "message": "x"}, {}) is None
+    kept = monitoring.scrub_breadcrumb({"category": "uvicorn.error", "message": "started"}, {})
+    assert kept is not None
+
+
+def test_messages_lose_query_strings_and_ip_addresses(configured) -> None:
+    text = (
+        '203.0.113.9:0 - "GET /x?q=secret&a=1 HTTP/1.1" 500 from 2001:db8::1 '
+        "and [2001:db8:0:0:0:0:0:2]:443 and ::ffff:198.51.100.7 at 12:30:45"
+    )
+    result = monitoring.redact(text)
+    for needle in ("203.0.113.9", "q=secret", "a=1", "2001:db8", "198.51.100.7"):
+        assert needle not in result, needle
+    assert "/x" in result and "12:30:45" in result
+
+
+def test_sql_parameters_and_detail_are_removed(configured) -> None:
+    text = (
+        "(psycopg.errors.UniqueViolation) duplicate key value violates unique constraint "
+        '"uq_master_profiles_slug"\nDETAIL:  Key (slug)=(ivan-petrov) already exists.\n'
+        "[SQL: INSERT INTO master_profiles (name, slug) VALUES (%(name)s, %(slug)s)]\n"
+        "[parameters: {'name': 'Иван Петров', 'slug': 'ivan-petrov', 'tags': ['a]', 'b']}]\n"
+        "(Background on this error at: https://sqlalche.me/e/20/gkpj)"
+    )
+    result = monitoring.redact(text)
+    assert "Иван" not in result and "Петров" not in result and "ivan-petrov" not in result
+    assert "uq_master_profiles_slug" in result and "[SQL: INSERT INTO master_profiles" in result
+
+
+def test_engine_hides_sql_parameters() -> None:
+    from app.core.db import get_engine
+
+    get_engine.cache_clear()
+    try:
+        assert get_engine().hide_parameters is True
+    finally:
+        get_engine.cache_clear()
+
+
 # --- end to end through the web app ----------------------------------------------------------
 
 
@@ -256,6 +308,19 @@ def sentry_client(settings: Settings) -> Iterator[tuple[TestClient, CapturingTra
     def boom() -> None:
         raise RuntimeError(f"exploded for {EMAIL}")
 
+    @router.get("/__access_boom")
+    def access_boom() -> None:
+        # The line uvicorn writes for a request, logged inside one so it lands on its scope.
+        access = logging.getLogger("uvicorn.access")
+        old_level = access.level
+        access.setLevel(logging.INFO)
+        try:
+            access.info('%s - "%s %s HTTP/%s" %d', VISITOR, "GET", ACCESS_PATH, "1.1", 500)
+        finally:
+            access.setLevel(old_level)
+        logging.getLogger("app.probe").info("probe line kept")
+        raise RuntimeError("after access log")
+
     app.include_router(router)
     client = TestClient(app, follow_redirects=False, raise_server_exceptions=False)
     yield client, transport
@@ -275,6 +340,17 @@ def test_unhandled_error_is_reported_without_personal_data(sentry_client) -> Non
     assert EMAIL not in dumped and "cookie-session-value" not in dumped and "email=x" not in dumped
     assert errors[0]["tags"]["component"] == "web"
     assert errors[0]["server_name"] == "web"
+
+
+def test_access_log_never_reaches_sentry(sentry_client) -> None:
+    client, transport = sentry_client
+    assert client.get("/__access_boom").status_code == 500
+    sentry_sdk.flush()
+    errors = [e for e in transport.events if e.get("exception")]
+    assert len(errors) == 1
+    dumped = json.dumps(errors[0])
+    assert "probe line kept" in dumped  # breadcrumbs from this request do reach the event
+    assert "203.0.113.9" not in dumped and "q=secret" not in dumped
 
 
 def test_404_and_csrf_are_not_reported(sentry_client) -> None:
