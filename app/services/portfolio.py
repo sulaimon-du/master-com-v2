@@ -17,6 +17,7 @@ from app.core.time import utcnow
 from app.models import MasterProfile, PortfolioCollection, PortfolioPhoto
 from app.schemas.master import CollectionCard, PhotoView
 from app.services.images import process_portfolio
+from app.services.search_index import refresh_search
 from app.services.storage import Storage, get_storage, new_key
 
 PortfolioCode = Literal["limit", "not_found", "title", "description", "undo_expired"]
@@ -137,6 +138,7 @@ def set_collection_hidden(
     collection = _collection(db, master, collection_id)
     collection.hidden_at = utcnow() if hidden else None
     db.flush()
+    refresh_search(db, master)  # has_photos
 
 
 def move_collection(
@@ -192,6 +194,7 @@ def add_photo(
         with db.begin_nested():
             db.add(photo)
             db.flush()
+        refresh_search(db, master)  # has_photos
     except BaseException:
         for written_key in written:
             # Cleanup must not hide the original error.
@@ -232,6 +235,7 @@ def delete_photo(db: Session, master: MasterProfile, photo_id: int) -> None:
         raise PortfolioError("not_found")
     photo.deleted_at = utcnow()
     db.flush()
+    refresh_search(db, master)  # has_photos
 
 
 def undo_delete_photo(db: Session, master: MasterProfile, photo_id: int) -> None:
@@ -244,6 +248,7 @@ def undo_delete_photo(db: Session, master: MasterProfile, photo_id: int) -> None
         raise PortfolioError("limit")
     photo.deleted_at = None
     db.flush()
+    refresh_search(db, master)  # has_photos
 
 
 # --- views ------------------------------------------------------------------------------------

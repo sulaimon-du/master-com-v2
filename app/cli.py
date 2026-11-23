@@ -3,6 +3,7 @@
     uv run python -m app.cli claims list
     uv run python -m app.cli claims approve <id>
     uv run python -m app.cli claims reject <id>
+    uv run python -m app.cli search rebuild
 
 On staging (no shell on Render free) the same decision is one statement in the Neon SQL Editor:
     UPDATE google_claims SET status = 'approved', resolved_at = now()
@@ -14,7 +15,7 @@ import sys
 
 from app.core.db import get_sessionmaker
 from app.models.user import User
-from app.services import auth
+from app.services import auth, search_index
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -25,9 +26,16 @@ def main(argv: list[str] | None = None) -> int:
     actions.add_parser("list")
     for name in ("approve", "reject"):
         actions.add_parser(name).add_argument("claim_id", type=int)
+    search = groups.add_parser("search", help="The master search index (week 7)")
+    search.add_subparsers(dest="action", required=True).add_parser("rebuild")
     args = parser.parse_args(argv)
 
     with get_sessionmaker()() as db:
+        if args.group == "search":
+            count = search_index.rebuild_all(db)
+            db.commit()
+            print(f"{count} search rows rebuilt")
+            return 0
         if args.action == "list":
             for claim in auth.pending_google_claims(db):
                 created = f"{claim.created_at:%Y-%m-%d %H:%M}"
