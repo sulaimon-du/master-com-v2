@@ -208,6 +208,110 @@ def test_non_https_urls_are_refused_without_leaking_secrets(monkeypatch, name, v
         assert secret not in message
 
 
+BAD_HOSTS = [
+    "https://pub.r2.dev;script-src 'unsafe-inline'",
+    "https://pub.r2.dev *",
+    "https://*",
+    "https://a b.r2.dev",
+    "https://pub.r2.dev,evil.com",
+    "https://pub.r2.dev:99999",
+    "https://pub.r2.dev:abc",
+    "https://localhost",
+    "https://pub.r2.dev/a;b",
+]
+
+
+@pytest.mark.parametrize("name", ["R2_PUBLIC_URL", "R2_ENDPOINT"])
+@pytest.mark.parametrize("value", BAD_HOSTS)
+def test_unclean_hosts_are_refused_without_echoing_the_value(monkeypatch, name, value) -> None:  # type: ignore[no-untyped-def]
+    with pytest.raises(ValidationError) as info:
+        _settings(monkeypatch, **{**R2_ENV, name: value})
+    message = str(info.value)
+    assert name in message
+    assert value not in message and "r2.dev" not in message.replace(name, "")
+    for secret in (ACCESS, SECRET):
+        assert secret not in message
+
+
+def test_origin_is_built_from_host_and_port_only(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    settings = _settings(
+        monkeypatch, **{**R2_ENV, "R2_PUBLIC_URL": "https://Media.Example.COM:8443/x/"}
+    )
+    assert settings.r2_public_origin == "https://media.example.com:8443"
+    assert settings.r2_public_url == "https://media.example.com:8443/x"
+
+
+def test_r2_secrets_are_stripped_and_blank_is_unset(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    settings = _settings(monkeypatch, **{**R2_ENV, "R2_ACCESS_KEY_ID": f"  {ACCESS} \n"})
+    assert settings.r2_access_key_id is not None
+    assert settings.r2_access_key_id.get_secret_value() == ACCESS
+    settings = _settings(monkeypatch, **{**R2_ENV, "R2_SECRET_ACCESS_KEY": "   "})
+    assert settings.r2_secret_access_key is None and not settings.r2_enabled
+
+
+# --- partial configuration --------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("env", ["staging", "production"])
+def test_uploads_on_without_full_r2_refuses_to_start(monkeypatch, env: str) -> None:  # type: ignore[no-untyped-def]
+    with pytest.raises(ValidationError) as info:
+        _settings(
+            monkeypatch,
+            APP_ENV=env,
+            UPLOADS_ENABLED="true",
+            **{**R2_ENV, "R2_SECRET_ACCESS_KEY": "", "R2_BUCKET": ""},
+        )
+    message = str(info.value)
+    assert "R2_SECRET_ACCESS_KEY" in message and "R2_BUCKET" in message
+    assert "R2_ENDPOINT" not in message and "R2_PUBLIC_URL" not in message
+    for secret in (ACCESS, SECRET, BUCKET, PUBLIC):
+        assert secret not in message
+
+
+def test_uploads_on_with_full_r2_or_off_starts_on_staging(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    assert _settings(monkeypatch, APP_ENV="staging", UPLOADS_ENABLED="true", **R2_ENV).r2_enabled
+    blank = {name: "" for name in R2_ENV}
+    off = _settings(monkeypatch, APP_ENV="staging", UPLOADS_ENABLED="false", **blank)
+    assert off.uploads_enabled is False
+    # Development with uploads on and no R2 is the normal local setup.
+    assert _settings(monkeypatch, APP_ENV="development", UPLOADS_ENABLED="true", **blank)
+
+
+def test_partial_r2_logs_one_warning_with_names_only(monkeypatch, caplog) -> None:  # type: ignore[no-untyped-def]
+    settings = _settings(monkeypatch, **{**R2_ENV, "R2_ENDPOINT": "", "R2_PUBLIC_URL": ""})
+    assert settings.r2_missing == ["R2_ENDPOINT", "R2_PUBLIC_URL"]
+    with caplog.at_level("WARNING"):
+        create_app(settings)
+    warnings = [r.getMessage() for r in caplog.records if "R2" in r.getMessage()]
+    assert len(warnings) == 1
+    assert "R2_ENDPOINT" in warnings[0] and "R2_PUBLIC_URL" in warnings[0]
+    for secret in (ACCESS, SECRET, BUCKET):
+        assert secret not in warnings[0]
+
+
+@pytest.mark.parametrize("count", [0, 5])
+def test_no_r2_warning_when_none_or_all_are_set(monkeypatch, caplog, count: int) -> None:  # type: ignore[no-untyped-def]
+    env = R2_ENV if count else {name: "" for name in R2_ENV}
+    settings = _settings(monkeypatch, **env)
+    with caplog.at_level("WARNING"):
+        create_app(settings)
+    assert not [r for r in caplog.records if "R2" in r.getMessage()]
+
+
+def test_boto_loggers_are_pinned_to_warning(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    import logging
+
+    create_app(_settings(monkeypatch, LOG_LEVEL="DEBUG"))
+    for name in ("botocore", "boto3"):
+        assert logging.getLogger(name).level == logging.WARNING
+
+
+def test_client_factory_does_not_use_the_default_session(r2_env: Settings) -> None:
+    boto3.DEFAULT_SESSION = None
+    make_r2_client(r2_env)
+    assert boto3.DEFAULT_SESSION is None
+
+
 # --- CSP and the /media route -----------------------------------------------------------------
 
 

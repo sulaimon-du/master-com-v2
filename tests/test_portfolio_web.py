@@ -329,6 +329,37 @@ def test_storage_failure_on_save_is_a_friendly_error(client: TestClient, monkeyp
     assert _photos(cid) == []
 
 
+def test_thumbnail_put_failure_deletes_the_full_image(client: TestClient, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from botocore.exceptions import ClientError
+
+    from app.services.storage import R2Storage
+
+    class SecondPutFails:
+        def __init__(self) -> None:
+            self.put_keys: list[str] = []
+            self.deleted: list[str] = []
+
+        def put_object(self, **kwargs):  # type: ignore[no-untyped-def]
+            self.put_keys.append(kwargs["Key"])
+            if len(self.put_keys) == 2:
+                raise ClientError({"Error": {"Code": "InternalError"}}, "PutObject")
+
+        def delete_object(self, **kwargs):  # type: ignore[no-untyped-def]
+            self.deleted.append(kwargs["Key"])
+
+    _make_master(client)
+    cid = _new_collection(client)
+    fake = SecondPutFails()
+    storage = R2Storage(fake, "bucket", "https://pub.example.r2.dev")
+    monkeypatch.setattr("app.web.portfolio.get_storage", lambda: storage)
+    r = _upload(client, cid, [("a.png", _png())])
+    assert r.status_code == 422 and "Файл 1" in r.text
+    full, thumb = fake.put_keys
+    assert thumb == full.removesuffix(".webp") + "-t.webp"
+    assert fake.deleted == [full]
+    assert _photos(cid, live_only=False) == []
+
+
 def test_upload_routes_404_when_uploads_disabled(client: TestClient, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     uid = _make_master(client)
     cid = _new_collection(client)

@@ -1,10 +1,34 @@
 import os
+import re
 from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlsplit
 
 from pydantic import Field, PostgresDsn, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# A plain DNS name with at least one dot: nothing that could break out of a CSP source list.
+_HOST_RE = re.compile(r"^[a-z0-9-]+(\.[a-z0-9-]+)+$")
+_PATH_RE = re.compile(r"^(/[A-Za-z0-9._~-]+)*/?$")
+R2_VARS = ("R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_PUBLIC_URL")
+
+
+def _clean_https(value: str, name: str, *, allow_path: bool) -> str:
+    """Rebuild an https URL from its checked parts; never echo the value in an error."""
+    parts = urlsplit(value)
+    host = (parts.hostname or "").lower()
+    try:
+        port = parts.port
+    except ValueError:
+        raise ValueError(f"{name} has an invalid port") from None
+    if parts.scheme != "https" or not _HOST_RE.fullmatch(host):
+        raise ValueError(f"{name} must be an https:// URL with a plain host name")
+    if parts.username or parts.password or parts.query or parts.fragment:
+        raise ValueError(f"{name} must be a plain https:// URL without credentials or query")
+    path = parts.path
+    if not _PATH_RE.fullmatch(path) or (path.strip("/") and not allow_path):
+        raise ValueError(f"{name} has an invalid path")
+    return f"https://{host}" + (f":{port}" if port is not None else "") + path.rstrip("/")
 
 
 class Settings(BaseSettings):
@@ -70,12 +94,21 @@ class Settings(BaseSettings):
                     return "postgresql+psycopg://" + value[len(prefix) :]
         return value
 
-    @field_validator("r2_endpoint", "r2_bucket", "r2_public_url", mode="before")
+    @field_validator(
+        "r2_endpoint",
+        "r2_access_key_id",
+        "r2_secret_access_key",
+        "r2_bucket",
+        "r2_public_url",
+        mode="before",
+    )
     @classmethod
     def _blank_is_unset(cls, value: object) -> object:
-        if isinstance(value, str) and not value.strip():
-            return None
-        return value.strip() if isinstance(value, str) else value
+        if isinstance(value, SecretStr):
+            value = value.get_secret_value()
+        if isinstance(value, str):
+            return value.strip() or None
+        return value
 
     @field_validator("r2_endpoint", "r2_public_url")
     @classmethod
@@ -83,13 +116,8 @@ class Settings(BaseSettings):
         if value is None:
             return None
         name = info.field_name.upper()
-        parts = urlsplit(value)
-        # The message names the setting only; the value is never echoed (it could hold secrets).
-        if parts.scheme != "https" or not parts.hostname:
-            raise ValueError(f"{name} must be an https:// URL")
-        if parts.username or parts.password or parts.query or parts.fragment:
-            raise ValueError(f"{name} must be a plain https:// URL without credentials or query")
-        return value.removesuffix("/") if name == "R2_PUBLIC_URL" else value
+        # The endpoint is the account's S3 address: a host only. The public URL may have a path.
+        return _clean_https(value, name, allow_path=name == "R2_PUBLIC_URL")
 
     @model_validator(mode="after")
     def _add_platform_host(self) -> "Settings":
@@ -99,6 +127,13 @@ class Settings(BaseSettings):
             self.allowed_hosts = [*self.allowed_hosts, host]
         if self.uploads_enabled is None:
             self.uploads_enabled = not self.is_production_like
+        # Uploads on staging/production without R2 would land on Render's wiped disk: refuse.
+        missing = self.r2_missing
+        if self.is_production_like and self.uploads_enabled and missing:
+            raise ValueError(
+                "UPLOADS_ENABLED is true on staging/production but R2 is not fully configured; "
+                "missing: " + ", ".join(missing)
+            )
         return self
 
     def limit(self, name: str, plan: str = "free") -> int:
@@ -119,22 +154,32 @@ class Settings(BaseSettings):
         return bool(self.telegram_bot_username)
 
     @property
-    def r2_enabled(self) -> bool:
-        secrets = (self.r2_access_key_id, self.r2_secret_access_key)
-        return bool(
-            self.r2_endpoint
-            and self.r2_bucket
-            and self.r2_public_url
-            and all(s is not None and s.get_secret_value() for s in secrets)
+    def r2_missing(self) -> list[str]:
+        """Names (never values) of the R2 variables that are not set."""
+        values = (
+            self.r2_endpoint,
+            self.r2_access_key_id,
+            self.r2_secret_access_key,
+            self.r2_bucket,
+            self.r2_public_url,
         )
+        return [name for name, value in zip(R2_VARS, values, strict=True) if value is None]
+
+    @property
+    def r2_enabled(self) -> bool:
+        return not self.r2_missing
 
     @property
     def r2_public_origin(self) -> str | None:
-        """Scheme and host of the public bucket URL (for the CSP), or None when R2 is off."""
+        """`https://host[:port]` of the public bucket URL (for the CSP), or None when R2 is off.
+
+        Built from the validated host and port, never from the raw netloc.
+        """
         if not self.r2_enabled or self.r2_public_url is None:
             return None
         parts = urlsplit(self.r2_public_url)
-        return f"{parts.scheme}://{parts.netloc.lower()}"
+        host = (parts.hostname or "").lower()
+        return f"https://{host}" + (f":{parts.port}" if parts.port is not None else "")
 
     @property
     def secure_cookies(self) -> bool:

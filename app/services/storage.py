@@ -111,7 +111,8 @@ class R2Storage:
 def make_r2_client(settings: Settings) -> Any:
     """An S3 client for the R2 account endpoint. Only call it when `settings.r2_enabled`."""
     assert settings.r2_access_key_id is not None and settings.r2_secret_access_key is not None  # noqa: S101
-    return boto3.client(
+    # A private session: the shared default session is global state other code could change.
+    return boto3.session.Session().client(
         "s3",
         endpoint_url=settings.r2_endpoint,
         region_name="auto",

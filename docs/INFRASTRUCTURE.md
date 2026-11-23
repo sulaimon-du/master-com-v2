@@ -64,7 +64,7 @@ The site never gets `TELEGRAM_BOT_TOKEN`: it only builds `t.me` links (R-021, le
 
 ### Photos on staging
 
-Photos are stored in Cloudflare R2 when all five `R2_*` variables are set on the site service; otherwise the site falls back to local disk, which Render wipes on every deploy. With R2 on, images are served from `R2_PUBLIC_URL` and `/media/...` answers 404. A wrong `R2_ENDPOINT` or `R2_PUBLIC_URL` (not `https://`) stops the site at startup with a message naming the variable, never its value.
+Photos are stored in Cloudflare R2 when all five `R2_*` variables are set on the site service; otherwise the site falls back to local disk, which Render wipes on every deploy. With R2 on, images are served from `R2_PUBLIC_URL` and `/media/...` answers 404. A wrong `R2_ENDPOINT` or `R2_PUBLIC_URL` (not `https://`, not a plain host name, a bad port) stops the site at startup with a message naming the variable, never its value. With `UPLOADS_ENABLED=true` on staging or production, the site also refuses to start unless all five `R2_*` variables are set (the message lists the missing names). If only some are set while uploads are off, the site starts on local disk and logs one warning naming the missing ones.
 
 Turning uploads on after the deploy:
 1. Render → `master-com-staging` → Environment: check that `R2_ENDPOINT`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` are filled in (they are `sync: false`, so Render does not create them from `render.yaml` on an existing service) and that `R2_BUCKET` and `R2_PUBLIC_URL` are there.

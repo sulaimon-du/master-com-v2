@@ -8,12 +8,13 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api import health
 from app.core.body_limit import BodyLimitMiddleware
-from app.core.config import Settings, get_settings
+from app.core.config import R2_VARS, Settings, get_settings
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.web import account, auth, master, media, pages, portfolio, profile, telegram
 from app.web.csrf import CSRFError
 from app.web.render import render
 
+log = logging.getLogger(__name__)
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
@@ -23,6 +24,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         level=settings.log_level,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    # At DEBUG botocore logs request headers, including the signed Authorization header.
+    for name in ("botocore", "boto3"):
+        logging.getLogger(name).setLevel(logging.WARNING)
+    missing = settings.r2_missing
+    if 0 < len(missing) < len(R2_VARS):
+        log.warning("R2 is partly configured, using local disk; missing: %s", ", ".join(missing))
 
     app = FastAPI(
         title=settings.app_name,
