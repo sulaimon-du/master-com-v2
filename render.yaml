@@ -47,6 +47,8 @@ services:
       # Off until the owner checks R2 after the deploy, then set to true in the dashboard.
       - key: UPLOADS_ENABLED
         value: "false"
+      - key: SENTRY_DSN
+        sync: false # Sentry project DSN (R-024); empty = monitoring off
 
   # Telegram bot (spec 2026-11-22, D5): its own process, webhook mode, no migrations or seed.
   # A sleeping free service is woken by Telegram's webhook POST; Telegram retries meanwhile.
@@ -76,3 +78,5 @@ services:
         value: https://master-com-bot-staging.onrender.com/telegram/webhook
       - key: SITE_URL
         value: https://master-com-staging.onrender.com
+      - key: SENTRY_DSN
+        sync: false # Sentry project DSN (R-024); empty = monitoring off

@@ -33,6 +33,7 @@ from app.bot import dialog
 from app.bot.dialog import Reply, TgUser
 from app.core.config import get_settings
 from app.core.i18n import translate
+from app.core.monitoring import init_sentry
 
 logger = logging.getLogger("app.bot")
 
@@ -222,6 +223,7 @@ def main() -> None:
         level=settings.log_level,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    init_sentry(settings, component="bot")
     token = clean_setting(
         settings.telegram_bot_token.get_secret_value() if settings.telegram_bot_token else None
     )
