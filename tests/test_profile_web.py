@@ -47,13 +47,15 @@ def _make_master(
             masters.BasicsInput(
                 display_name="Али Рахимов",
                 slug=slug,
-                headline="Плиточник",
+                headline="Мастер на все руки",
                 experience_years=5,
                 is_available=True,
             ),
         )
         if publish:
-            specs = db.scalars(select(Specialty).where(Specialty.is_active).limit(2)).all()
+            specs = db.scalars(
+                select(Specialty).where(Specialty.is_active).order_by(Specialty.id).limit(2)
+            ).all()
             masters.set_specialties(
                 db, master, [specs[0].id, specs[1].id], primary_ids=[specs[1].id]
             )
@@ -85,7 +87,7 @@ def test_published_profile_is_public(client: TestClient) -> None:
     _make_master()
     r = client.get("/m/ali-rahimov")
     assert r.status_code == 200
-    assert "Али Рахимов" in r.text and "Плиточник" in r.text
+    assert "Али Рахимов" in r.text and "Мастер на все руки" in r.text
     assert "<title>Али Рахимов · " in r.text
     assert 'name="robots"' not in r.text
 

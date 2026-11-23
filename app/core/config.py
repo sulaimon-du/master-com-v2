@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     )
 
     app_env: Literal["development", "test", "staging", "production"] = "development"
-    app_name: str = "Master COM"
+    app_name: str = "UstoiMan"  # working brand name, exactly this casing (R-023)
     secret_key: SecretStr = Field(min_length=32)
     database_url: PostgresDsn
     allowed_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]

@@ -1,4 +1,4 @@
-# Master COM
+# UstoiMan (working name; repository master-com-v2)
 
 Marketplace for construction and home-repair masters in Tajikistan: photo portfolios, master profiles and an order exchange. Product spec: [`docs/BRIEF.md`](docs/BRIEF.md). Decisions: [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
