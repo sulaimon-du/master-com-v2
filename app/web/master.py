@@ -6,6 +6,7 @@ Every route acts on the signed-in user's own profile: there is no master ID in a
 so one user cannot reach another's profile. Rules live in app/services/masters.py.
 """
 
+import contextlib
 import logging
 from typing import Annotated
 
@@ -22,7 +23,7 @@ from app.schemas.master import BasicsForm, BasicsValues, ContactsValues
 from app.services import auth, master_forms, masters
 from app.services.images import ImageError, process_avatar, read_limited
 from app.services.masters import MasterError
-from app.services.storage import get_storage, new_key
+from app.services.storage import StorageError, get_storage, new_key
 from app.web.auth import _attach_session, notice_page
 from app.web.cookies import SESSION, cookie_name
 from app.web.csrf import CSRFProtected
@@ -426,18 +427,27 @@ def master_avatar(
         )  # fmt: skip
     storage = get_storage()
     key = new_key("a")
-    storage.put(key, processed.data, "image/webp")
+    try:
+        storage.put(key, processed.data, "image/webp")
+    except (StorageError, OSError):
+        # Backend detail stays out of the page and the log; the user may simply retry.
+        log.warning("could not store an avatar")
+        return _step_page(
+            request, db, user, master, "basics", next_=next, status=503,
+            avatar_error="master.avatar_err.save",
+        )  # fmt: skip
     try:
         old = masters.set_avatar(db, master, key)
         db.commit()
     except BaseException:
         db.rollback()
-        storage.delete(key)
+        with contextlib.suppress(Exception):  # cleanup must not hide the original error
+            storage.delete(key)
         raise
     if old is not None:
         try:
             storage.delete(old)
-        except (OSError, ValueError):
+        except (StorageError, OSError, ValueError):
             log.warning("could not delete the replaced avatar")
     target = "/master/edit?saved=1" if next == "edit" else "/master/onboarding/basics"
     return RedirectResponse(target, status_code=303)

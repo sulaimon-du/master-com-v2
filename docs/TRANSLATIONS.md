@@ -8,7 +8,7 @@ is stale.
 checked. To approve, tell Claude which keys are fine (or send corrections); they are recorded in
 `app/locales/tg_approved.json`.
 
-**279 texts, 183 drafts to check.**
+**280 texts, 184 drafts to check.**
 
 | Key | Русский | Тоҷикӣ | Status |
 |---|---|---|---|
@@ -118,6 +118,7 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `master.available` | Принимаю заказы | Фармоишро қабул мекунам | draft |
 | `master.avatar` | Фото профиля | Акси профил | draft |
 | `master.avatar_err.pixels` | Изображение слишком большое по размеру в пикселях. | Андозаи тасвир аз ҳад зиёд калон аст. | draft |
+| `master.avatar_err.save` | Не удалось сохранить фото. Попробуйте ещё раз. | Аксро сабт кардан нашуд. Боз кӯшиш кунед. | draft |
 | `master.avatar_err.size` | Файл больше 10 МБ. | Файл аз 10 МБ калонтар аст. | draft |
 | `master.avatar_err.type` | Нужен файл JPEG, PNG или WebP. | Файли JPEG, PNG ё WebP лозим аст. | draft |
 | `master.avatar_err.unreadable` | Не удалось прочитать изображение. Попробуйте другой файл. | Тасвирро хондан нашуд. Файли дигарро санҷед. | draft |

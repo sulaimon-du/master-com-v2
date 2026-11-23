@@ -33,7 +33,18 @@ services:
         value: MasterComStagingBot # shows the Telegram buttons; the bot token is never set here (R-021)
       - key: SITE_URL
         value: https://master-com-staging.onrender.com
-      # Render's disk is ephemeral, so uploads stay off until R2 storage is wired in.
+      # Cloudflare R2 for photos (spec 2026-11-23 §D8); only the site needs these, never the bot.
+      - key: R2_ENDPOINT
+        sync: false # https://<account-id>.r2.cloudflarestorage.com; dashboard only
+      - key: R2_ACCESS_KEY_ID
+        sync: false # secret, dashboard only; token limited to this bucket
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false # secret, dashboard only
+      - key: R2_BUCKET
+        value: master-com-staging-media
+      - key: R2_PUBLIC_URL
+        value: https://pub-d77c5213c3b64bc789186e39de9fbe9e.r2.dev
+      # Off until the owner checks R2 after the deploy, then set to true in the dashboard.
       - key: UPLOADS_ENABLED
         value: "false"
 

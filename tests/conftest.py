@@ -15,6 +15,12 @@ os.environ.setdefault("TELEGRAM_BOT_TOKEN", "")
 os.environ.setdefault("TELEGRAM_BOT_USERNAME", "")
 os.environ.setdefault("TELEGRAM_WEBHOOK_SECRET", "")
 os.environ.setdefault("TELEGRAM_WEBHOOK_URL", "")
+# Local-disk storage in tests whatever a developer's .env says; R2 tests set these themselves.
+os.environ.setdefault("R2_ENDPOINT", "")
+os.environ.setdefault("R2_ACCESS_KEY_ID", "")
+os.environ.setdefault("R2_SECRET_ACCESS_KEY", "")
+os.environ.setdefault("R2_BUCKET", "")
+os.environ.setdefault("R2_PUBLIC_URL", "")
 
 from alembic import command
 from alembic.config import Config
