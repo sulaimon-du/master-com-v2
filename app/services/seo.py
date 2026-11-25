@@ -174,20 +174,22 @@ def _neighbours(
                 label=_name(lang, city), href=landing_path(lang, city.slug, specialty.slug), count=n
             )
     else:
-        # A district page lists masters who named it or serve the whole city (D11.2).
-        by_district = search.counts_by_district_specialty(db, named_only=False)
+        # Only districts some master named: whole-city masters alone would make every district
+        # page a near-duplicate of this one. The pill shows what the district page lists
+        # (named + whole-city, D11.2).
+        named = search.counts_by_district_specialty(db, named_only=True)
+        listed = search.counts_by_district_specialty(db, named_only=False)
         for row in db.scalars(
             select(District)
             .where(District.city_id == city.id, District.is_active)
             .order_by(District.sort_order, District.id)
         ):
-            n = by_district.get((row.id, specialty.id), 0)
-            if n >= 1 and len(districts) < NEIGHBOURS:
+            if named.get((row.id, specialty.id), 0) >= 1 and len(districts) < NEIGHBOURS:
                 districts.append(
                     Link(
                         label=_name(lang, row),
                         href=landing_path(lang, city.slug, specialty.slug, row.slug),
-                        count=n,
+                        count=listed.get((row.id, specialty.id), 0),
                     )
                 )
     return city_link, districts, _top(other_cities), _top(other_specialties)

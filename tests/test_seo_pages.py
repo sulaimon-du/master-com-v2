@@ -355,6 +355,21 @@ def test_neighbour_links_point_only_to_combinations_with_masters(
     assert "/dushanbe/elektrik" not in html
 
 
+def test_district_links_need_a_master_who_named_the_district(web: TestClient, db: Session) -> None:
+    """Whole-city masters alone would make every district page a near-duplicate of the city."""
+    _masters(db, 2, specs=("santekhnik",), cities=("dushanbe",))
+    html = web.get("/dushanbe/santekhnik").text
+    assert 'id="seo-districts"' not in html
+    assert "/dushanbe/sino/" not in html
+
+    _master(db, specs=("santekhnik",), cities=(), districts=(("dushanbe", "sino"),))
+    districts = _section(web.get("/dushanbe/santekhnik").text, "seo-districts")
+    assert districts.count('href="/') == 1
+    assert 'href="/dushanbe/sino/santekhnik"' in districts
+    # the pill shows how many masters the district page lists (named + whole-city)
+    assert re.search(r"Сино <span[^>]*>3</span>", districts)
+
+
 def test_inactive_district_is_not_linked(web: TestClient, db: Session) -> None:
     _master(db, cities=(), districts=(("dushanbe", "sino"),))
     db.execute(update(District).where(District.slug == "sino").values(is_active=False))
