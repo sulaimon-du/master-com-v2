@@ -148,6 +148,27 @@ def test_document_is_capped(db: Session) -> None:
     assert len(_row(db, master).document) <= 20_000
 
 
+def test_refresh_is_an_upsert_even_when_the_row_appears_meanwhile(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A concurrent first refresh inserts the row between our read and our write: no 500."""
+    _, master = _master(db)
+    original_get = db.get
+
+    def blind_get(entity, ident, *args, **kwargs):
+        if entity is MasterSearch:
+            return None  # as if the row did not exist yet when we looked
+        return original_get(entity, ident, *args, **kwargs)
+
+    monkeypatch.setattr(db, "get", blind_get)
+    master.display_name = "Новое Имя"
+    refresh_search(db, master)
+    refresh_search(db, master)
+    monkeypatch.undo()
+    assert "novoe imia" in _row(db, master).names or "novoe" in _row(db, master).names
+    assert db.scalar(select(text("count(*)")).select_from(MasterSearch)) >= 1
+
+
 def test_rebuild_all_fixes_stale_rows(db: Session) -> None:
     _, one = _master(db)
     _, two = _master(db, ready=False)

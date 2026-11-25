@@ -283,10 +283,25 @@ def test_pagination_bounds(db: Session) -> None:
     assert len(second.items) == 1
     assert {c.slug for c in first.items + second.items} == {m.slug for m in created}
     beyond = search.search(db, _q(page="3"), lang="ru")
-    assert beyond.items == [] and beyond.total == 21
+    assert (beyond.page, beyond.total, len(beyond.items)) == (2, 21, 1)  # clamped to the last
+    assert beyond.notices == ["page"]
+    assert search.search(db, _q(page="2"), lang="ru").notices == []
     for bad, expected in (("0", 1), ("-4", 1), ("abc", 1), ("51", 50), ("99999999999", 50)):
         query, notices = parse_query({"page": bad})
         assert query.page == expected and notices == ["page"]
+
+
+def test_page_past_the_end_of_empty_results_clamps_to_one(db: Session) -> None:
+    result = search.search(db, _q(q="несуществующееслово", page="4"), lang="ru")
+    assert (result.total, result.page, result.items) == (0, 1, [])
+    assert result.notices == ["page"]
+
+
+def test_page_at_the_cap_past_the_end_is_clamped_too(db: Session) -> None:
+    _master(db)
+    query, _ = parse_query({"page": "99"})  # the parser caps it at MAX_PAGE
+    result = search.search(db, query, lang="ru")
+    assert (result.page, result.pages, result.notices) == (1, 1, ["page"])
 
 
 # --- free text ----------------------------------------------------------------------------------

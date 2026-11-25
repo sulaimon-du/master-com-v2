@@ -20,7 +20,7 @@ Staging URL: https://master-com-staging.onrender.com
 
 1. A PR is merged into `main`.
 2. Render sees the push (`autoDeploy: true` in `render.yaml`), builds the `Dockerfile` and starts the container.
-3. `deploy/entrypoint.sh` runs `alembic upgrade head` (because `RUN_MIGRATIONS=1`), then `python -m app.seed` (because `RUN_SEED=1`; the seed is idempotent), then starts uvicorn.
+3. `deploy/entrypoint.sh` runs `alembic upgrade head` (because `RUN_MIGRATIONS=1`), then `python -m app.seed` (because `RUN_SEED=1`; the seed is idempotent), then `python -m app.cli search rebuild` (same `RUN_SEED` guard: the search index is rebuilt on every start of the site service, so existing masters are indexed after a deploy; the bot service never runs it), then starts uvicorn.
 4. Render checks `GET /health`. When it answers, traffic switches to the new container.
 
 Check after a deploy:

@@ -628,11 +628,14 @@ def _run(
     conds = _conditions(filters, words, query.available)
     total = db.scalar(_visible(select(func.count()).select_from(MasterSearch)).where(*conds)) or 0
     pages = min(math.ceil(total / PAGE_SIZE), MAX_PAGE)
+    page = max(min(query.page, pages), 1)  # a page past the end shows the last one, with a notice
+    if page != query.page and "page" not in notices:
+        notices.append("page")
     sort: Sort = query.sort or ("relevance" if words else "rating")
     if sort == "relevance" and not words:
         sort = "rating"
 
-    offset = (query.page - 1) * PAGE_SIZE
+    offset = (page - 1) * PAGE_SIZE
     items: list[MasterCard] = []
     if offset < total:
         rows = db.execute(
@@ -682,7 +685,7 @@ def _run(
     return SearchResult(
         items=items,
         total=total,
-        page=query.page,
+        page=page,
         pages=pages,
         suggestion=suggestion,
         specialty_hint=hint,

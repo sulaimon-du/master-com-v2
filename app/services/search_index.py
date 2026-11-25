@@ -4,7 +4,8 @@
 block paths call it, so the index follows every change that matters. Callers commit.
 """
 
-from sqlalchemy import delete, exists, select
+from sqlalchemy import delete, exists, func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -134,13 +135,17 @@ def refresh_search(db: Session, master: MasterProfile) -> None:
         "whole_city_ids": _unique(c for c, d in areas if d is None),
         "named_district_ids": _unique(d for _, d in areas if d is not None),
     }
-    row = db.get(MasterSearch, master.id)
-    if row is None:
-        db.add(MasterSearch(master_id=master.id, **values))
-    else:
-        for key, value in values.items():
-            setattr(row, key, value)
-    db.flush()
+    # One statement, so two first refreshes of the same master cannot collide on the key.
+    insert_stmt = insert(MasterSearch).values(master_id=master.id, **values)
+    db.execute(
+        insert_stmt.on_conflict_do_update(
+            index_elements=[MasterSearch.master_id],
+            set_={**{key: insert_stmt.excluded[key] for key in values}, "updated_at": func.now()},
+        )
+    )
+    for obj in list(db.identity_map.values()):  # a loaded row is stale after the upsert
+        if isinstance(obj, MasterSearch) and obj.master_id == master.id:
+            db.expire(obj)
 
 
 def refresh_search_for_user(db: Session, user: User) -> None:
