@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% import "partials/master_card.html" as mc with context %}
+{% block title %}{{ t('search.title') }} · {{ app_name }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex, follow">{% endblock %}
+{% block content %}
+<section class="grid gap-6">
+  <h1 class="text-4xl">{{ t('search.title') }}</h1>
+
+  <form method="get" action="{{ url_for('search_page').path }}" class="card grid gap-4" role="search" aria-label="{{ t('search.form_label') }}">
+    <div class="grid gap-1.5">
+      <label for="q" class="text-sm font-semibold">{{ t('search.q_label') }}</label>
+      <input id="q" name="q" type="search" maxlength="100" value="{{ form.q or '' }}" placeholder="{{ t('search.q_placeholder') }}" class="input">
+    </div>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div class="grid gap-1.5">
+        <label for="cat" class="text-sm font-semibold">{{ t('search.category') }}</label>
+        <select id="cat" name="cat" class="input">
+          <option value="">{{ t('search.category_any') }}</option>
+          {% for c in options.categories %}<option value="{{ c.slug }}"{% if c.slug == form.cat %} selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="grid gap-1.5">
+        <label for="s" class="text-sm font-semibold">{{ t('search.specialty') }}</label>
+        <select id="s" name="s" class="input">
+          <option value="">{{ t('search.specialty_any') }}</option>
+          {% for c in options.categories %}
+          <optgroup label="{{ c.name }}">
+            {% for s in c.specialties %}<option value="{{ s.slug }}"{% if s.slug == form.s %} selected{% endif %}>{{ s.name }}</option>{% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="grid gap-1.5">
+        <label for="c" class="text-sm font-semibold">{{ t('search.city') }}</label>
+        <select id="c" name="c" class="input">
+          <option value="">{{ t('search.city_any') }}</option>
+          {% for c in options.cities %}<option value="{{ c.slug }}"{% if c.slug == form.c %} selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      {% if options.districts %}
+      <div class="grid gap-1.5">
+        <label for="d" class="text-sm font-semibold">{{ t('search.district') }}</label>
+        <select id="d" name="d" class="input">
+          <option value="">{{ t('search.district_any') }}</option>
+          {% for d in options.districts %}<option value="{{ d.slug }}"{% if d.slug == form.d %} selected{% endif %}>{{ d.name }}</option>{% endfor %}
+        </select>
+      </div>
+      {% endif %}
+    </div>
+    <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+      <label class="flex min-h-11 items-center gap-2">
+        <input type="checkbox" name="available" value="1"{% if form.available %} checked{% endif %}>
+        {{ t('search.available') }}
+      </label>
+      <button class="btn btn-primary" type="submit">{{ t('search.submit') }}</button>
+    </div>
+  </form>
+
+  {% if notices %}
+  <div class="grid gap-2" role="status" aria-label="{{ t('search.notices') }}">
+    {% for n in notices %}<p class="notice" data-notice="{{ n.code }}">{{ t(n.text_key) }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  {% if pills %}
+  <ul class="flex flex-wrap gap-2" aria-label="{{ t('search.active') }}">
+    {% for p in pills %}
+    <li><a class="pill pill-current inline-flex min-h-11 items-center gap-2 no-underline" href="{{ p.remove_href }}" aria-label="{{ t('search.remove', name=p.label) }}">{{ p.label }} <span aria-hidden="true">×</span></a></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if result.timed_out %}
+  <p class="notice" id="search-timeout" role="alert">{{ t('search.timeout') }}</p>
+  {% else %}
+    {% if hint_href %}
+    <p id="search-hint"><a class="pill inline-flex min-h-11 items-center no-underline" href="{{ hint_href }}">{{ t('search.hint', name=result.specialty_hint.name) }}</a></p>
+    {% endif %}
+    {% if result.total == 0 %}
+    <section class="card grid gap-2" id="search-empty">
+      <h2 class="text-2xl">{{ t('search.empty_title') }}</h2>
+      <p class="text-muted">{{ t('search.empty') }}</p>
+      {% if suggestion_href %}
+      <p id="search-suggestion"><a class="link" href="{{ suggestion_href }}">{{ t('search.suggestion', name=result.suggestion.name) }}</a></p>
+      {% endif %}
+    </section>
+    {% else %}
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <p class="font-semibold">{{ t('search.found', n=result.total) }}</p>
+      <ul class="flex flex-wrap gap-2" aria-label="{{ t('search.sort') }}">
+        {% for s in sorts %}<li><a class="pill inline-flex min-h-11 items-center no-underline{% if s.current %} pill-current{% endif %}" href="{{ s.href }}"{% if s.current %} aria-current="true"{% endif %}>{{ t(s.text_key) }}</a></li>{% endfor %}
+      </ul>
+    </div>
+    <div class="grid gap-4 md:grid-cols-2">
+      {% for m in result.items %}{{ mc.card(m) }}{% endfor %}
+    </div>
+    {% if result.pages > 1 %}
+    <nav class="flex items-center justify-between gap-3" aria-label="{{ t('search.page', page=result.page, pages=result.pages) }}">
+      {% if prev_href %}<a class="btn btn-secondary no-underline" rel="prev" href="{{ prev_href }}">{{ t('search.prev') }}</a>{% else %}<span></span>{% endif %}
+      <span class="text-sm text-muted">{{ t('search.page', page=result.page, pages=result.pages) }}</span>
+      {% if next_href %}<a class="btn btn-secondary no-underline" rel="next" href="{{ next_href }}">{{ t('search.next') }}</a>{% else %}<span></span>{% endif %}
+    </nav>
+    {% endif %}
+    {% endif %}
+  {% endif %}
+</section>
+{% endblock %}

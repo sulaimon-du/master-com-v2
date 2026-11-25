@@ -59,6 +59,18 @@ HINT_THRESHOLD = 0.6  # trigram similarity of the query to a specialty name or s
 SUGGEST_THRESHOLD = 0.3  # "did you mean" against specialty and place names
 STATEMENT_TIMEOUT = "2s"
 SORTS: tuple[Sort, ...] = ("relevance", "rating", "newest")
+# Every code `parse_query` and `search` can put in `notices`; the page has a text for each.
+NOTICE_CODES = (
+    "q",
+    "specialty",
+    "category",
+    "city",
+    "district",
+    "district_without_city",
+    "sort",
+    "page",
+    "available",
+)
 
 # Wildcard and escape characters go before transliteration (which drops them anyway).
 _UNSAFE = str.maketrans("", "", "%_\\")
@@ -117,13 +129,16 @@ def parse_query(params: Mapping[str, str]) -> tuple[SearchQuery, list[str]]:
             notices.append("page")
             page = MAX_PAGE if page > MAX_PAGE else 1
 
+    if value("available") not in (None, "1"):
+        notices.append("available")  # only available=1 means something; anything else is dropped
+
     query = SearchQuery(
         q=q,
         specialty=specialty,
         category=category,
         city=city,
         district=district,
-        available=params.get("available") == "1",
+        available=value("available") == "1",
         sort=sort,
         page=page,
     )
@@ -629,7 +644,7 @@ def _run(
                     MasterProfile.headline,
                     MasterProfile.avatar_key,
                     MasterProfile.rating_avg,
-                    MasterProfile.is_available,
+                    MasterSearch.is_available,
                 ).select_from(MasterSearch)
             )
             .where(*conds)

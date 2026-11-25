@@ -63,3 +63,20 @@ class SearchResult(BaseModel):
     timed_out: bool = False
     # Codes of URL values that were ignored because no active row has that slug.
     notices: list[str] = []
+
+
+class Choice(BaseModel):
+    """A catalog or place entry for a select box or a pill: its URL slug and display name."""
+
+    slug: str
+    name: str
+
+
+class CategoryChoice(Choice):
+    specialties: list[Choice]
+
+
+class SearchOptions(BaseModel):
+    categories: list[CategoryChoice]
+    cities: list[Choice]
+    districts: list[Choice]  # of the selected city only; district slugs are unique per city

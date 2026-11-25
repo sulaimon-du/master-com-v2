@@ -581,3 +581,46 @@ def test_counts_for_seo_pages(db: Session) -> None:
     firdavsi = _district(db, "dushanbe", "firdavsi")
     assert listed[(firdavsi.id, plumber.id)] == 1
     assert (firdavsi.id, electrician.id) not in listed
+
+
+# --- review fold-ins (task 4) -----------------------------------------------------------------
+
+
+@pytest.mark.parametrize("value", ["0", "true", "yes", "2"])
+def test_available_other_than_one_is_ignored_with_a_notice(db: Session, value: str) -> None:
+    a = _master(db, available=True)
+    b = _master(db, available=False)
+    query, notices = parse_query({"available": value})
+    assert query.available is False
+    assert notices == ["available"]
+    assert set(_slugs(db, available=value)) == {a.slug, b.slug}
+    assert parse_query({"available": "1"})[1] == []
+    assert parse_query({"available": ""})[1] == []
+
+
+def test_card_availability_comes_from_the_search_row(db: Session) -> None:
+    master = _master(db, available=True)
+    row = db.get(search.MasterSearch, master.id)
+    assert row is not None
+    row.is_available = False  # the index says unavailable; the profile row still says available
+    db.flush()
+    [card] = search.search(db, _q(), lang="ru").items
+    assert card.is_available is False
+    assert _slugs(db, available="1") == []
+
+
+def test_every_notice_code_is_documented() -> None:
+    """The set of codes `parse_query` and the search can emit is `search.NOTICE_CODES`."""
+    hostile = {
+        "q": "%%",
+        "s": "Bad Slug",
+        "cat": "x" * 80,
+        "c": "UPPER",
+        "d": "district",
+        "sort": "price",
+        "page": "x",
+        "available": "0",
+    }
+    emitted = set(parse_query(hostile)[1]) | set(parse_query({"d": "x"})[1])
+    assert emitted | {"specialty", "category", "city", "district"} == set(search.NOTICE_CODES)
+    assert "district_without_city" in emitted and "q" in emitted
