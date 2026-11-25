@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% import "partials/profile_collections.html" as pc with context %}
 {% block title %}{{ profile.display_name }} · {{ app_name }}{% endblock %}
-{% block head %}{% if profile.is_draft %}<meta name="robots" content="noindex">{% endif %}{% endblock %}
+{% block meta %}{% if profile.is_draft %}<meta name="robots" content="noindex">{% endif %}{% endblock %}
 {% block content %}
 <article class="mx-auto grid max-w-2xl gap-6">
   {% if notice == 'published' %}

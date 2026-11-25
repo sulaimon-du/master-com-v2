@@ -329,5 +329,18 @@
   "home.step2_title": "Посмотрите работы",
   "home.step2_text": "В профиле мастера есть фото выполненных работ, рейтинг и районы, где он работает.",
   "home.step3_title": "Свяжитесь",
-  "home.step3_text": "Войдите на сайт, чтобы увидеть контакты мастера, и договоритесь напрямую."
+  "home.step3_text": "Войдите на сайт, чтобы увидеть контакты мастера, и договоритесь напрямую.",
+  "seo.place_district": "{district}, {city}",
+  "seo.title": "{specialty} — {place}, мастеров: {n} · {app}",
+  "seo.heading": "{specialty} — {place}",
+  "seo.description": "{specialty} — {place}: профили мастеров с фото работ, рейтингом и районами работы. Мастеров на сайте: {n}.",
+  "seo.description_empty": "{specialty} — {place}: мастеров пока нет. Оставьте заявку, и её увидят мастера.",
+  "seo.empty_title": "Пока здесь нет мастеров",
+  "seo.empty": "Оставьте заявку, и её увидят мастера. Или посмотрите соседние города и специальности ниже.",
+  "seo.post_request": "Оставить заявку",
+  "seo.breadcrumb": "Навигация",
+  "seo.city_link": "{specialty} — {place}, весь город",
+  "seo.districts": "Районы",
+  "seo.other_specialties": "Другие мастера — {place}",
+  "seo.other_cities": "{specialty} в других городах"
 }

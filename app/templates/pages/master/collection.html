@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ collection.title }} · {{ profile.display_name }} · {{ app_name }}{% endblock %}
+{% block meta %}{% if profile.is_draft %}<meta name="robots" content="noindex">{% endif %}{% endblock %}
 {% block head %}
-{% if profile.is_draft %}<meta name="robots" content="noindex">{% endif %}
 <script src="{{ url_for('static', path='js/gallery.js').path }}" defer></script>
 {% endblock %}
 {% block content %}
