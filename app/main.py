@@ -11,7 +11,7 @@ from app.core.body_limit import BodyLimitMiddleware
 from app.core.config import R2_VARS, Settings, get_settings
 from app.core.monitoring import init_sentry
 from app.core.security_headers import SecurityHeadersMiddleware
-from app.web import account, auth, master, media, pages, portfolio, profile, telegram
+from app.web import account, auth, master, media, pages, portfolio, profile, search, telegram
 from app.web.csrf import CSRFError
 from app.web.render import render
 
@@ -58,6 +58,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(master.router)
     app.include_router(portfolio.router)
     app.include_router(profile.router)
+    app.include_router(search.router)
     app.include_router(media.router)
     app.add_exception_handler(CSRFError, csrf_failed)
     return app

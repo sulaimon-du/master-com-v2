@@ -21,6 +21,7 @@ from app.models.user import User
 from app.services import rate_limit
 from app.services.email import EmailSender, OutgoingEmail
 from app.services.google_oidc import GoogleIdentity
+from app.services.search_index import refresh_search_for_user
 
 log = logging.getLogger(__name__)
 
@@ -354,6 +355,8 @@ def block_user(db: Session, user: User) -> None:
     """Block an account and end all its sessions at once (BRIEF §4.1). Admin UI comes in week 10."""
     user.blocked_at = utcnow()
     revoke_all_sessions(db, user.id)
+    db.flush()
+    refresh_search_for_user(db, user)
 
 
 # --- Password reset -----------------------------------------------------------------------

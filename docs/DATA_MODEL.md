@@ -1,6 +1,6 @@
 # Data model (v1)
 
-Weeks 2–3. Source: `app/models/`. Migrations: `migrations/versions/*_0002_data_model.py` (data model), `*_0003_auth.py` and `*_0004_google_claims.py` and `*_0005_telegram.py` (sign-in). Choices not in the brief: R-018, R-019.
+Weeks 2–3. Source: `app/models/`. Migrations: `migrations/versions/*_0002_data_model.py` (data model), `*_0003_auth.py` and `*_0004_google_claims.py` and `*_0005_telegram.py` (sign-in), `*_0006_search.py` (search index, week 7). Choices not in the brief: R-018, R-019.
 
 Conventions: `bigint` identity keys (small `int` for reference tables); timestamps are `timestamptz`; status fields are short strings with a named CHECK (not Postgres ENUMs); constraint names follow `app/core/db.py`. Nothing user-facing is hard-deleted: moderation sets `hidden_at`, photo deletion sets `deleted_at` (undo), account deletion clears personal columns and sets `users.deleted_at`. The one hard delete is "Remove my data" on an unclaimed profile: it takes the profile's complaints, claims, specialties, areas and portfolio with it (unclaimed profiles have no responses or reviews).
 
@@ -30,6 +30,8 @@ Conventions: `bigint` identity keys (small `int` for reference tables); timestam
 | `oauth_flows` | Google sign-in or link in progress | state hash, nonce and PKCE verifier; deleted when the callback runs |
 | `google_claims` | Google user asking for an unconfirmed account with the same email (R-019) | status `pending`, `approved` or `rejected`; `resolved_at` set exactly when not pending; one pending claim per account and Google user; the handover needs the stored email unchanged; cascades with the user |
 | `telegram_signins` | Telegram user waiting to finish signing in on the site | hash of the one-time token is unique; `expires_at` and `used_at` make it short-lived and single-use; indexed by `telegram_id` |
+| `master_search` | One denormalized search row per master (week 7, spec D1): `document` and `names` lowercased and transliterated to Latin; visibility, availability, photos, `rating_score`, `published_at`; int arrays of specialty, category, city and district ids | cascades with the profile; arrays default to `{}` and are never null; GIN trigram indexes (`gin_trgm_ops`) on `document` and `names`, GIN on every array, partial btree on `rating_score` where `is_visible`. Needs the `pg_trgm` extension (created by migration 0006, kept on downgrade) |
+| `place_synonyms` | Old and alternative names of a city or district (spec D8), languages `ru`, `tg`, `lat` | exactly one of city or district; text lowercase and not blank; unique per place, language and text; cascades with the place |
 
 Weeks 5–6 PR A (master profiles, R-022) needed no schema change: `master_profiles`, `master_specialties` and `master_areas` from migration 0002 already hold everything.
 
@@ -40,7 +42,7 @@ Weeks 5–6 PR A (master profiles, R-022) needed no schema change: `master_profi
 ## Reference data
 
 `python -m app.seed` loads `app/seed/data/`:
-- `places.json`: cities and rural districts by region, plus Dushanbe's districts;
+- `places.json`: cities and rural districts by region, plus Dushanbe's districts. A city or district may carry `"synonyms": {"ru": [...], "tg": [...], "lat": [...]}` (old names, Latin spellings); the seed makes `place_synonyms` equal to these lists. Drafted by Claude, for the owner's review;
 - `categories.json`: directions, specialties and Russian synonyms;
 - `tg_names.csv`: every Tajik name and Tajik synonyms, next to the Russian name, for the owner's review. Rows marked `?` in the `check` column are the ones I am least sure of.
 

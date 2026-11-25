@@ -1,4 +1,3 @@
-# ruff: noqa: RUF001  (the transliteration table must contain look-alike Cyrillic letters)
 """Master profile rules: slug, basics, specialties, areas, contacts and publishing.
 
 Every function that changes what publishing depends on (specialties, areas, contacts, basics)
@@ -21,8 +20,10 @@ from app.models.master import SLUG_RE
 from app.schemas.master import ContactsView, ProfileView, SpecialtyView
 from app.services.auth import is_active
 from app.services.portfolio import public_collections
+from app.services.search_index import refresh_search
 from app.services.storage import get_storage
 from app.services.telegram import normalize_phone
+from app.services.translit import translit
 
 MasterCode = Literal[
     "slug_taken",
@@ -44,16 +45,6 @@ Missing = Literal["phone", "specialty", "area", "hidden", "inactive"]
 
 TELEGRAM_RE = re.compile(r"[A-Za-z0-9_]{5,32}")
 INSTAGRAM_RE = re.compile(r"[A-Za-z0-9._]{1,30}")
-
-_RU = {
-    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "yo", "ж": "zh",
-    "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o",
-    "п": "p", "р": "r", "с": "s", "т": "t", "у": "u", "ф": "f", "х": "kh", "ц": "ts",
-    "ч": "ch", "ш": "sh", "щ": "shch", "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu",
-    "я": "ya",
-}  # fmt: skip
-_TG = {"ғ": "gh", "ӣ": "i", "қ": "q", "ӯ": "u", "ҳ": "h", "ҷ": "j"}
-_TRANSLIT = {**_RU, **_TG}
 
 
 class MasterError(Exception):
@@ -77,8 +68,7 @@ class BasicsInput:
 
 
 def slugify(name: str) -> str:
-    text = "".join(_TRANSLIT.get(ch, ch) for ch in name.lower())
-    text = re.sub(r"[^a-z0-9]+", "-", text).strip("-")[:40].strip("-")
+    text = translit(name).replace(" ", "-")[:40].strip("-")
     return text if len(text) >= 3 else "master"
 
 
@@ -310,6 +300,7 @@ def refresh_publication(db: Session, master: MasterProfile) -> bool:
     elif master.published_at is None:
         master.published_at = utcnow()
     db.flush()
+    refresh_search(db, master)
     return master.published_at is not None
 
 

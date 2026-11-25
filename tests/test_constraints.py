@@ -8,7 +8,7 @@ from decimal import Decimal
 from itertools import count
 
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -24,7 +24,9 @@ from app.models import (
     JobResponse,
     MasterArea,
     MasterProfile,
+    MasterSearch,
     MasterSpecialty,
+    PlaceSynonym,
     ProfileClaim,
     RequestPhoto,
     Review,
@@ -504,3 +506,48 @@ def test_telegram_signin_token_hash_is_unique(db: Session) -> None:
 
     accept(db, signin())
     reject(db, "uq_telegram_signins_token_hash", signin())
+
+
+# ---- search index and place synonyms ----
+
+
+def test_pg_trgm_available(db: Session) -> None:
+    assert db.scalar(text("SELECT similarity('a', 'a')")) == 1
+
+
+def test_master_search_row_cascades_with_profile(db: Session, a_master: MasterProfile) -> None:
+    row = MasterSearch(master_id=a_master.id, document="ivan santehnik", names="ivan")
+    accept(db, row)
+    db.refresh(row)
+    assert row.specialty_ids == [] and row.whole_city_ids == []
+    assert row.is_visible is False and row.updated_at is not None
+    db.execute(delete(MasterProfile).where(MasterProfile.id == a_master.id))
+    db.expire_all()
+    assert db.scalar(select(MasterSearch).where(MasterSearch.master_id == a_master.id)) is None
+
+
+def test_place_synonym_needs_exactly_one_place(db: Session, places: dict) -> None:
+    city, district = places["dushanbe"], places["sino"]
+    reject(db, "ck_place_synonyms_one_place", PlaceSynonym(lang="ru", text="x"))
+    reject(
+        db,
+        "ck_place_synonyms_one_place",
+        PlaceSynonym(city_id=city.id, district_id=district.id, lang="ru", text="x"),
+    )
+    accept(db, PlaceSynonym(city_id=city.id, lang="ru", text="сталинабад"))
+    accept(db, PlaceSynonym(district_id=district.id, lang="ru", text="сталинабад"))
+    reject(
+        db,
+        "uq_place_synonyms_place_lang_text",
+        PlaceSynonym(city_id=city.id, lang="ru", text="сталинабад"),
+    )
+    reject(
+        db,
+        "ck_place_synonyms_text_lowercase",
+        PlaceSynonym(city_id=city.id, lang="ru", text="Сталин"),
+    )
+    reject(
+        db,
+        "ck_place_synonyms_lang",
+        PlaceSynonym(city_id=city.id, lang="xx", text="abc"),
+    )

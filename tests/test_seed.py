@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import Category, City, District, Specialty, SpecialtySynonym
+from app.models import Category, City, District, PlaceSynonym, Specialty, SpecialtySynonym
 from app.models.common import REF_SLUG_RE
 from app.seed import DATA_DIR, SeedDataError, apply, load
 
@@ -145,3 +145,36 @@ def test_load_rejects_unknown_tajik_row(tmp_path: Path) -> None:
         f.write("city,atlantis,Атлантида,Атлантида,,\n")
     with pytest.raises(SeedDataError, match="atlantis"):
         load(data_dir)
+
+
+def test_seed_loads_place_synonyms_idempotently(db: Session) -> None:
+    data = load()
+    expected = sum(
+        len(p.get("synonyms", {}).get(lang, []))
+        for c in data.cities
+        for p in [c, *c.get("districts", [])]
+        for lang in ("ru", "tg", "lat")
+    )
+    assert expected > 0
+    first = apply(db)
+    count = _count(db, PlaceSynonym)
+    second = apply(db)
+    assert first.place_synonyms_added >= 0
+    assert second.place_synonyms_added == second.place_synonyms_removed == 0
+    assert _count(db, PlaceSynonym) == count >= expected
+    bokhtar = db.scalars(select(City).where(City.slug == "bokhtar")).one()
+    words = set(
+        db.execute(
+            select(PlaceSynonym.lang, PlaceSynonym.text).where(PlaceSynonym.city_id == bokhtar.id)
+        )
+    )
+    assert ("ru", "курган-тюбе") in words
+    assert ("lat", "bokhtar") in words
+
+
+def test_seed_removes_stale_place_synonyms(db: Session) -> None:
+    apply(db)
+    khujand = db.scalars(select(City).where(City.slug == "khujand")).one()
+    db.add(PlaceSynonym(city_id=khujand.id, lang="ru", text="устаревшее имя"))
+    db.flush()
+    assert apply(db).place_synonyms_removed == 1

@@ -1,15 +1,58 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="grid gap-6">
-  <h1 class="text-5xl sm:text-7xl">Мастера Таджикистана</h1>
-  <p class="max-w-prose text-lg text-muted">
-    Ищите мастеров по специальности и району, смотрите их работы и размещайте заявки.
-  </p>
-  <p class="text-muted" lang="tg">Ҷустуҷӯи устои сохтмонӣ: ғишткор, қубуркаш, барқчӣ.</p>
-  <div class="flex flex-wrap gap-3">
-    <a class="btn btn-primary no-underline" href="/">Найти мастера</a>
-    <a class="btn btn-secondary no-underline" href="/">Разместить заявку</a>
-  </div>
-  <p class="text-sm text-muted">Скоро здесь будет сервис. Окружение: {{ env }}.</p>
-</section>
+<div class="grid gap-10">
+  <section class="grid gap-6" aria-labelledby="home-title">
+    <h1 id="home-title" class="text-5xl sm:text-7xl">{{ t('home.title') }}</h1>
+    <p class="max-w-prose text-lg text-muted">{{ t('home.lead') }}</p>
+    <form method="get" action="{{ url_for('search_page').path }}" class="card grid gap-4 sm:grid-cols-2" role="search" aria-label="{{ t('home.search_title') }}">
+      <div class="grid gap-1.5 sm:col-span-2">
+        <label for="home-q" class="text-sm font-semibold">{{ t('search.q_label') }}</label>
+        <input id="home-q" name="q" type="search" maxlength="100" placeholder="{{ t('search.q_placeholder') }}" class="input">
+      </div>
+      <div class="grid gap-1.5">
+        <label for="home-s" class="text-sm font-semibold">{{ t('search.specialty') }}</label>
+        <select id="home-s" name="s" class="input">
+          <option value="">{{ t('search.specialty_any') }}</option>
+          {% for c in options.categories %}
+          <optgroup label="{{ c.name }}">
+            {% for s in c.specialties %}<option value="{{ s.slug }}">{{ s.name }}</option>{% endfor %}
+          </optgroup>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="grid gap-1.5">
+        <label for="home-c" class="text-sm font-semibold">{{ t('search.city') }}</label>
+        <select id="home-c" name="c" class="input">
+          <option value="">{{ t('search.city_any') }}</option>
+          {% for c in options.cities %}<option value="{{ c.slug }}">{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <button class="btn btn-primary sm:col-span-2" type="submit">{{ t('search.submit') }}</button>
+    </form>
+  </section>
+
+  <section class="grid gap-4" aria-labelledby="home-cats">
+    <h2 id="home-cats" class="text-3xl">{{ t('home.categories') }}</h2>
+    <ul class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+      {% for c in options.categories %}
+      <li><a class="card flex min-h-20 items-center font-semibold no-underline" href="{{ url_for('search_page').path }}?cat={{ c.slug | urlencode }}">{{ c.name }}</a></li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="grid gap-4" aria-labelledby="home-how">
+    <h2 id="home-how" class="text-3xl">{{ t('home.how_title') }}</h2>
+    <ol class="grid gap-4 md:grid-cols-3">
+      {% macro step(n, title, text) %}
+      <li class="card grid gap-1">
+        <h3 class="text-xl">{{ n }}. {{ title }}</h3>
+        <p class="text-muted">{{ text }}</p>
+      </li>
+      {% endmacro %}
+      {{ step(1, t('home.step1_title'), t('home.step1_text')) }}
+      {{ step(2, t('home.step2_title'), t('home.step2_text')) }}
+      {{ step(3, t('home.step3_title'), t('home.step3_text')) }}
+    </ol>
+  </section>
+</div>
 {% endblock %}
