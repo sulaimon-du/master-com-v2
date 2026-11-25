@@ -340,6 +340,12 @@
   "seo.post_request": "Дархост гузоштан",
   "seo.breadcrumb": "Роҳнамо",
   "seo.city_link": "{specialty} дар {place}, тамоми шаҳр",
+  "seo.profile_title": "{name} — {specialty}, {city} · {app}",
+  "seo.profile_title_no_city": "{name} — {specialty} · {app}",
+  "seo.profile_title_bare": "{name} · {app}",
+  "seo.profile_description": "{name}: профили усто дар {app}, аксҳои корҳо, баҳоҳо ва тамосҳо барои корбарони сабтиномшуда.",
+  "seo.collection_title": "{title} — {name} · {app}",
+  "seo.collection_description": "{title}: аксҳои корҳои усто {name}.",
   "seo.districts": "Ноҳияҳо",
   "seo.other_specialties": "Дигар устоҳо дар {place}",
   "seo.other_cities": "{specialty} дар шаҳрҳои дигар"

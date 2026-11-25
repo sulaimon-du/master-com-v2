@@ -82,6 +82,7 @@ class ProfileView(BaseModel):
     since: date
     specialties: list[SpecialtyView]
     areas: list[str]
+    city: str | None = None  # the first working city, for the page title
     contacts: ContactsView | None
     is_draft: bool
     collections: list[CollectionCard] = []

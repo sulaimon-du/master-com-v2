@@ -17,6 +17,7 @@ from app.core.i18n import DEFAULT_LANG, LANGS, translate
 from app.models import City, District, Specialty
 from app.models.catalog import Category
 from app.models.common import REF_SLUG_RE
+from app.schemas.master import CollectionCard, PhotoView, ProfileView
 from app.schemas.search import SearchQuery, SearchResult
 from app.services import search
 
@@ -283,4 +284,93 @@ def landing(
         other_specialties=other_specialties,
         prev_href=path(lang, result.page - 1) if result.page > 1 else None,
         next_href=path(lang, result.page + 1) if result.page < result.pages else None,
+    )
+
+
+def absolute_url(url: str) -> str:
+    """A storage URL as an absolute one: R2 gives a full URL, local disk `/media/...`."""
+    return url if url.startswith(("http://", "https://")) else absolute(url)
+
+
+def _page_meta(
+    *,
+    title: str,
+    description: str,
+    path: str,
+    lang: str,
+    og_type: str,
+    image: str | None,
+    index: bool,
+) -> PageMeta:
+    canonical = absolute(path)
+    og = {
+        "og:title": title,
+        "og:description": description,
+        "og:url": canonical,
+        "og:type": og_type,
+        "og:locale": OG_LOCALES[lang],
+    }
+    if image:
+        og["og:image"] = absolute_url(image)
+    # One URL for both languages (the cookie picks it), so no hreflang on these pages.
+    return PageMeta(
+        title=title,
+        description=description,
+        canonical=canonical,
+        robots=INDEX if index else "noindex",
+        og=og,
+    )
+
+
+def profile_meta(view: ProfileView, *, lang: str) -> PageMeta:
+    app = get_settings().app_name
+    specialty = view.specialties[0].name if view.specialties else None
+    if specialty and view.city:
+        title = translate(
+            lang,
+            "seo.profile_title",
+            name=view.display_name,
+            specialty=specialty,
+            city=view.city,
+            app=app,
+        )
+    elif specialty:
+        title = translate(
+            lang, "seo.profile_title_no_city", name=view.display_name, specialty=specialty, app=app
+        )
+    else:
+        title = translate(lang, "seo.profile_title_bare", name=view.display_name, app=app)
+    description = clip(" ".join(part for part in (view.headline, view.bio) if part)) or clip(
+        translate(lang, "seo.profile_description", name=view.display_name, app=app)
+    )
+    image = view.avatar_url or next(
+        (c.cover_thumb_url for c in view.collections if c.cover_thumb_url), None
+    )
+    return _page_meta(
+        title=title,
+        description=description,
+        path=f"/m/{view.slug}",
+        lang=lang,
+        og_type="profile",
+        image=image,
+        index=not view.is_draft,
+    )
+
+
+def collection_meta(
+    view: ProfileView, collection: CollectionCard, photos: list[PhotoView], *, lang: str
+) -> PageMeta:
+    app = get_settings().app_name
+    params = {"title": collection.title, "name": view.display_name, "app": app}
+    description = clip(collection.description or "") or clip(
+        translate(lang, "seo.collection_description", **params)
+    )
+    return _page_meta(
+        title=translate(lang, "seo.collection_title", **params),
+        description=description,
+        path=f"/m/{view.slug}/c/{collection.id}",
+        lang=lang,
+        og_type="website",
+        image=photos[0].url if photos else None,
+        index=not (view.is_draft or collection.hidden),
     )

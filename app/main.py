@@ -19,6 +19,7 @@ from app.web import (
     pages,
     portfolio,
     profile,
+    robots,
     search,
     seo,
     telegram,
@@ -55,6 +56,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         SecurityHeadersMiddleware,
         hsts=settings.is_production_like,
         img_origin=settings.r2_public_origin,
+        noindex=settings.app_env != "production",
     )
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
     # Added last, so it runs first: the body is capped before anything else sees it.
@@ -71,6 +73,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(profile.router)
     app.include_router(search.router)
     app.include_router(media.router)
+    app.include_router(robots.router)
     # Last: `/<city>/<specialty>` would otherwise shadow any two-segment path (spec D4).
     app.include_router(seo.router)
     app.add_exception_handler(CSRFError, csrf_failed)

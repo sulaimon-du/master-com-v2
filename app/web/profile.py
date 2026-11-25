@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from app.core.db import DbSession
 from app.models.user import User
-from app.services import masters, portfolio
+from app.services import masters, portfolio, seo
 from app.services.portfolio import PortfolioError
 from app.web.auth import notice_page
 from app.web.deps import current_lang, current_user
@@ -56,6 +56,7 @@ def master_profile(slug: str, request: Request, db: DbSession, user: CurrentUser
         "pages/master/profile.html",
         user=user,
         profile=view,
+        meta=seo.profile_meta(view, lang=current_lang(request)),
         is_owner=is_owner,
         missing=missing if view.is_draft or notice == "incomplete" else [],
         notice=notice if is_owner and notice in NOTICES else None,
@@ -83,6 +84,7 @@ def public_collection(
         "pages/master/collection.html",
         user=user,
         profile=view,
+        meta=seo.collection_meta(view, collection, photos, lang=current_lang(request)),
         collection=collection,
         photos=photos,
         is_owner=is_owner,

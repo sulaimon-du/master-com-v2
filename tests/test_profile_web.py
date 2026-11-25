@@ -88,8 +88,8 @@ def test_published_profile_is_public(client: TestClient) -> None:
     r = client.get("/m/ali-rahimov")
     assert r.status_code == 200
     assert "Али Рахимов" in r.text and "Мастер на все руки" in r.text
-    assert "<title>Али Рахимов · " in r.text
-    assert 'name="robots"' not in r.text
+    assert "<title>Али Рахимов — " in r.text and " · " in r.text
+    assert '<meta name="robots" content="index, follow">' in r.text
 
 
 def test_draft_is_404_for_others_and_visible_to_owner_with_banner(client: TestClient) -> None:
