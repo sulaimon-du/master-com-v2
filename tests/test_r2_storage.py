@@ -337,3 +337,19 @@ def test_media_route_is_404_when_r2_is_enabled(r2_env: Settings) -> None:
 @pytest.mark.parametrize("key", BAD_KEYS[-2:])
 def test_media_route_refuses_non_ascii_digits(client: TestClient, key: str) -> None:
     assert client.get(f"/media/{key}").status_code == 404
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["http://example.com", "https://localhost", "https://127.0.0.1", "http://localhost:8000"],
+)
+def test_production_refuses_a_local_or_non_https_site_url(monkeypatch, value) -> None:  # type: ignore[no-untyped-def]
+    with pytest.raises(ValidationError) as info:
+        _settings(monkeypatch, APP_ENV="production", SITE_URL=value)
+    message = str(info.value)
+    assert "SITE_URL" in message and value not in message
+
+
+def test_production_accepts_an_https_site_url_and_development_any(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    assert _settings(monkeypatch, APP_ENV="production", SITE_URL="https://ustoi.example")
+    assert _settings(monkeypatch, APP_ENV="development", SITE_URL="http://localhost:8000")

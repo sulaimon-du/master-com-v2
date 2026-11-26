@@ -85,6 +85,7 @@ def notice_page(
     status: int = 200,
     link: str | None = None,
     link_text: str = "nav.signin",
+    lang_links: dict[str, str] | None = None,
 ) -> HTMLResponse:
     return render(
         request,
@@ -95,6 +96,7 @@ def notice_page(
         text_key=text,
         link=link,
         link_text=link_text,
+        lang_links=lang_links,
     )
 
 

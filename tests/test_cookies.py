@@ -9,6 +9,7 @@ from app.web.cookies import CSRF, OAUTH, SESSION, delete_cookie, set_cookie
 
 def _settings(monkeypatch, env: str) -> Settings:  # type: ignore[no-untyped-def]
     monkeypatch.setenv("APP_ENV", env)
+    monkeypatch.setenv("SITE_URL", "https://ustoi.example")
     return Settings()  # type: ignore[call-arg]
 
 

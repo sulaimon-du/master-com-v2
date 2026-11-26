@@ -38,6 +38,7 @@ def test_api_docs_hidden_in_production(monkeypatch) -> None:
     from app.main import create_app
 
     monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SITE_URL", "https://ustoi.example")
     s = Settings()  # type: ignore[call-arg]
     c = TestClient(create_app(s))
     assert c.get("/docs").status_code == 404

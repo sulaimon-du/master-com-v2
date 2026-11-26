@@ -30,9 +30,12 @@ def build_csp(img_origin: str | None) -> str:
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, *, hsts: bool, img_origin: str | None = None) -> None:  # type: ignore[no-untyped-def]
+    def __init__(  # type: ignore[no-untyped-def]
+        self, app, *, hsts: bool, img_origin: str | None = None, noindex: bool = False
+    ) -> None:
         super().__init__(app)
         self.hsts = hsts
+        self.noindex = noindex  # staging, development, test: keep every response out of search
         self.csp = build_csp(img_origin)
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
@@ -44,6 +47,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         headers.setdefault("X-Frame-Options", "DENY")
         headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
         headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        if self.noindex:
+            headers["X-Robots-Tag"] = "noindex, nofollow"
         if self.hsts:
             headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         return response

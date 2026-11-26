@@ -30,6 +30,7 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings, get_settings
 from app.core.db import get_engine
 from app.main import create_app
+from app.services import cache
 from app.services.email import OutgoingEmail, get_email_sender
 from app.services.storage import get_storage
 
@@ -45,6 +46,14 @@ def media_root_tmp(tmp_path, monkeypatch) -> None:
     yield
     get_settings.cache_clear()
     get_storage.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def empty_ttl_cache() -> Iterator[None]:
+    """The in-process cache (sitemap, SEO counts) never leaks from one test into the next."""
+    cache.clear()
+    yield
+    cache.clear()
 
 
 @pytest.fixture

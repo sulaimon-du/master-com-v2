@@ -369,6 +369,7 @@ def profile_view(
         since=master.created_at.date(),
         specialties=[SpecialtyView(name=pick(s), primary=p) for s, p in spec_rows],
         areas=areas,
+        city=pick(area_rows[0][0]) if area_rows else None,
         contacts=contacts,
         is_draft=master.published_at is None,
         collections=public_collections(db, master),

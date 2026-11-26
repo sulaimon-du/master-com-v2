@@ -8,7 +8,7 @@ is stale.
 checked. To approve, tell Claude which keys are fine (or send corrections); they are recorded in
 `app/locales/tg_approved.json`.
 
-**331 texts, 235 drafts to check.**
+**350 texts, 254 drafts to check.**
 
 | Key | Русский | Тоҷикӣ | Status |
 |---|---|---|---|
@@ -316,6 +316,25 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `search.suggestion` | Возможно, вы искали: {name} | Шояд шумо инро ҷустуҷӯ кардед: {name} | draft |
 | `search.timeout` | Поиск занял слишком много времени. Попробуйте уточнить запрос или обновить страницу. | Ҷустуҷӯ хеле дароз давом кард. Дархостро дақиқтар кунед ё саҳифаро нав кунед. | draft |
 | `search.title` | Поиск мастера | Ҷустуҷӯи уста | draft |
+| `seo.breadcrumb` | Навигация | Роҳнамо | draft |
+| `seo.city_link` | {specialty} — {place}, весь город | {specialty} дар {place}, тамоми шаҳр | draft |
+| `seo.collection_description` | {title}: фото работ мастера {name}. | {title}: аксҳои корҳои усто {name}. | draft |
+| `seo.collection_title` | {title} — {name} · {app} | {title} — {name} · {app} | draft |
+| `seo.description` | {specialty} — {place}: профили мастеров с фото работ, рейтингом и районами работы. Мастеров на сайте: {n}. | {specialty} дар {place}: профилҳои устоҳо бо аксҳои корҳо, рейтинг ва ноҳияҳои кор. Шумораи устоҳо: {n}. | draft |
+| `seo.description_empty` | {specialty} — {place}: мастеров пока нет. Оставьте заявку, и её увидят мастера. | {specialty} дар {place}: ҳоло устоҳо нестанд. Дархост гузоред, то устоҳо онро бинанд. | draft |
+| `seo.districts` | Районы | Ноҳияҳо | draft |
+| `seo.empty` | Оставьте заявку, и её увидят мастера. Или посмотрите соседние города и специальности ниже. | Дархост гузоред, то устоҳо онро бинанд. Ё шаҳрҳо ва ихтисосҳои дигарро дар поён бинед. | draft |
+| `seo.empty_title` | Пока здесь нет мастеров | Ҳоло дар ин ҷо устоҳо нестанд | draft |
+| `seo.heading` | {specialty} — {place} | {specialty} дар {place} | draft |
+| `seo.other_cities` | {specialty} в других городах | {specialty} дар шаҳрҳои дигар | draft |
+| `seo.other_specialties` | Другие мастера — {place} | Дигар устоҳо дар {place} | draft |
+| `seo.place_district` | {district}, {city} | {district}, {city} | draft |
+| `seo.post_request` | Оставить заявку | Дархост гузоштан | draft |
+| `seo.profile_description` | {name}: профиль мастера на {app}, фото работ, отзывы и контакты для зарегистрированных пользователей. | {name}: профили усто дар {app}, аксҳои корҳо, баҳоҳо ва тамосҳо барои корбарони сабтиномшуда. | draft |
+| `seo.profile_title` | {name} — {specialty}, {city} · {app} | {name} — {specialty}, {city} · {app} | draft |
+| `seo.profile_title_bare` | {name} · {app} | {name} · {app} | draft |
+| `seo.profile_title_no_city` | {name} — {specialty} · {app} | {name} — {specialty} · {app} | draft |
+| `seo.title` | {specialty} — {place}, мастеров: {n} · {app} | {specialty} дар {place} — {n} усто · {app} | draft |
 | `signin.email` | Почта | Почта | approved |
 | `signin.forgot` | Забыли пароль? | Рамзро фаромӯш кардед? | approved |
 | `signin.google` | Войти через Google | Ворид шудан бо Google | approved |

@@ -2,14 +2,23 @@ from fastapi import Request
 
 from app.core.config import get_settings
 from app.core.db import DbSession
-from app.core.i18n import normalize_lang
+from app.core.i18n import LANGS, normalize_lang
 from app.models.user import User
 from app.services import auth
 from app.web.cookies import LANG, SESSION, cookie_name
 
 
 def current_lang(request: Request) -> str:
+    """The page language: the one its URL names (SEO pages, spec D4), else the cookie's."""
+    path_lang = getattr(request.state, "path_lang", None)
+    if path_lang in LANGS:
+        return path_lang
     return normalize_lang(request.cookies.get(cookie_name(LANG, get_settings())))
+
+
+def use_path_lang(request: Request, lang: str) -> None:
+    """Render this request in `lang` whatever the cookie says (the URL is in that language)."""
+    request.state.path_lang = normalize_lang(lang)
 
 
 def client_ip(request: Request) -> str:

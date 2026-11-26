@@ -42,6 +42,7 @@ def _no_network(*args, **kwargs):  # type: ignore[no-untyped-def]
 @pytest.mark.parametrize("env", ["staging", "production"])
 def test_polling_is_refused_on_staging(bot_env, env: str) -> None:
     bot_env.setenv("APP_ENV", env)
+    bot_env.setenv("SITE_URL", "https://ustoi.example")
     bot_env.setenv("TELEGRAM_WEBHOOK_URL", "")
     bot_env.setattr(runner, "Bot", _no_network)
     get_settings.cache_clear()

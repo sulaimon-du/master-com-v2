@@ -5,7 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
   <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "selfRequestsOnly": true}'>
-  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <title>{% block title %}{{ meta.title if meta else app_name }}{% endblock %}</title>
+  {#- Description, robots, canonical, hreflang and Open Graph: the only place a page sets them,
+      so a page never has two robots tags. Pages pass `meta` (services.seo.PageMeta) or override. #}
+  {% block meta %}
+  {%- if meta %}
+  <meta name="description" content="{{ meta.description }}">
+  <meta name="robots" content="{{ meta.robots }}">
+  <link rel="canonical" href="{{ meta.canonical }}">
+  {%- for code, url in meta.alternates.items() %}
+  <link rel="alternate" hreflang="{{ code }}" href="{{ url }}">
+  {%- endfor %}
+  {%- for prop, value in meta.og.items() %}
+  <meta property="{{ prop }}" content="{{ value }}">
+  {%- endfor %}
+  {%- endif %}
+  {% endblock %}
   {% block head %}{% endblock %}
   <link rel="stylesheet" href="{{ url_for('static', path='css/fonts.css').path }}">
   <link rel="stylesheet" href="{{ url_for('static', path='css/app.css').path }}">
@@ -29,9 +44,15 @@
   </main>
   <footer class="mx-auto max-w-6xl px-4 pb-8">
     {%- set here = request.url.path ~ ('?' ~ request.url.query if request.url.query else '') %}
+    {#- A page whose URL carries its language (SEO pages) links to its other-language URL;
+        every other page switches the cookie and comes back. #}
+    {%- set lang_href = lang_links if lang_links else {
+      'ru': url_for('set_lang', code='ru').path ~ '?next=' ~ (here | urlencode),
+      'tg': url_for('set_lang', code='tg').path ~ '?next=' ~ (here | urlencode),
+    } %}
     <nav aria-label="{{ t('footer.lang') }}" class="flex gap-4 text-sm text-muted">
-      <a href="{{ url_for('set_lang', code='ru').path }}?next={{ here | urlencode }}" {% if lang == 'ru' %}aria-current="true" class="font-semibold text-ink"{% endif %}>{{ t('lang.ru') }}</a>
-      <a href="{{ url_for('set_lang', code='tg').path }}?next={{ here | urlencode }}" {% if lang == 'tg' %}aria-current="true" class="font-semibold text-ink"{% endif %} lang="tg">{{ t('lang.tg') }}</a>
+      <a href="{{ lang_href.ru }}" hreflang="ru" {% if lang == 'ru' %}aria-current="true" class="font-semibold text-ink"{% endif %} lang="ru">{{ t('lang.ru') }}</a>
+      <a href="{{ lang_href.tg }}" hreflang="tg" {% if lang == 'tg' %}aria-current="true" class="font-semibold text-ink"{% endif %} lang="tg">{{ t('lang.tg') }}</a>
     </nav>
   </footer>
 </body>

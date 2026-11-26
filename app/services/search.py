@@ -43,6 +43,7 @@ from app.schemas.search import (
     SpecialtyHint,
     Suggestion,
 )
+from app.services import cache
 from app.services.storage import get_storage
 from app.services.translit import translit
 
@@ -303,6 +304,27 @@ def counts_by_district_specialty(db: Session, *, named_only: bool) -> dict[tuple
             .where(District.is_active)
         )
     return _count_pairs(db, _visible(places))
+
+
+COUNTS_TTL = 600  # seconds; SEO pages and the sitemap read the grouped counts (spec D6)
+
+
+def cached_counts_by_city_specialty(db: Session) -> dict[tuple[int, int], int]:
+    """`counts_by_city_specialty`, at most ten minutes old. Callers must not modify the result."""
+    return cache.get_or_compute(
+        ("counts_by_city_specialty",), COUNTS_TTL, lambda: counts_by_city_specialty(db)
+    )
+
+
+def cached_counts_by_district_specialty(
+    db: Session, *, named_only: bool
+) -> dict[tuple[int, int], int]:
+    """`counts_by_district_specialty`, at most ten minutes old. Do not modify the result."""
+    return cache.get_or_compute(
+        ("counts_by_district_specialty", named_only),
+        COUNTS_TTL,
+        lambda: counts_by_district_specialty(db, named_only=named_only),
+    )
 
 
 # --- similarity for hints and suggestions -----------------------------------------------------

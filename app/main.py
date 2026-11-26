@@ -11,7 +11,20 @@ from app.core.body_limit import BodyLimitMiddleware
 from app.core.config import R2_VARS, Settings, get_settings
 from app.core.monitoring import init_sentry
 from app.core.security_headers import SecurityHeadersMiddleware
-from app.web import account, auth, master, media, pages, portfolio, profile, search, telegram
+from app.web import (
+    account,
+    auth,
+    master,
+    media,
+    pages,
+    portfolio,
+    profile,
+    robots,
+    search,
+    seo,
+    sitemap,
+    telegram,
+)
 from app.web.csrf import CSRFError
 from app.web.render import render
 
@@ -44,6 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         SecurityHeadersMiddleware,
         hsts=settings.is_production_like,
         img_origin=settings.r2_public_origin,
+        noindex=settings.app_env != "production",
     )
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
     # Added last, so it runs first: the body is capped before anything else sees it.
@@ -60,6 +74,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(profile.router)
     app.include_router(search.router)
     app.include_router(media.router)
+    app.include_router(robots.router)
+    app.include_router(sitemap.router)
+    # Last: `/<city>/<specialty>` would otherwise shadow any two-segment path (spec D4).
+    app.include_router(seo.router)
     app.add_exception_handler(CSRFError, csrf_failed)
     return app
 

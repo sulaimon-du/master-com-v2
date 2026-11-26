@@ -70,6 +70,9 @@ Schema and rules: [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md). Reference data liv
 | `POST /master/avatar` | Upload the profile photo (only when `UPLOADS_ENABLED`) |
 | `/master/portfolio`, `/master/portfolio/collections/{id}` (+ POSTs: create, edit, hide, move, upload photos, move/delete/undo photo) | Portfolio management (signed in; uploads only when `UPLOADS_ENABLED`) |
 | `/search` | Search masters: `q`, `s`, `cat`, `c`, `d`, `available=1`, `sort`, `page` (no contacts; `noindex`) |
+| `/{city}/{specialty}`, `/{city}/{district}/{specialty}`, `/tg/...` | SEO landing pages in ru and tg (no contacts; `index` from 3 masters, else `noindex`) |
+| `/robots.txt` | Closed to all outside production; production rules plus the sitemap line |
+| `/sitemap.xml` | Indexable SEO pages (ru/tg alternates), visible profiles and public collections; cached 10 minutes |
 | `/m/{slug}` | Public master profile (drafts only for the owner) |
 | `/m/{slug}/c/{id}` | Public collection gallery (hidden or empty collections and drafts: 404, except for the owner) |
 | `/media/{key}` | Uploaded images from local disk |

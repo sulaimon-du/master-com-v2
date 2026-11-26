@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% import "partials/master_card.html" as mc with context %}
+{# A landing page (spec D4, D11): title, robots, canonical, hreflang and OG come from `meta`
+   through base.html. Every name is plain text and autoescaped. #}
+{% block content %}
+<section class="grid gap-6">
+  {% if view.city_link %}
+  <nav aria-label="{{ t('seo.breadcrumb') }}"><a class="link" href="{{ view.city_link.href }}">&larr; {{ t('seo.city_link', specialty=view.specialty, place=view.city) }}</a></nav>
+  {% endif %}
+  <h1 class="text-4xl">{{ view.heading }}</h1>
+
+  {% if view.districts %}
+  <section id="seo-districts" aria-label="{{ t('seo.districts') }}" class="grid gap-2">
+    <h2 class="text-sm font-semibold">{{ t('seo.districts') }}</h2>
+    <ul class="flex flex-wrap gap-2">
+      {% for d in view.districts %}<li><a class="pill inline-flex min-h-11 items-center gap-2 no-underline" href="{{ d.href }}">{{ d.label }} <span class="text-muted">{{ d.count }}</span></a></li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if view.result.timed_out %}
+  <p class="notice" role="alert">{{ t('search.timeout') }}</p>
+  {% elif view.result.total == 0 %}
+  <section class="card grid gap-3" id="seo-empty">
+    <h2 class="text-2xl">{{ t('seo.empty_title') }}</h2>
+    <p class="text-muted">{{ t('seo.empty') }}</p>
+    <p><a class="btn btn-primary no-underline" href="/">{{ t('seo.post_request') }}</a></p>
+  </section>
+  {% else %}
+  <p class="font-semibold">{{ t('search.found', n=view.result.total) }}</p>
+  <div class="grid gap-4 md:grid-cols-2">
+    {% for m in view.result.items %}{{ mc.card(m) }}{% endfor %}
+  </div>
+  {% if view.result.pages > 1 %}
+  <nav class="flex items-center justify-between gap-3" aria-label="{{ t('search.page', page=view.result.page, pages=view.result.pages) }}">
+    {% if view.prev_href %}<a class="btn btn-secondary no-underline" rel="prev" href="{{ view.prev_href }}">{{ t('search.prev') }}</a>{% else %}<span></span>{% endif %}
+    <span class="text-sm text-muted">{{ t('search.page', page=view.result.page, pages=view.result.pages) }}</span>
+    {% if view.next_href %}<a class="btn btn-secondary no-underline" rel="next" href="{{ view.next_href }}">{{ t('search.next') }}</a>{% else %}<span></span>{% endif %}
+  </nav>
+  {% endif %}
+  {% endif %}
+
+  {% if view.other_specialties %}
+  <section id="seo-other-specialties" class="grid gap-2">
+    <h2 class="text-2xl">{{ t('seo.other_specialties', place=view.city) }}</h2>
+    <ul class="flex flex-wrap gap-2">
+      {% for s in view.other_specialties %}<li><a class="pill inline-flex min-h-11 items-center gap-2 no-underline" href="{{ s.href }}">{{ s.label }} <span class="text-muted">{{ s.count }}</span></a></li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if view.other_cities %}
+  <section id="seo-other-cities" class="grid gap-2">
+    <h2 class="text-2xl">{{ t('seo.other_cities', specialty=view.specialty) }}</h2>
+    <ul class="flex flex-wrap gap-2">
+      {% for c in view.other_cities %}<li><a class="pill inline-flex min-h-11 items-center gap-2 no-underline" href="{{ c.href }}">{{ c.label }} <span class="text-muted">{{ c.count }}</span></a></li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

@@ -142,6 +142,15 @@ class Settings(BaseSettings):
                 "UPLOADS_ENABLED is true on staging/production but R2 is not fully configured; "
                 "missing: " + ", ".join(missing)
             )
+        if self.app_env == "production":
+            parts = urlsplit(self.site_url)
+            if parts.scheme != "https" or (parts.hostname or "").lower() in {
+                "localhost",
+                "127.0.0.1",
+                "::1",
+                "0.0.0.0",  # noqa: S104
+            }:
+                raise ValueError("SITE_URL must be a public https:// URL in production")
         return self
 
     def limit(self, name: str, plan: str = "free") -> int:

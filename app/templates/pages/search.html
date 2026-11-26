@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% import "partials/master_card.html" as mc with context %}
 {% block title %}{{ t('search.title') }} · {{ app_name }}{% endblock %}
-{% block head %}<meta name="robots" content="noindex, follow">{% endblock %}
+{% block meta %}<meta name="robots" content="noindex, follow">{% endblock %}
 {% block content %}
 <section class="grid gap-6">
   <h1 class="text-4xl">{{ t('search.title') }}</h1>
