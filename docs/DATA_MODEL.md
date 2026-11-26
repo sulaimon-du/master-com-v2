@@ -8,15 +8,17 @@ Conventions: `bigint` identity keys (small `int` for reference tables); timestam
 
 | Table | What | Key rules enforced by the database |
 |---|---|---|
-| `users` | Accounts; email, Google and Telegram sign-in are all optional | email stored lowercase and unique; phone in E.164; a phone can be verified by one account only; locale `ru`/`tg` |
+| `users` | Accounts; email, Google and Telegram sign-in are all optional | email stored lowercase and unique; phone in E.164; a phone can be verified by one account only; locale `ru`/`tg`; `telegram_blocked_at` is set when the bot is blocked |
 | `master_profiles` | Public master profile, linked to a user (nullable, for imported profiles) | slug `[a-z0-9-]{3,40}` unique; experience 0–60; one profile per user; plan `free`; `origin` self/admin/import with: self → has user, admin → has consent time (R-009), import → has source URL and import date (R-015); claimed → has user |
 | `master_specialties` | Master ↔ specialty, `is_primary` | specialty in use cannot be deleted |
 | `master_areas` | Work area: a whole city or one district | district must belong to the city; no duplicates |
 | `categories` → `specialties` → `specialty_synonyms` | Catalog: 12 directions (BRIEF §5) | slugs unique; synonyms lowercase, unique per specialty and language (`ru`, `tg`, `lat`) |
 | `cities` → `districts` | Places (R-018) | region and kind from fixed lists; district slug unique within its city |
-| `requests` | Client's request (BRIEF §4.8) | district must belong to the city; budget amount and unit together, amount > 0; `timing = date` ⇔ date set; `master_chosen`/`completed` ⇔ chosen master; `completed` ⇔ `completed_at`; `closed`/`cancelled` ⇔ `closed_at` |
+| `requests` | Client's request (BRIEF §4.8) | district must belong to the city; budget amount and unit together, amount > 0; `timing = date` ⇔ date set; `master_chosen`/`completed` ⇔ chosen master; `completed` ⇔ `completed_at`; `closed`/`cancelled` ⇔ `closed_at` ⇔ `close_reason` (`client_closed`, `client_cancelled`, `auto_expired`, `auto_stale`); chosen master ⇔ `master_chosen_at`; `client_phone` in E.164 and required once a master is chosen; `feed_pause_at` > 0 (default 15); `opened_at` starts the C4 timer, `master_chosen_at` the C5 timer |
 | `request_specialties`, `request_photos` | Specialties and up to 4 photos | photo positions 0–3, unique per request (so at most 4) |
-| `responses` | Master's response | one per master per request; price amount and unit together |
+| `responses` | Master's response | one per master per request; price amount and unit together; `withdrawn_at` = soft withdraw |
+| `jobs` | Background work queue (weeks 8-9) | `kind` not blank; `attempts` ≥ 0; `max_attempts` > 0 (default 5); `dedupe_key` unique when set; partial index on `run_at` for jobs not done or failed; payload holds ids only |
+| `notification_prefs` | Per-user opt-outs | key (user, event, channel); event and channel from fixed lists; a missing row means enabled; cascades with the user |
 | `portfolio_collections`, `portfolio_photos` | Portfolio | title not blank; photo size positive; storage keys unique |
 | `reviews` | Review of a completed request | one per request; rating 1–5; master reply and its time together |
 | `complaints` | "Report" | exactly one target (profile, request or review); reason from the fixed list; `other` needs text; resolved ⇔ `resolved_at` |

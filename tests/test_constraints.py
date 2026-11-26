@@ -20,12 +20,14 @@ from app.models import (
     Complaint,
     District,
     ImportBlocklist,
+    Job,
     JobRequest,
     JobResponse,
     MasterArea,
     MasterProfile,
     MasterSearch,
     MasterSpecialty,
+    NotificationPref,
     PlaceSynonym,
     ProfileClaim,
     RequestPhoto,
@@ -293,7 +295,7 @@ def test_request_district_must_belong_to_the_city(
         ({"description": "   "}, "ck_requests_description_not_blank"),
         ({"status": "master_chosen"}, "ck_requests_chosen_master_set"),
         ({"status": "completed"}, "ck_requests_chosen_master_set"),
-        ({"status": "closed"}, "ck_requests_closed_at"),
+        ({"status": "closed", "close_reason": "client_closed"}, "ck_requests_closed_at"),
         ({"status": "archived"}, "ck_requests_status"),
     ],
 )
@@ -314,6 +316,8 @@ def test_completed_request_has_master_and_date(
 ) -> None:
     a_request.status = "completed"
     a_request.chosen_master_id = a_master.id
+    a_request.master_chosen_at = NOW
+    a_request.client_phone = "+992901234567"
     reject(db, "ck_requests_completed_at", a_request)
 
 
@@ -352,6 +356,129 @@ def test_response_price_needs_a_unit(
         db,
         "ck_responses_price_amount_with_unit",
         JobResponse(request_id=a_request.id, master_id=a_master.id, price_amount=Decimal(300)),
+    )
+
+
+# ---- request lifecycle columns (week 8) ----
+
+
+def _req(client_user: User, places: dict, **kw) -> JobRequest:
+    return JobRequest(
+        **{
+            "client_id": client_user.id,
+            "city_id": places["dushanbe"].id,
+            "description": "Tile the bathroom",
+            "timing": "urgent",
+        }
+        | kw
+    )
+
+
+@pytest.mark.parametrize(
+    ("fields", "constraint"),
+    [
+        ({"status": "closed", "closed_at": NOW}, "ck_requests_close_reason"),
+        ({"close_reason": "client_closed"}, "ck_requests_close_reason"),
+        (
+            {"status": "closed", "closed_at": NOW, "close_reason": "bored"},
+            "ck_requests_close_reason_value",
+        ),
+        ({"client_phone": "992901234567"}, "ck_requests_client_phone_format"),
+        ({"feed_pause_at": 0}, "ck_requests_feed_pause_at_positive"),
+    ],
+)
+def test_request_lifecycle_rules(
+    db: Session, client_user: User, places: dict, fields: dict, constraint: str
+) -> None:
+    reject(db, constraint, _req(client_user, places, **fields))
+
+
+def test_request_defaults_and_valid_lifecycle(db: Session, client_user: User, places: dict) -> None:
+    r = _req(client_user, places)
+    accept(db, r)
+    db.refresh(r)
+    assert r.opened_at is not None
+    assert r.feed_pause_at == 15
+    accept(
+        db,
+        _req(
+            client_user,
+            places,
+            status="cancelled",
+            closed_at=NOW,
+            close_reason="client_cancelled",
+            client_phone="+992901234567",
+        ),
+    )
+
+
+def test_chosen_request_needs_phone_and_choice_time(
+    db: Session, client_user: User, places: dict, a_master: MasterProfile
+) -> None:
+    chosen = {"status": "master_chosen", "chosen_master_id": a_master.id}
+    reject(
+        db,
+        "ck_requests_client_phone_when_chosen",
+        _req(client_user, places, **chosen, master_chosen_at=NOW),
+    )
+    reject(
+        db,
+        "ck_requests_master_chosen_at",
+        _req(client_user, places, **chosen, client_phone="+992901234567"),
+    )
+    reject(db, "ck_requests_master_chosen_at", _req(client_user, places, master_chosen_at=NOW))
+    accept(
+        db, _req(client_user, places, **chosen, master_chosen_at=NOW, client_phone="+992901234567")
+    )
+
+
+def test_notification_prefs_go_with_the_user(db: Session) -> None:
+    u = user()
+    accept(db, u)
+    accept(db, NotificationPref(user_id=u.id, event="chosen", channel="email", enabled=False))
+    db.delete(u)
+    db.flush()
+    assert db.query(NotificationPref).filter_by(user_id=u.id).count() == 0
+
+
+def test_job_defaults_and_rules(db: Session) -> None:
+    j = Job(kind="notify:new_request", payload={"request_id": 1})
+    accept(db, j)
+    db.refresh(j)
+    assert (j.attempts, j.max_attempts, j.run_at is not None) == (0, 5, True)
+    reject(db, "ck_jobs_attempts_not_negative", Job(kind="x", attempts=-1))
+    reject(db, "ck_jobs_max_attempts_positive", Job(kind="x", max_attempts=0))
+    reject(db, "ck_jobs_kind_not_blank", Job(kind=" "))
+
+
+def test_job_dedupe_key_is_unique_but_optional(db: Session) -> None:
+    accept(db, Job(kind="x"), Job(kind="x"), Job(kind="x", dedupe_key="k1"))
+    reject(db, "uq_jobs_dedupe_key", Job(kind="x", dedupe_key="k1"))
+
+
+def test_notification_pref_rules(db: Session, client_user: User) -> None:
+    accept(
+        db,
+        NotificationPref(
+            user_id=client_user.id, event="new_request", channel="telegram", enabled=False
+        ),
+    )
+    reject(
+        db,
+        "pk_notification_prefs",
+        NotificationPref(
+            user_id=client_user.id, event="new_request", channel="telegram", enabled=True
+        ),
+    )
+    reject(
+        db,
+        "ck_notification_prefs_event",
+        NotificationPref(user_id=client_user.id, event="spam", channel="email", enabled=True),
+    )
+    reject(
+        db,
+        "ck_notification_prefs_channel",
+        NotificationPref(user_id=client_user.id, event="chosen", channel="sms", enabled=True),
     )
 
 
