@@ -13,7 +13,7 @@ from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.time import utcnow
 from app.models import PortfolioCollection, PortfolioPhoto, Specialty, User
-from app.services import cache, sitemap
+from app.services import cache, search, sitemap
 from app.services.storage import new_key
 from tests.test_search_service import _master
 
@@ -190,3 +190,29 @@ def test_url_guard_stops_at_the_limit(
 
 def test_robots_points_to_the_sitemap_route(web: TestClient) -> None:
     assert web.get("/sitemap.xml").status_code == 200  # not swallowed by the SEO catch-all
+
+
+def test_seo_entries_use_fresh_counts_not_the_ten_minute_count_cache(
+    web: TestClient, db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    clock = [1000.0]
+    monkeypatch.setattr(cache, "now", lambda: clock[0])
+    _master(db, "Первый")
+    _master(db, "Второй")
+    search.cached_counts_by_city_specialty(db)  # a page view caches the counts at t=0
+    _master(db, "Третий")
+    clock[0] += 599  # the counts cache is still warm; the sitemap body was never built
+    assert f"{SITE}/dushanbe/santekhnik" in _urls(web)
+
+
+def test_entry_xml_escapes_special_characters() -> None:
+    loc = 'https://x.example/a?b=1&c=<2>"q"'
+    xml = sitemap._entry_xml(loc, None, {'t"g': 'https://x.example/?a=1&b="2"<'})
+    doc = f'<urlset xmlns="{NS["s"]}" xmlns:xhtml="{NS["x"]}">{xml}</urlset>'
+    root = ET.fromstring(doc)  # noqa: S314 (our own output)
+    url = root.find("s:url", NS)
+    assert url is not None and url.findtext("s:loc", namespaces=NS) == loc
+    link = url.find("x:link", NS)
+    assert link is not None
+    assert link.get("hreflang") == 't"g' and link.get("href") == 'https://x.example/?a=1&b="2"<'
+    assert "&amp;" in xml and "&lt;" in xml and "&quot;" in xml

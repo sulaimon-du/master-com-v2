@@ -76,6 +76,7 @@ def test_new_keys_match_regex_and_are_unique() -> None:
 def test_uploads_disabled_by_default_on_staging(monkeypatch) -> None:
     for env, expected in [("staging", False), ("production", False), ("development", True)]:
         monkeypatch.setenv("APP_ENV", env)
+        monkeypatch.setenv("SITE_URL", "https://ustoi.example")
         monkeypatch.delenv("UPLOADS_ENABLED", raising=False)
         assert Settings(_env_file=None).uploads_enabled is expected  # type: ignore[call-arg]
     monkeypatch.setenv("APP_ENV", "staging")

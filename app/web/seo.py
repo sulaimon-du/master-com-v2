@@ -8,10 +8,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
+from app.core.config import get_settings
 from app.core.db import DbSession
 from app.models.user import User
 from app.services import search, seo
-from app.web.auth import notice_page
+from app.web.auth import LANG_MAX_AGE, notice_page
+from app.web.cookies import LANG, cookie_name, set_cookie
 from app.web.deps import current_user, use_path_lang
 from app.web.render import render
 
@@ -36,10 +38,16 @@ def _landing(
         db, lang=lang, city=city, district=district, specialty=specialty, page=query.page
     )
     if view is None:
+        # Both switch links go home: the other-language URL of a missing page is a 404 too.
         return notice_page(
-            request, user, status=404, title="error.not_found", text="error.not_found"
+            request,
+            user,
+            status=404,
+            title="error.not_found",
+            text="error.not_found",
+            lang_links={"ru": "/", "tg": "/"},
         )
-    return render(
+    response = render(
         request,
         "pages/seo_landing.html",
         user=user,
@@ -47,6 +55,11 @@ def _landing(
         meta=view.meta,
         lang_links=view.lang_links,
     )
+    # The visitor chose this language by following its URL: keep it on the next page (R-025).
+    settings = get_settings()
+    if request.cookies.get(cookie_name(LANG, settings)) != lang:
+        set_cookie(response, LANG, lang, settings, max_age=LANG_MAX_AGE)
+    return response
 
 
 # Tajik first: `/tg/<city>/<specialty>` has the shape of a Russian district page.

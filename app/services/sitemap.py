@@ -52,8 +52,10 @@ def _seo_entries(db: Session) -> Iterator[Entry]:
             .order_by(Specialty.id)
         )
     }
+    # Uncached counts: the body is cached for 10 minutes already, so stacking the 10-minute
+    # count cache on it would make the SEO entries up to 20 minutes old.
     pages: list[tuple[str, str, str | None]] = []  # (city, specialty, district)
-    for (city_id, specialty_id), n in sorted(search.cached_counts_by_city_specialty(db).items()):
+    for (city_id, specialty_id), n in sorted(search.counts_by_city_specialty(db).items()):
         if n >= INDEX_MIN and city_id in cities and specialty_id in specialties:
             pages.append((cities[city_id].slug, specialties[specialty_id].slug, None))
     districts = {
@@ -61,7 +63,7 @@ def _seo_entries(db: Session) -> Iterator[Entry]:
         for d in db.scalars(select(District).where(District.is_active).order_by(District.id))
         if d.city_id in cities
     }
-    named = search.cached_counts_by_district_specialty(db, named_only=True)
+    named = search.counts_by_district_specialty(db, named_only=True)
     for (district_id, specialty_id), n in sorted(named.items()):
         if n >= INDEX_MIN and district_id in districts and specialty_id in specialties:
             district, city = districts[district_id]

@@ -237,7 +237,9 @@ def test_path_language_overrides_the_cookie_and_the_switch_links_to_the_other_ur
     footer = ru.split("<footer")[1]
     assert 'href="/tg/khujand/elektrik"' in footer
     assert "/lang/" not in footer
-    # other pages still follow the cookie
+    # other pages follow the cookie (the Russian URL has just set it to ru)
+    web.cookies.clear()
+    web.cookies.set("mc_lang", "tg")
     assert '<html lang="tg">' in web.get("/search").text
 
 
@@ -443,3 +445,27 @@ def test_reserved_segments_never_collide_with_place_slugs(web: TestClient, db: S
     db_slugs = set(db.scalars(select(City.slug))) | set(db.scalars(select(District.slug)))
     assert file_slugs, "the seed file lists places"
     assert not (file_slugs | db_slugs) & reserved
+
+
+# --- language sticks after an SEO page (R-025) -------------------------------------------------
+
+
+def test_tajik_seo_page_keeps_tajik_afterwards_and_ru_page_resets_it(
+    web: TestClient, db: Session
+) -> None:
+    master = _master(db, specs=("elektrik",), cities=("khujand",))
+    web.cookies.clear()
+    r = web.get("/tg/khujand/elektrik")
+    assert "mc_lang=tg" in r.headers.get("set-cookie", "")
+    assert '<html lang="tg">' in web.get(f"/m/{master.slug}").text
+    r = web.get("/khujand/elektrik")  # Russian URL: back to ru
+    assert "mc_lang=ru" in r.headers.get("set-cookie", "")
+    assert '<html lang="ru">' in web.get(f"/m/{master.slug}").text
+    # already matching: no new cookie
+    assert "mc_lang" not in web.get("/khujand/elektrik").headers.get("set-cookie", "")
+
+
+def test_seo_404_switch_links_go_home_not_back_to_the_tg_url(web: TestClient) -> None:
+    footer = web.get("/tg/nowhere/santekhnik").text.split("<footer")[1]
+    assert 'href="/" hreflang="ru"' in footer and 'href="/" hreflang="tg"' in footer
+    assert "/tg/nowhere" not in footer and "/lang/" not in footer

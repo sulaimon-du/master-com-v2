@@ -82,6 +82,7 @@ def test_production_without_mail_provider_answers_normally(monkeypatch, caplog) 
     make_user("ana@example.com")
     make_user("new@example.com", confirmed=False)
     monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("SITE_URL", "https://ustoi.example")
     get_settings.cache_clear()
     try:
         browser = TestClient(create_app(get_settings()), base_url="https://testserver")
