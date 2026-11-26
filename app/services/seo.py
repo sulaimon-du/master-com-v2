@@ -133,7 +133,7 @@ def _neighbours(
 ) -> tuple[Link | None, list[Link], list[Link], list[Link]]:
     """Links to pages that list at least one visible master; inactive rows are never linked
     (the grouped counts do not look at `is_active`, so it is checked here)."""
-    by_city = search.counts_by_city_specialty(db)
+    by_city = search.cached_counts_by_city_specialty(db)
     cities = {c.id: c for c in db.scalars(select(City).where(City.is_active))}
     specialties = {
         s.id: (category_order, s)
@@ -178,8 +178,8 @@ def _neighbours(
         # Only districts some master named: whole-city masters alone would make every district
         # page a near-duplicate of this one. The pill shows what the district page lists
         # (named + whole-city, D11.2).
-        named = search.counts_by_district_specialty(db, named_only=True)
-        listed = search.counts_by_district_specialty(db, named_only=False)
+        named = search.cached_counts_by_district_specialty(db, named_only=True)
+        listed = search.cached_counts_by_district_specialty(db, named_only=False)
         for row in db.scalars(
             select(District)
             .where(District.city_id == city.id, District.is_active)

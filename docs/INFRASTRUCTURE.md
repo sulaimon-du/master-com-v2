@@ -26,6 +26,12 @@ Staging URL: https://master-com-staging.onrender.com
 Check after a deploy:
 - https://master-com-staging.onrender.com/health/ready returns `{"status":"ok","database":"ok"}`.
 - Render → service → **Logs** shows `seed done: SeedStats(...)` and no tracebacks.
+- The search index is rebuilt on every start of the site service (`python -m app.cli search rebuild`, run by `entrypoint.sh` right after the seed); to rebuild by hand, run the same command in the service shell.
+
+## Search engines (robots and sitemap)
+- Staging (any `APP_ENV` other than `production`) is **never indexed**: every response carries `X-Robots-Tag: noindex, nofollow` and `https://master-com-staging.onrender.com/robots.txt` disallows everything.
+- Production `robots.txt` allows crawling except private and search paths and points to `<SITE_URL>/sitemap.xml`. `SITE_URL` must be the public address, because every sitemap and canonical URL is built from it.
+- `/sitemap.xml` is built from the database and cached in each web process for 10 minutes; a new or blocked master shows up (or disappears) within that time.
 
 ## Render (app)
 

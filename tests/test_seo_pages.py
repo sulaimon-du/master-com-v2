@@ -14,6 +14,7 @@ from app.core.db import get_db
 from app.core.time import utcnow
 from app.models import Category, City, District, Specialty, User
 from app.seed import load
+from app.services import cache
 from app.services.search_index import refresh_search
 from tests.test_search_service import _master
 
@@ -363,6 +364,7 @@ def test_district_links_need_a_master_who_named_the_district(web: TestClient, db
     assert "/dushanbe/sino/" not in html
 
     _master(db, specs=("santekhnik",), cities=(), districts=(("dushanbe", "sino"),))
+    cache.clear()  # the grouped counts are cached for ten minutes
     districts = _section(web.get("/dushanbe/santekhnik").text, "seo-districts")
     assert districts.count('href="/') == 1
     assert 'href="/dushanbe/sino/santekhnik"' in districts

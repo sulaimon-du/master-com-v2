@@ -22,6 +22,7 @@ from app.web import (
     robots,
     search,
     seo,
+    sitemap,
     telegram,
 )
 from app.web.csrf import CSRFError
@@ -74,6 +75,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(search.router)
     app.include_router(media.router)
     app.include_router(robots.router)
+    app.include_router(sitemap.router)
     # Last: `/<city>/<specialty>` would otherwise shadow any two-segment path (spec D4).
     app.include_router(seo.router)
     app.add_exception_handler(CSRFError, csrf_failed)
