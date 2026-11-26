@@ -20,7 +20,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from app.core.config import Settings, get_settings
 
 # ASCII digits only: `\d` would also accept other scripts' digits.
-KEY_RE = re.compile(r"^(a|p/[0-9]{4}/[0-9]{2})/[0-9a-f]{32}(-t)?\.webp$")
+KEY_RE = re.compile(r"^(a|[pr]/[0-9]{4}/[0-9]{2})/[0-9a-f]{32}(-t)?\.webp$")
 CACHE_CONTROL = "public, max-age=31536000, immutable"  # keys are random and never rewritten
 
 
@@ -136,7 +136,7 @@ def get_storage() -> Storage:
     return LocalDiskStorage(settings.media_root)
 
 
-def new_key(kind: Literal["a", "p"], *, thumb_of: str | None = None) -> str:
+def new_key(kind: Literal["a", "p", "r"], *, thumb_of: str | None = None) -> str:
     """A fresh random key; with `thumb_of`, the thumbnail key that belongs to that key."""
     if thumb_of is not None:
         _check(thumb_of)
@@ -147,4 +147,4 @@ def new_key(kind: Literal["a", "p"], *, thumb_of: str | None = None) -> str:
     if kind == "a":
         return f"a/{name}.webp"
     now = datetime.now(UTC)
-    return f"p/{now:%Y}/{now:%m}/{name}.webp"
+    return f"{kind}/{now:%Y}/{now:%m}/{name}.webp"
