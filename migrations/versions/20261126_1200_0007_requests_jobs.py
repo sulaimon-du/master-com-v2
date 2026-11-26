@@ -57,6 +57,11 @@ def upgrade() -> None:
     op.add_column(
         "requests", sa.Column("master_chosen_at", sa.DateTime(timezone=True), nullable=True)
     )
+    # Closed or cancelled requests may keep chosen_master_id (history); give them a choice time.
+    op.execute(
+        "UPDATE requests SET master_chosen_at = COALESCE(closed_at, updated_at, created_at) "
+        "WHERE chosen_master_id IS NOT NULL AND master_chosen_at IS NULL"
+    )
     op.add_column("requests", sa.Column("close_reason", sa.String(length=20), nullable=True))
     op.add_column(
         "requests", sa.Column("expiry_reminded_at", sa.DateTime(timezone=True), nullable=True)
