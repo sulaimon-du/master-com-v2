@@ -4,6 +4,7 @@
     uv run python -m app.cli claims approve <id>
     uv run python -m app.cli claims reject <id>
     uv run python -m app.cli search rebuild
+    uv run python -m app.cli worker run-once
 
 On staging (no shell on Render free) the same decision is one statement in the Neon SQL Editor:
     UPDATE google_claims SET status = 'approved', resolved_at = now()
@@ -15,7 +16,8 @@ import sys
 
 from app.core.db import get_sessionmaker
 from app.models.user import User
-from app.services import auth, search_index
+from app.services import auth, jobs, search_index
+from app.worker import loop, periodic
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -28,8 +30,14 @@ def main(argv: list[str] | None = None) -> int:
         actions.add_parser(name).add_argument("claim_id", type=int)
     search = groups.add_parser("search", help="The master search index (week 7)")
     search.add_subparsers(dest="action", required=True).add_parser("rebuild")
+    worker = groups.add_parser("worker", help="Background jobs (weeks 8-9)")
+    worker.add_subparsers(dest="action", required=True).add_parser(
+        "run-once", help="queue this window's timers and run every job due now"
+    )
     args = parser.parse_args(argv)
 
+    if args.group == "worker":
+        return _worker_run_once()
     with get_sessionmaker()() as db:
         if args.group == "search":
             count = search_index.rebuild_all(db)
@@ -55,6 +63,28 @@ def main(argv: list[str] | None = None) -> int:
         if claim.status == "approved":
             print("It takes effect at the next Google sign-in, if the account is still unproven.")
         return 0
+
+
+# Enough for a local run; jobs that keep queueing due jobs cannot spin forever.
+RUN_ONCE_MAX_BATCHES = 100
+
+
+def _worker_run_once() -> int:
+    """Timers once, then batches until nothing is due (jobs a handler queues run too)."""
+    factory = get_sessionmaker()
+    loop.install_handlers()
+    worker_id = jobs.new_worker_id()
+    with factory() as db:
+        periodic.schedule(db)
+        db.commit()
+    total = 0
+    for _ in range(RUN_ONCE_MAX_BATCHES):
+        claimed = jobs.run_once(factory, worker_id)
+        total += claimed
+        if claimed == 0:
+            break
+    print(f"{total} jobs run")
+    return 0
 
 
 if __name__ == "__main__":

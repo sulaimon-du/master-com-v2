@@ -30,6 +30,10 @@ EVENTS = (
     "done_check",
 )
 CHANNELS = ("telegram", "email")
+# The worker's own timers (spec D6), enqueued every 10 minutes with a dedupe key per window.
+PERIODIC_KINDS = ("periodic:request_expiry", "periodic:request_stale", "periodic:purge_auth")
+# Every kind the queue accepts. A notification event is also the kind of the job that sends it.
+JOB_KINDS = (*EVENTS, *PERIODIC_KINDS)
 
 
 class Job(IdPk, Timestamps, Base):

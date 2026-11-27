@@ -17,7 +17,7 @@ from sentry_sdk.integrations.logging import LoggingIntegration, ignore_logger
 
 from app.core.config import Settings
 
-Component = Literal["web", "bot"]
+Component = Literal["web", "bot", "worker"]
 
 REDACTED = "[redacted]"
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")

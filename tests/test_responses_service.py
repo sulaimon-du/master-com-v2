@@ -25,7 +25,7 @@ def only_own_requests(db: Session) -> None:
 
 @pytest.fixture(autouse=True)
 def queued(monkeypatch) -> list[tuple]:  # type: ignore[no-untyped-def]
-    """Every job the responses service enqueues, instead of the (no-op) queue.
+    """Every job the responses service enqueues, instead of the real queue (tested in test_jobs).
 
     "new_request" comes from posting the test's request (covered in test_requests_service).
     """
