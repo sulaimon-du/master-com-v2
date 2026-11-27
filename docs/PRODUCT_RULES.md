@@ -35,9 +35,9 @@ Each item has my proposed default. "Needed by" refers to the 12-week plan in `BR
 |---|---|---|---|
 | C1 | Minimum for a master to appear in search | Verified phone + at least 1 specialty + work area; photos optional but rank higher | Week 5. **Status: implemented (R-022)** |
 | C2 | Master's profile URL from a Cyrillic name | Auto-transliterated slug, editable | Week 5. **Status: implemented (R-022)** |
-| C3 | Price units in requests and responses | Fixed price or per unit: m², running metre, piece, hour | Week 8 |
-| C4 | Open requests that nobody closes | Auto-close after 30 days, reminder 3 days before | Week 8 |
-| C5 | Requests stuck in "master chosen" | Ask the client "Is the job done?" after 14 days; close without review after 30 | Week 8 |
+| C3 | Price units in requests and responses | Fixed price or per unit: m², running metre, piece, hour | Week 8. **Status: implemented (R-026)** |
+| C4 | Open requests that nobody closes | Auto-close after 30 days, reminder 3 days before | Week 8. **Status: implemented (R-026; worker, weeks 8–9)** |
+| C5 | Requests stuck in "master chosen" | Ask the client "Is the job done?" after 14 days; close without review after 30 | Week 8. **Status: implemented (R-026; worker, weeks 8–9)** |
 | C6 | Review rules | Client can edit for 14 days; master can reply once publicly; master cannot delete | Week 10 |
 | C7 | Complaint reasons | Fixed list: spam, fraud, insult, fake photos, other (+ text) | Week 10 |
 | C8 | Chat history | Kept while both accounts exist; a deleted user shows as "Deleted user" | Week 10 |

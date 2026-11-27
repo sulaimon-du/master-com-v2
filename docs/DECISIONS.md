@@ -240,13 +240,40 @@ Part A: search page and home. Part B: SEO pages, meta tags, robots and sitemap (
 - **Deviation from BRIEF §4.14** (SEO page with a price range from actual requests): the price range is left out until requests exist (weeks 8-9); the "post a request" link goes to `/` until then.
 
 ## R-026 Requests, responses and notifications (weeks 8–9; Claude's calls, owner to confirm)
-- **Time zone:** dates a client types (a request's "by date", window today..+180 days) are judged in Tajikistan's calendar (`Asia/Dushanbe`, UTC+5, `app.core.time.local_today`), not the UTC date, so a client at 01:00 local time is not told that today is yesterday. Timestamps stay in UTC. Without tzdata in the image the zone falls back to a fixed UTC+5 (Tajikistan has no DST).
-- **Request pages (Task 3):** `/requests/new` (prefill `?c=<city-slug>&s=<specialty-slug>`, unknown slugs ignored), `/requests/mine`, `/requests/{id}`; only the client opens a request page for now (everyone else gets 404). The exact address is rendered only on the client's own request page, never in lists or to masters. The home page and the SEO pages' "post a request" links point to the new-request form (SEO pages pass their city and specialty). Photos (up to 4) are added on the request's own page, not in the create form; the upload route has its own multi-file body cap (4 files) and is a 404 with uploads off. `/requests/` is disallowed in `robots.txt`.
-- **Client name (deviation from spec D4, conservative):** a master sees the client's name only after being chosen, together with the contact phone; before that a request shows no client identity.
-- **Reopening a paused request** (back in the feed for 15 more responses) does not notify masters again: it is not a new request, and a second fan-out would be spam. Only `create_request` queues `new_request`.
-- **Request photos** are public by an unguessable storage key (R2 public bucket), the same as portfolio photos; the request page itself stays private (404 to anyone who may not see it).
-- **Withdraw button** is shown only while the request is open, although the service still allows withdrawing later (until chosen): the page stays simpler, the service stays permissive. `/feed` and `/responses/` are disallowed in `robots.txt`.
-- **Notification texts:** messages carry no names of either side (and no address, phone or email); the D10.1 note "the client can be reached through UstoiMan chat later" in the "you were chosen" message is deferred to week 10 (chat).
+Spec `docs/superpowers/specs/2026-11-26-requests-responses-notifications-design.md`. Each line below is a call Claude made where the spec was silent or that deviates from it; the owner confirms or overturns each one.
+
+**Data and migration (Task 1)**
+1. **Backfill of old rows:** `opened_at` is filled from `created_at`; an old request with a chosen master gets `master_chosen_at = COALESCE(closed_at, updated_at, created_at)` (an approximate time, instead of refusing to migrate).
+2. **Contact phone check:** `client_phone` is required by a CHECK only while a request is `master_chosen` or `completed`.
+3. The lists of events and channels live as constants in `app/models/jobs.py` and are enforced by CHECKs.
+
+**Client side (Tasks 2–3)**
+4. **Time zone:** dates a client types (a request's "by date", window today..+180 days) are judged in Tajikistan's calendar (`Asia/Dushanbe`, UTC+5, `app.core.time.local_today`), not the UTC date, so a client at 01:00 local time is not told that today is yesterday. Timestamps stay in UTC. Without tzdata in the image the zone falls back to a fixed UTC+5 (Tajikistan has no DST).
+5. **Reopen restarts the clock:** reopening a request sets `opened_at` again (the C4 30 days count from the reopen) and clears the reminder mark.
+6. **Request photos** are deleted for good when the client removes them (no undo), and are public by an unguessable storage key (R2 public bucket), the same as portfolio photos; the request page itself stays private (404 to anyone who may not see it).
+7. **Request pages:** `/requests/new` (prefill `?c=<city-slug>&s=<specialty-slug>`, unknown slugs ignored), `/requests/mine`, `/requests/{id}`. The exact address is rendered only on the client's own request page, never in lists or to masters. The home page and the SEO pages' "post a request" links point to the new-request form (SEO pages pass their city and specialty). Photos (up to 4) are added on the request's own page, not in the create form; the upload route has its own multi-file body cap (4 files) and is a 404 with uploads off. `/requests/` is disallowed in `robots.txt`.
+8. **Form errors:** bad input is a 422 with the form shown again, never a 500; a failed save removes the files it had stored.
+9. **Budget numbers:** a comma is a decimal separator (Russian usage), so "1,5" is 1.5 and "1,000" is 1.0; spaces inside numbers ("1 000") are allowed.
+
+**Feed, responses and choosing (Tasks 4–6)**
+10. **Editing comes back** when every responder has withdrawn (the request has no active responses again).
+11. **Withdrawing** is allowed for a master who was not chosen even after the request left `open` (spec D5). The withdraw button is shown only while the request is open: the page stays simpler, the service stays permissive. `/feed` and `/responses/` are disallowed in `robots.txt`.
+12. **A request hidden by moderation** cannot have a master chosen (the master would never get the contact).
+13. **`responses_count`** still counts responses of masters blocked later. Known limitation; revisit with the admin tools (week 10).
+14. **A chosen master whose profile is later hidden by moderation** keeps the client's contact; the client's page always shows the chosen master's card, with the contacts withheld if that account is no longer active.
+15. **Client name (deviation from spec D4, conservative):** a master sees the client's name only after being chosen, together with the contact phone; before that a request shows no client identity.
+16. **Reopening a paused request** (back in the feed for 15 more responses) does not notify masters again: it is not a new request, and a second fan-out would be spam. Only `create_request` queues `new_request`.
+
+**Worker and notifications (Tasks 7–9)**
+17. **One job at a time per row:** the worker holds the job's row lock while its handler runs, so a slow job is never taken over by another worker; old timer jobs (`periodic:*`) are purged, notification jobs never are (their keys stop duplicates).
+18. **Notification texts:** messages carry no names of either side (and no address, phone or email); the D10.1 note "the client can be reached through UstoiMan chat later" in the "you were chosen" message is deferred to week 10 (chat).
+19. **Every event is one job per recipient and channel**, so a Telegram retry never sends the email twice. The 200-master cap applies to reachable masters who have not opted out (newest published first); the 20-per-day cap counts notifications queued that local day.
+20. **Telegram answers:** a wrong or revoked bot token (401/404) fails loudly (an error in the logs and Sentry, retries) instead of passing silently; other 4xx (e.g. chat not found) are not retried.
+21. **The "you were chosen" and related messages** check that the account is active, not the profile's moderation flag (consistent with line 14).
+22. **The notification settings page** shows all 7 events to everyone (a client may become a master later).
+23. **Staging worker placement (Task 9):** the worker runs as a supervised daemon thread inside the bot service (`RUN_WORKER=1`); a crash is logged and the loop restarts after 30 s; a thread that died is started again by the next wake-up. The site's wake-up ping is the bot's existing `GET /health` (no separate path): every `/health` request makes the worker poll at once, but never more than once a second, so outside traffic cannot make it hammer the database.
+24. **Wake-up ping rules (Task 9):** sent only after a commit that really queued a new job (a duplicate key queues nothing and pings nothing); at most one ping in flight; plain `GET` with no body, cookies or ids; `WORKER_WAKE_URL` may not carry credentials or a query.
+25. **Jobs queued while no worker runs** wait and run when it starts (checked by a test); while the staging bot sleeps, notifications and timers wait for the next wake-up.
 
 ## Open
 - Final name and positioning (round 6): working name **UstoiMan** (R-023); final name and domain still open.

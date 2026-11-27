@@ -3,21 +3,28 @@
 `enqueue` writes a row in the caller's transaction, so a rolled-back change queues nothing.
 The worker (`app.worker`) calls `run_once`: claim due jobs with `FOR UPDATE SKIP LOCKED`, commit
 the claim, then run each handler in its own transaction. Plain sync code: no aiogram here.
+
+On staging the worker lives in the bot service (spec D7): after a commit that queued a job, the
+site sends a best-effort `GET WORKER_WAKE_URL` from a background thread (no payload, 1 s
+timeout, failures ignored), so the worker polls at once and a sleeping service wakes up.
 """
 
 import logging
 import os
 import socket
+import threading
 import traceback
+import urllib.request
 import uuid
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import event, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.config import get_settings
 from app.core.time import utcnow
 from app.models.jobs import JOB_KINDS, Job
 
@@ -28,6 +35,9 @@ CLAIM_BATCH = 10
 STALE_LOCK = timedelta(minutes=10)
 UNKNOWN_KIND = "unknown_kind"
 STALE_GAVE_UP = "stale_lock"
+WAKE_TIMEOUT_SECONDS = 1.0
+# Session.info flag: this transaction queued at least one job.
+_QUEUED = "jobs_queued"
 
 
 class RetryAfter(Exception):
@@ -72,8 +82,54 @@ def enqueue(
         insert(Job)
         .values(kind=kind, payload=payload, dedupe_key=dedupe_key, run_at=run_at or utcnow())
         .on_conflict_do_nothing(index_elements=[Job.dedupe_key])
+        .returning(Job.id)
     )
-    db.execute(stmt)
+    if db.execute(stmt).first() is not None:  # a row was inserted (not a duplicate key)
+        db.info[_QUEUED] = True
+
+
+# --- wake-up ping (staging) -------------------------------------------------------------------
+
+# One ping in flight at a time: a burst of commits never starts a burst of threads.
+_ping_in_flight = threading.Lock()
+
+
+def _ping(url: str) -> None:
+    try:
+        request = urllib.request.Request(url, method="GET")  # noqa: S310 - http(s) checked
+        with urllib.request.urlopen(request, timeout=WAKE_TIMEOUT_SECONDS):  # noqa: S310
+            pass
+    except Exception as exc:  # best effort: the worker also polls on its own
+        log.info("worker wake-up ping failed: %s", type(exc).__name__)
+    finally:
+        _ping_in_flight.release()
+
+
+def wake_worker() -> None:
+    """Ask the worker to poll now, without waiting for the answer. No-op without a URL."""
+    url = get_settings().worker_wake_url
+    if not url or not _ping_in_flight.acquire(blocking=False):
+        return
+    try:
+        threading.Thread(target=_ping, args=(url,), name="worker-wake", daemon=True).start()
+    except Exception:
+        _ping_in_flight.release()
+        raise
+
+
+@event.listens_for(Session, "after_commit")
+def _wake_after_commit(session: Session) -> None:
+    if not session.info.pop(_QUEUED, False):
+        return
+    try:
+        wake_worker()
+    except Exception as exc:  # the change is committed: never fail the request over a ping
+        log.info("worker wake-up skipped: %s", type(exc).__name__)
+
+
+@event.listens_for(Session, "after_rollback")
+def _forget_after_rollback(session: Session) -> None:
+    session.info.pop(_QUEUED, None)
 
 
 def new_worker_id() -> str:

@@ -49,9 +49,15 @@ services:
         value: "false"
       - key: SENTRY_DSN
         sync: false # Sentry project DSN (R-024); empty = monitoring off
+      # After a commit that queued a job the site GETs this (no payload, 1 s timeout) so the
+      # worker in the bot service polls at once and a sleeping bot wakes up (spec D7).
+      - key: WORKER_WAKE_URL
+        value: https://master-com-bot-staging.onrender.com/health
 
   # Telegram bot (spec 2026-11-22, D5): its own process, webhook mode, no migrations or seed.
   # A sleeping free service is woken by Telegram's webhook POST; Telegram retries meanwhile.
+  # It also runs the job worker in a thread (RUN_WORKER=1, spec 2026-11-26 D7): Render free has
+  # no background workers, and this service already holds the bot token (R-021).
   - type: web
     name: master-com-bot-staging
     runtime: docker
@@ -78,5 +84,7 @@ services:
         value: https://master-com-bot-staging.onrender.com/telegram/webhook
       - key: SITE_URL
         value: https://master-com-staging.onrender.com
+      - key: RUN_WORKER
+        value: "1" # jobs and timers; sleeps with the service, woken by the site's ping
       - key: SENTRY_DSN
         sync: false # Sentry project DSN (R-024); empty = monitoring off

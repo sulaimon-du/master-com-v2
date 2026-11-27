@@ -4,6 +4,9 @@ Polling when `TELEGRAM_WEBHOOK_URL` is unset (development), webhook otherwise (s
 an aiohttp server on `0.0.0.0:$PORT` with Telegram's updates at `/telegram/webhook` and
 `GET /health` for Render. Logs carry update types and outcomes only: never tokens, phone numbers
 or the bot token.
+
+With `RUN_WORKER=1` (staging, spec D7) the job worker runs in a supervised daemon thread of this
+process; `GET /health` doubles as the site's wake-up ping and makes it poll at once.
 """
 
 import asyncio
@@ -12,6 +15,7 @@ import logging
 import os
 import re
 import traceback
+from collections.abc import Callable
 
 from aiogram import Bot, Dispatcher, F
 from aiogram.enums import ChatType
@@ -34,6 +38,7 @@ from app.bot.dialog import Reply, TgUser
 from app.core.config import get_settings
 from app.core.i18n import translate
 from app.core.monitoring import init_sentry
+from app.worker.background import BackgroundWorker
 
 logger = logging.getLogger("app.bot")
 
@@ -203,13 +208,21 @@ class _SecretCheckedHandler(SimpleRequestHandler):
         return check_webhook_secret(telegram_secret_token, self.secret_token or "")
 
 
-async def _health(_request: web.Request) -> web.Response:
-    return web.json_response({"status": "ok"})
+def build_webhook_app(
+    bot: Bot, dp: Dispatcher, secret: str, *, on_health: Callable[[], None] | None = None
+) -> web.Application:
+    """`on_health` runs on every `GET /health` (the worker's wake-up); it never fails the check."""
 
+    async def health(_request: web.Request) -> web.Response:
+        if on_health is not None:
+            try:
+                on_health()
+            except Exception as exc:  # the bot stays healthy whatever the worker does
+                logger.error("worker wake-up failed: %s", type(exc).__name__)
+        return web.json_response({"status": "ok"})
 
-def build_webhook_app(bot: Bot, dp: Dispatcher, secret: str) -> web.Application:
     app = web.Application()
-    app.router.add_get("/health", _health)
+    app.router.add_get("/health", health)
     _SecretCheckedHandler(dispatcher=dp, bot=bot, secret_token=secret).register(
         app, path=WEBHOOK_PATH
     )
@@ -253,6 +266,20 @@ def main() -> None:
 
     dp = build_dispatcher()
     bot = Bot(token)
+    worker = BackgroundWorker() if settings.run_worker else None
+    if worker is not None:
+        worker.start()
+        logger.info("bot starting the worker thread")
+    try:
+        _serve(dp, bot, webhook_url, secret, worker)
+    finally:
+        if worker is not None:
+            worker.shutdown()
+
+
+def _serve(
+    dp: Dispatcher, bot: Bot, webhook_url: str, secret: str, worker: BackgroundWorker | None
+) -> None:
     if not webhook_url:
         logger.info("bot starting: polling")
         asyncio.run(dp.start_polling(bot))
@@ -269,7 +296,7 @@ def main() -> None:
     logger.info("bot starting: webhook on port %s", port)
     # Render routes outside traffic to the container; it must listen on every interface.
     web.run_app(
-        build_webhook_app(bot, dp, secret),
+        build_webhook_app(bot, dp, secret, on_health=worker.wake if worker else None),
         host="0.0.0.0",  # noqa: S104
         port=port,
         print=None,

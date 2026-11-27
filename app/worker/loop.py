@@ -19,6 +19,8 @@ log = logging.getLogger("app.worker")
 POLL_SECONDS = 5.0
 # After an iteration crashed (say, the database is down), wait longer before trying again.
 ERROR_PAUSE_SECONDS = 30.0
+# A wake-up never makes the loop poll more often than this (anyone can ping the bot's /health).
+WAKE_MIN_GAP_SECONDS = 1.0
 
 
 def install_handlers() -> None:
@@ -42,15 +44,32 @@ def tick(
     return jobs.run_once(factory, worker_id), window
 
 
+def _wait(
+    stop: threading.Event, wake: threading.Event | None, seconds: float, min_gap: float
+) -> None:
+    if wake is None:
+        stop.wait(seconds)
+        return
+    if wake.wait(seconds):
+        # Cleared before the next poll, so a job committed after this point wakes us again.
+        wake.clear()
+        stop.wait(min_gap)
+
+
 def run_loop(
     stop: threading.Event,
     *,
     factory: sessionmaker[Session] | None = None,
     poll_seconds: float = POLL_SECONDS,
     error_pause_seconds: float = ERROR_PAUSE_SECONDS,
+    wake: threading.Event | None = None,
+    wake_min_gap_seconds: float = WAKE_MIN_GAP_SECONDS,
 ) -> None:
     """Run batches until `stop` is set. An exception never ends the loop: it is logged and the
     next iteration starts after a pause. A full batch means more may be due: no wait then.
+
+    `wake` (set by a wake-up ping, staging) ends the wait between polls early. Whoever sets
+    `stop` from outside the loop also sets `wake`, so a waiting loop stops at once.
     """
     install_handlers()
     factory = factory or get_sessionmaker()
@@ -66,5 +85,5 @@ def run_loop(
             stop.wait(error_pause_seconds)
             continue
         if claimed < jobs.CLAIM_BATCH:
-            stop.wait(poll_seconds)
+            _wait(stop, wake, poll_seconds, wake_min_gap_seconds)
     log.info("worker stopped")

@@ -67,6 +67,7 @@ Check after a deploy:
 | `RENDER_EXTERNAL_HOSTNAME` | set by Render automatically; the app trusts it as an allowed host | Render | no |
 | `SENTRY_DSN` | Sentry DSN for error monitoring; empty = off (see "Sentry") | Render dashboard | **yes** (keep private) |
 | `RENDER_GIT_COMMIT` | set by Render automatically; used as the Sentry release | Render | no |
+| `WORKER_WAKE_URL` | `https://master-com-bot-staging.onrender.com/health`: after a commit that queued a job the site GETs it so the worker polls at once (see "Background jobs") | `render.yaml` | no |
 
 The site never gets `TELEGRAM_BOT_TOKEN`: it only builds `t.me` links (R-021, least privilege). The bot never gets the `R2_*` variables: it stores no images.
 
@@ -92,9 +93,20 @@ If an upload fails, the user sees "could not save, try again"; check the R2 toke
 | `TELEGRAM_BOT_USERNAME` | `MasterComStagingBot` | `render.yaml` | no |
 | `TELEGRAM_WEBHOOK_URL` | `https://master-com-bot-staging.onrender.com/telegram/webhook` (the bot registers it on every start) | `render.yaml` | no |
 | `SITE_URL` | `https://master-com-staging.onrender.com` | `render.yaml` | no |
+| `RUN_WORKER` | `1`: the job worker runs in a thread of this service (see "Background jobs") | `render.yaml` | no |
 | `SENTRY_DSN` | Sentry DSN, the same project as the site; events are tagged `component=bot` | Render dashboard | **yes** (keep private) |
 
 Render does not create new `sync: false` variables from `render.yaml` on an existing service, and a Blueprint change may not reach an existing service at all: after a PR that adds variables, check Environment by hand.
+
+### Background jobs (worker)
+
+Notifications and the request timers (C4 reminder and auto-close, C5 "is the job done?" and close; spec 2026-11-26 D6, D7) run in the worker: `python -m app.worker`, plain sync code that claims jobs from the `jobs` table with `FOR UPDATE SKIP LOCKED`.
+
+- **Staging:** Render's free plan has no background workers, so the worker runs as a **daemon thread inside the bot service** (`RUN_WORKER=1` on `master-com-bot-staging` only). That service already holds `TELEGRAM_BOT_TOKEN` (R-021: the site never gets it) and already reaches the database. A loop that crashes is logged (type and stack frames only; Sentry gets it as an `ERROR` from the bot service) and restarted after 30 seconds; the bot keeps answering whatever the worker does. On shutdown the thread stops after the job in progress (at most 10 seconds; a job cut off is retried after 10 minutes).
+- **Wake-up ping:** after a commit that queued a job, the site sends `GET WORKER_WAKE_URL` (the bot's `/health`) from a background thread: no body, no cookies, no ids, 1 second timeout, failures ignored, at most one ping in flight. Every `GET /health` on the bot makes the worker poll at once (never more than once a second); otherwise it polls every 5 seconds.
+- **While the bot service sleeps** (15 minutes without traffic), jobs and timers wait. The site's ping wakes it (about a minute), and so does any Telegram update. Timers (C4/C5) run only while it is awake; on staging that is acceptable: the rules count days from stored timestamps, so a late run closes nothing early (a request already past 30 days is closed without the late reminder). While the bot is awake the worker queries the database every 5 seconds, so Neon's compute does not suspend then; it counts against Neon's 100 compute hours only while the bot service is awake.
+- **Production (week 12 VPS) and locally:** the worker is its own process (compose service `worker`, `docker compose --profile worker up`, or `uv run python -m app.worker`); leave `RUN_WORKER` and `WORKER_WAKE_URL` empty there.
+- **Check it works:** create a request on staging, then in the Neon SQL Editor `SELECT kind, attempts, done_at, failed_at, last_error FROM jobs ORDER BY id DESC LIMIT 10;` shows the `new_request` job with `done_at` set within seconds (or about a minute when the bot was asleep). The bot service log shows `worker started` after each deploy.
 
 Coming next:
 
@@ -158,3 +170,5 @@ SELECT pg_size_pretty(pg_database_size(current_database()));  -- stay well under
 | No Telegram button on `/signin` | `TELEGRAM_BOT_USERNAME` missing on the site service | add it in Render → Environment |
 | The bot does not answer | bot service asleep (first reply takes ~1 minute), wrong token or webhook secret, or `TELEGRAM_WEBHOOK_URL` does not match the service address | read the bot service Logs; check the variables |
 | Bot logs `refusing polling` | `TELEGRAM_WEBHOOK_URL` unset on staging | set it (see the table above) |
+| No notifications; jobs stay without `done_at` | `RUN_WORKER` missing on the bot service, bot service asleep, or `TELEGRAM_BOT_TOKEN` wrong (jobs then show `last_error`) | check the bot service Environment and Logs (`worker started`, `worker loop crashed`) |
+| Notifications arrive only after minutes | `WORKER_WAKE_URL` missing on the site service, or the bot service was asleep | add it (see the site table) |
