@@ -11,6 +11,7 @@ import re
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.config import get_settings
+from app.models.request import MAX_REQUEST_PHOTOS
 from app.services.images import MAX_UPLOAD_BYTES
 
 CHECKED_METHODS = {"POST", "PUT", "PATCH"}
@@ -21,12 +22,15 @@ UPLOAD_REQUEST_CAP = MAX_UPLOAD_BYTES + 64 * 1024
 # the body cap is that many full-size files plus framing.
 MAX_FILES_PER_UPLOAD = 10
 MULTI_UPLOAD_REQUEST_CAP = MAX_FILES_PER_UPLOAD * MAX_UPLOAD_BYTES + 64 * 1024
+# A request takes up to MAX_REQUEST_PHOTOS (4) photos: that many full-size files plus framing.
+REQUEST_UPLOAD_REQUEST_CAP = MAX_REQUEST_PHOTOS * MAX_UPLOAD_BYTES + 64 * 1024
 # Single-image routes (prefixes) and multi-image routes (patterns); extend when routes are added.
 UPLOAD_PATH_PREFIXES = ("/master/avatar",)
 MULTI_UPLOAD_PATHS = (
     re.compile(r"/master/portfolio/collections/[0-9]+/photos"),
     re.compile(r"/master/onboarding/collection"),
 )
+REQUEST_UPLOAD_PATHS = (re.compile(r"/requests/[0-9]+/photos"),)
 
 
 def is_upload_path(path: str) -> bool:
@@ -37,10 +41,16 @@ def is_multi_upload_path(path: str) -> bool:
     return any(pattern.fullmatch(path) for pattern in MULTI_UPLOAD_PATHS)
 
 
+def is_request_upload_path(path: str) -> bool:
+    return any(pattern.fullmatch(path) for pattern in REQUEST_UPLOAD_PATHS)
+
+
 def request_cap(path: str) -> int:
     # With uploads off the upload routes answer 404, so nobody gets to send them big bodies.
     if not get_settings().uploads_enabled:
         return DEFAULT_CAP
+    if is_request_upload_path(path):
+        return REQUEST_UPLOAD_REQUEST_CAP
     if is_multi_upload_path(path):
         return MULTI_UPLOAD_REQUEST_CAP
     return UPLOAD_REQUEST_CAP if is_upload_path(path) else DEFAULT_CAP

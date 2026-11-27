@@ -8,7 +8,7 @@ from PIL import Image
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.time import utcnow
+from app.core.time import local_today, utcnow
 from app.models import (
     City,
     District,
@@ -243,7 +243,7 @@ def test_budget_rules(db: Session) -> None:
 
 def test_timing_rules(db: Session) -> None:
     user = _user(db)
-    today = utcnow().date()
+    today = local_today()
     bad = [
         {"timing": "date"},
         {"timing": "date", "timing_date": today - timedelta(days=1)},
@@ -584,7 +584,7 @@ def test_card_and_view_languages_and_fields(db: Session) -> None:
         budget_unit="hour",
         address="ул. Рудаки 1",
         timing="date",
-        timing_date=utcnow().date() + timedelta(days=3),
+        timing_date=local_today() + timedelta(days=3),
     )
     view = svc.request_for_client(db, user, request.id, lang="tg")
     assert view.address == "ул. Рудаки 1"
@@ -598,3 +598,25 @@ def test_card_and_view_languages_and_fields(db: Session) -> None:
     assert city.name_ru in ru.place
     _respond(db, request)
     assert svc.request_for_client(db, user, request.id).editable is False
+
+
+def test_timing_window_uses_the_local_date_not_utc(db: Session, monkeypatch) -> None:
+    """01:00 on 2 Dec in Dushanbe (UTC+5) is still 1 Dec in UTC: 1 Dec is yesterday there."""
+    from datetime import UTC, date, datetime
+
+    monkeypatch.setattr("app.core.time.utcnow", lambda: datetime(2026, 12, 1, 20, 0, tzinfo=UTC))
+    assert local_today() == date(2026, 12, 2)
+    user = _user(db)
+    yesterday = date(2026, 12, 1)  # still "today" in UTC
+    assert (
+        _code(db, svc.create_request, db, user, _input(db, timing="date", timing_date=yesterday))
+        == "timing"
+    )
+    last = date(2026, 12, 2) + timedelta(days=180)
+    ok = svc.create_request(db, user, _input(db, timing="date", timing_date=last))
+    assert ok.timing_date == last
+    too_far = last + timedelta(days=1)
+    assert (
+        _code(db, svc.create_request, db, user, _input(db, timing="date", timing_date=too_far))
+        == "timing"
+    )

@@ -13,7 +13,7 @@ from typing import Literal
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.core.time import utcnow
+from app.core.time import local_today, utcnow
 from app.models import (
     City,
     District,
@@ -142,7 +142,7 @@ def _check_timing(data: RequestInput) -> None:
         if data.timing_date is not None:
             raise RequestError("timing")
         return
-    today = utcnow().date()
+    today = local_today()  # the client's calendar, not UTC's
     if data.timing_date is None or not (
         today <= data.timing_date <= today + timedelta(days=MAX_TIMING_DAYS)
     ):

@@ -50,3 +50,40 @@ class RequestView(RequestCard):
     close_reason: str | None
     feed_paused: bool
     editable: bool
+
+
+class IdChoice(BaseModel):
+    id: int
+    name: str
+
+
+class SpecialtyGroup(BaseModel):
+    name: str
+    specialties: list[IdChoice]
+
+
+class DistrictGroup(BaseModel):
+    city: str
+    districts: list[IdChoice]
+
+
+class RequestFormOptions(BaseModel):
+    """What the request form offers: directions with specialties, cities, districts by city."""
+
+    categories: list[SpecialtyGroup]
+    cities: list[IdChoice]
+    district_groups: list[DistrictGroup]
+
+
+class FormValues(BaseModel):
+    """The form as typed (strings), so an invalid submission can be shown again unchanged."""
+
+    specialty: list[str] = Field(default_factory=list)
+    city: str = ""
+    district: str = ""
+    description: str = ""
+    budget_amount: str = ""
+    budget_unit: str = ""
+    timing: str = "flexible"
+    timing_date: str = ""
+    address: str = ""

@@ -239,6 +239,10 @@ Part A: search page and home. Part B: SEO pages, meta tags, robots and sitemap (
 - **Language sticks (final review):** an SEO page also sets the `mc_lang` cookie to its path language when it differs, so Tajik survives the next click (a Russian URL sets it back to Russian). On a 404 both switch links go to `/`. In production `SITE_URL` must be https and not localhost (the app refuses to start). Sitemap SEO entries use fresh (uncached) counts, so they are at most 10 minutes old.
 - **Deviation from BRIEF §4.14** (SEO page with a price range from actual requests): the price range is left out until requests exist (weeks 8-9); the "post a request" link goes to `/` until then.
 
+## R-026 Requests, responses and notifications (weeks 8–9; Claude's calls, owner to confirm)
+- **Time zone:** dates a client types (a request's "by date", window today..+180 days) are judged in Tajikistan's calendar (`Asia/Dushanbe`, UTC+5, `app.core.time.local_today`), not the UTC date, so a client at 01:00 local time is not told that today is yesterday. Timestamps stay in UTC. Without tzdata in the image the zone falls back to a fixed UTC+5 (Tajikistan has no DST).
+- **Request pages (Task 3):** `/requests/new` (prefill `?c=<city-slug>&s=<specialty-slug>`, unknown slugs ignored), `/requests/mine`, `/requests/{id}`; only the client opens a request page for now (everyone else gets 404). The exact address is rendered only on the client's own request page, never in lists or to masters. The home page and the SEO pages' "post a request" links point to the new-request form (SEO pages pass their city and specialty). Photos (up to 4) are added on the request's own page, not in the create form; the upload route has its own multi-file body cap (4 files) and is a 404 with uploads off. `/requests/` is disallowed in `robots.txt`.
+
 ## Open
 - Final name and positioning (round 6): working name **UstoiMan** (R-023); final name and domain still open.
 - Visual direction: tentative pick in R-014; final confirmation pending.

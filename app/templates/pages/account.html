@@ -46,6 +46,14 @@
   </div>
 
   <div class="grid gap-3">
+    <h2 class="text-xl">{{ t('account.heading_requests') }}</h2>
+    <div class="card flex flex-wrap gap-3">
+      <a class="btn btn-primary no-underline" href="{{ url_for('request_new').path }}">{{ t('requests.new_title') }}</a>
+      <a class="btn btn-secondary no-underline" href="{{ url_for('requests_mine').path }}">{{ t('requests.mine_title') }}</a>
+    </div>
+  </div>
+
+  <div class="grid gap-3">
     <h2 class="text-xl">{{ t('account.heading_master') }}</h2>
     <div class="card grid gap-3">
       {% if master_slug %}

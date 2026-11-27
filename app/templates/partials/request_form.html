@@ -1,0 +1,91 @@
+{# The request form fields, shared by "new request" and the edit section. Import with context.
+   `values` holds the strings as typed; `options` the choices. Autoescaped; no inline code. #}
+{% macro fields(values, options, prefix='f') -%}
+<fieldset class="grid gap-2">
+  <legend class="text-sm font-semibold">{{ t('requests.specialty') }}</legend>
+  <p class="text-sm text-muted">{{ t('requests.specialty_hint') }}</p>
+  {% for group in options.categories %}
+  <div class="grid gap-1">
+    <p class="text-sm font-semibold text-muted">{{ group.name }}</p>
+    <ul class="flex flex-wrap gap-2">
+      {% for s in group.specialties %}
+      <li>
+        <label class="pill inline-flex min-h-11 items-center gap-2">
+          <input type="checkbox" name="specialty" value="{{ s.id }}" {% if (s.id | string) in values.specialty %}checked{% endif %}>
+          {{ s.name }}
+        </label>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+</fieldset>
+
+<div class="grid gap-4 sm:grid-cols-2">
+  <div class="grid gap-1.5">
+    <label for="{{ prefix }}-city" class="text-sm font-semibold">{{ t('requests.city') }}</label>
+    <select id="{{ prefix }}-city" name="city" class="input" required>
+      <option value="">{{ t('requests.city_choose') }}</option>
+      {% for c in options.cities %}<option value="{{ c.id }}" {% if (c.id | string) == values.city %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="grid gap-1.5">
+    <label for="{{ prefix }}-district" class="text-sm font-semibold">{{ t('requests.district') }}</label>
+    <select id="{{ prefix }}-district" name="district" class="input" aria-describedby="{{ prefix }}-district-hint">
+      <option value="">{{ t('requests.district_none') }}</option>
+      {% for g in options.district_groups %}
+      <optgroup label="{{ g.city }}">
+        {% for d in g.districts %}<option value="{{ d.id }}" {% if (d.id | string) == values.district %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+      </optgroup>
+      {% endfor %}
+    </select>
+    <p id="{{ prefix }}-district-hint" class="text-sm text-muted">{{ t('requests.district_hint') }}</p>
+  </div>
+</div>
+
+<div class="grid gap-1.5">
+  <label for="{{ prefix }}-description" class="text-sm font-semibold">{{ t('requests.description') }}</label>
+  <textarea id="{{ prefix }}-description" name="description" rows="5" required minlength="{{ description_min }}" maxlength="{{ description_max }}" class="input" aria-describedby="{{ prefix }}-description-hint">{{ values.description }}</textarea>
+  <p id="{{ prefix }}-description-hint" class="text-sm text-muted">{{ t('requests.description_hint', min=description_min, max=description_max) }}</p>
+</div>
+
+<fieldset class="grid gap-2">
+  <legend class="text-sm font-semibold">{{ t('requests.budget') }}</legend>
+  <p class="text-sm text-muted">{{ t('requests.budget_hint') }}</p>
+  <div class="grid gap-4 sm:grid-cols-2">
+    <div class="grid gap-1.5">
+      <label for="{{ prefix }}-amount" class="text-sm">{{ t('requests.budget_amount') }}</label>
+      <input id="{{ prefix }}-amount" name="budget_amount" type="text" inputmode="decimal" maxlength="16" value="{{ values.budget_amount }}" class="input">
+    </div>
+    <div class="grid gap-1.5">
+      <label for="{{ prefix }}-unit" class="text-sm">{{ t('requests.budget_unit') }}</label>
+      <select id="{{ prefix }}-unit" name="budget_unit" class="input">
+        <option value="">{{ t('requests.budget_none') }}</option>
+        {% for u in ['fixed', 'm2', 'running_m', 'piece', 'hour'] %}<option value="{{ u }}" {% if values.budget_unit == u %}selected{% endif %}>{{ t(request_keys.unit[u]) }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+</fieldset>
+
+<fieldset class="grid gap-2">
+  <legend class="text-sm font-semibold">{{ t('requests.timing') }}</legend>
+  <div class="flex flex-wrap gap-2">
+    {% for k in ['urgent', 'date', 'flexible'] %}
+    <label class="pill inline-flex min-h-11 items-center gap-2">
+      <input type="radio" name="timing" value="{{ k }}" {% if values.timing == k %}checked{% endif %}>
+      {{ t(request_keys.timing[k]) }}
+    </label>
+    {% endfor %}
+  </div>
+  <div class="grid gap-1.5 sm:max-w-xs">
+    <label for="{{ prefix }}-date" class="text-sm">{{ t('requests.timing_date') }}</label>
+    <input id="{{ prefix }}-date" name="timing_date" type="date" value="{{ values.timing_date }}" class="input">
+  </div>
+</fieldset>
+
+<div class="grid gap-1.5">
+  <label for="{{ prefix }}-address" class="text-sm font-semibold">{{ t('requests.address') }}</label>
+  <input id="{{ prefix }}-address" name="address" type="text" maxlength="{{ address_max }}" value="{{ values.address }}" class="input" aria-describedby="{{ prefix }}-address-hint">
+  <p id="{{ prefix }}-address-hint" class="text-sm text-muted">{{ t('requests.address_hint') }}</p>
+</div>
+{%- endmacro %}

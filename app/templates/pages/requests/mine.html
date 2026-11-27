@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ t('requests.mine_title') }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-3xl gap-6">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h1 class="text-4xl">{{ t('requests.mine_title') }}</h1>
+    <a class="btn btn-primary no-underline" href="{{ url_for('request_new').path }}">{{ t('requests.new_title') }}</a>
+  </div>
+  {% if cards %}
+  <ul class="grid gap-3">
+    {% for c in cards %}
+    <li>
+      <a class="card flex items-center gap-3 no-underline" href="/requests/{{ c.id }}">
+        {% if c.thumb_url %}<img src="{{ c.thumb_url }}" alt="" width="64" height="64" loading="lazy" class="size-16 shrink-0 rounded-lg object-cover">{% endif %}
+        <span class="grid gap-1">
+          <strong>{{ c.specialties | join(', ') }}</strong>
+          <span class="text-sm text-muted">{{ c.place }} · {{ c.created_at.strftime('%d.%m.%Y') }}</span>
+          <span class="text-sm"><span class="pill">{{ t(request_keys.status[c.status]) }}</span> {{ t('requests.responses', n=c.responses_count) }}</span>
+        </span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-muted">{{ t('requests.mine_empty') }}</p>
+  {% endif %}
+</section>
+{% endblock %}
