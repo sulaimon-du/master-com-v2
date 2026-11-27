@@ -33,7 +33,13 @@
     <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
       <a href="/" class="text-lg font-bold no-underline">{{ app_name }}</a>
       {% if user %}
-        <a class="btn btn-secondary no-underline" href="{{ url_for('account_page').path }}">{{ t('nav.account') }}</a>
+        <nav aria-label="{{ t('nav.menu') }}" class="flex flex-wrap items-center justify-end gap-2">
+          {% if nav_master %}
+          <a class="btn btn-secondary no-underline" href="{{ url_for('feed').path }}">{{ t('nav.feed') }}</a>
+          <a class="btn btn-secondary no-underline" href="{{ url_for('responses_mine').path }}">{{ t('nav.responses') }}</a>
+          {% endif %}
+          <a class="btn btn-secondary no-underline" href="{{ url_for('account_page').path }}">{{ t('nav.account') }}</a>
+        </nav>
       {% else %}
         <a class="btn btn-secondary no-underline" href="{{ url_for('signin_page').path }}">{{ t('nav.signin') }}</a>
       {% endif %}

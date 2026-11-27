@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% import "partials/request_facts.html" as rq with context %}
+{% block title %}{{ t('responses.mine_title') }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-3xl gap-6">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h1 class="text-4xl">{{ t('responses.mine_title') }}</h1>
+    <a class="btn btn-secondary no-underline" href="{{ url_for('feed').path }}">{{ t('feed.title') }}</a>
+  </div>
+  {% if done %}<p role="status" class="notice">{{ t(request_keys.done[done]) }}</p>{% endif %}
+  {% if cards %}
+  <ul class="grid gap-3">
+    {% for c in cards %}
+    <li>
+      <a class="card flex items-center gap-3 no-underline" href="/requests/{{ c.request_id }}">
+        {% if c.thumb_url %}<img src="{{ c.thumb_url }}" alt="" width="64" height="64" loading="lazy" class="size-16 shrink-0 rounded-lg object-cover">{% endif %}
+        <span class="grid gap-1">
+          {% if c.status == 'unavailable' %}
+          <strong>{{ t('feed.unavailable_title') }}</strong>
+          {% else %}
+          <strong>{{ c.specialties | join(', ') }}</strong>
+          <span class="text-sm text-muted">{{ c.place }}</span>
+          {% endif %}
+          <span class="text-sm"><span class="pill">{{ t(request_keys.master_status[c.status]) }}</span> {{ t('responses.responded_at', date=c.responded_at|local_date) }}</span>
+          {% if c.price_amount is not none %}<span class="text-sm">{{ t('feed.price') }}: {{ rq.money(c.price_amount, c.price_unit) }}</span>{% endif %}
+        </span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-muted">{{ t('responses.mine_empty') }}</p>
+  {% endif %}
+</section>
+{% endblock %}

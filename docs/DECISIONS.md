@@ -242,6 +242,10 @@ Part A: search page and home. Part B: SEO pages, meta tags, robots and sitemap (
 ## R-026 Requests, responses and notifications (weeks 8–9; Claude's calls, owner to confirm)
 - **Time zone:** dates a client types (a request's "by date", window today..+180 days) are judged in Tajikistan's calendar (`Asia/Dushanbe`, UTC+5, `app.core.time.local_today`), not the UTC date, so a client at 01:00 local time is not told that today is yesterday. Timestamps stay in UTC. Without tzdata in the image the zone falls back to a fixed UTC+5 (Tajikistan has no DST).
 - **Request pages (Task 3):** `/requests/new` (prefill `?c=<city-slug>&s=<specialty-slug>`, unknown slugs ignored), `/requests/mine`, `/requests/{id}`; only the client opens a request page for now (everyone else gets 404). The exact address is rendered only on the client's own request page, never in lists or to masters. The home page and the SEO pages' "post a request" links point to the new-request form (SEO pages pass their city and specialty). Photos (up to 4) are added on the request's own page, not in the create form; the upload route has its own multi-file body cap (4 files) and is a 404 with uploads off. `/requests/` is disallowed in `robots.txt`.
+- **Client name (deviation from spec D4, conservative):** a master sees the client's name only after being chosen, together with the contact phone; before that a request shows no client identity.
+- **Reopening a paused request** (back in the feed for 15 more responses) does not notify masters again: it is not a new request, and a second fan-out would be spam. Only `create_request` queues `new_request`.
+- **Request photos** are public by an unguessable storage key (R2 public bucket), the same as portfolio photos; the request page itself stays private (404 to anyone who may not see it).
+- **Withdraw button** is shown only while the request is open, although the service still allows withdrawing later (until chosen): the page stays simpler, the service stays permissive. `/feed` and `/responses/` are disallowed in `robots.txt`.
 
 ## Open
 - Final name and positioning (round 6): working name **UstoiMan** (R-023); final name and domain still open.

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% import "partials/portfolio_forms.html" as pf with context %}
+{% block title %}{{ t('feed.unavailable_title') }} · {{ app_name }}{% endblock %}
+{% block content %}
+{# Spec D10.9: a responder learns only that the request is gone. No description, photos or place. #}
+<section class="mx-auto grid max-w-md gap-4">
+  <h1 class="text-4xl">{{ t('feed.unavailable_title') }}</h1>
+  {{ pf.error_notice(error) }}
+  <p class="text-muted">{{ t('feed.unavailable_text') }}</p>
+  <p><a class="btn btn-secondary no-underline" href="{{ url_for('responses_mine').path }}">{{ t('responses.mine_title') }}</a></p>
+</section>
+{% endblock %}

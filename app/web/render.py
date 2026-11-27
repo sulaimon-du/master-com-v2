@@ -2,10 +2,13 @@ from functools import partial
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse
+from sqlalchemy import select
+from sqlalchemy.orm import object_session
 
 from app.core.config import Settings, get_settings
 from app.core.i18n import translate
 from app.core.security import new_token
+from app.models.master import MasterProfile
 from app.models.user import User
 from app.schemas.account import AccountView
 from app.web.cookies import CSRF, CSRF_MAX_AGE, cookie_name, set_cookie
@@ -17,6 +20,14 @@ def _bot_url(settings: Settings, start: str) -> str | None:
     if not settings.telegram_enabled:
         return None
     return f"https://t.me/{settings.telegram_bot_username}?start={start}"
+
+
+def _is_master(user: User | None) -> bool:
+    """The user owns a master profile: the header then links to the feed and their responses."""
+    db = object_session(user) if user is not None else None
+    if user is None or db is None:
+        return False
+    return db.scalar(select(MasterProfile.id).where(MasterProfile.user_id == user.id)) is not None
 
 
 def render(
@@ -39,6 +50,7 @@ def render(
         "csrf_token": token,
         # Templates get a view without sensitive fields, never the ORM object.
         "user": AccountView.from_user(user) if user else None,
+        "nav_master": _is_master(user),
         "google_enabled": settings.google_enabled,
         "telegram_enabled": settings.telegram_enabled,
         "telegram_signin_url": _bot_url(settings, "login"),

@@ -59,6 +59,10 @@
       {% if master_slug %}
       <p><a class="link" href="/m/{{ master_slug }}">{{ t('account.master_profile') }}</a></p>
       <a class="btn btn-secondary no-underline" href="{{ url_for('master_edit').path }}">{{ t('account.master_edit') }}</a>
+      <div class="flex flex-wrap gap-3">
+        <a class="btn btn-primary no-underline" href="{{ url_for('feed').path }}">{{ t('feed.title') }}</a>
+        <a class="btn btn-secondary no-underline" href="{{ url_for('responses_mine').path }}">{{ t('responses.mine_title') }}</a>
+      </div>
       {% else %}
       <a class="btn btn-secondary no-underline" href="{{ url_for('master_basics').path }}">{{ t('account.master_become') }}</a>
       {% endif %}

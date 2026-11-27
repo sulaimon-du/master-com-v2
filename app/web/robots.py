@@ -14,6 +14,8 @@ DISALLOW = (
     "/account",
     "/master/",
     "/requests/",
+    "/feed",
+    "/responses/",
     "/auth/",
     "/signin",
     "/register",

@@ -8,7 +8,7 @@ is stale.
 checked. To approve, tell Claude which keys are fine (or send corrections); they are recorded in
 `app/locales/tg_approved.json`.
 
-**435 texts, 339 drafts to check.**
+**496 texts, 400 drafts to check.**
 
 | Key | Русский | Тоҷикӣ | Status |
 |---|---|---|---|
@@ -100,6 +100,45 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `error.not_found` | Страница не найдена. | Саҳифа ёфт нашуд. | approved |
 | `error.rate_limited` | Слишком много попыток. Подождите немного и попробуйте снова. | Кӯшишҳо аз ҳад зиёд шуданд. Каме интизор шавед ва дубора кӯшиш кунед. | approved |
 | `error.rate_limited_title` | Слишком много попыток | Кӯшишҳо аз ҳад зиёд | approved |
+| `feed.contact_later` | Телефон клиента появится здесь, если он выберет вас. | Агар мизоҷ шуморо интихоб кунад, телефонаш дар ин ҷо пайдо мешавад. | draft |
+| `feed.contact_name` | Имя | Ном | draft |
+| `feed.contact_phone` | Телефон | Телефон | draft |
+| `feed.contact_title` | Контакт клиента | Тамоси мизоҷ | draft |
+| `feed.empty` | Подходящих заявок пока нет. Загляните позже. | Ҳоло дархости мувофиқ нест. Баъдтар бинед. | draft |
+| `feed.end` | Больше заявок нет. | Дигар дархост нест. | draft |
+| `feed.err.already` | Вы уже откликнулись на эту заявку. | Шумо аллакай ба ин дархост посух додаед. | draft |
+| `feed.err.chosen` | Клиент выбрал вас: отклик уже нельзя отозвать. | Мизоҷ шуморо интихоб кард: посухро дигар бозпас гирифтан мумкин нест. | draft |
+| `feed.err.message` | Сообщение не должно быть длиннее 500 символов. | Паём набояд аз 500 аломат дарозтар бошад. | draft |
+| `feed.err.not_master` | Откликаться могут мастера с опубликованным профилем. | Танҳо устоҳое, ки профилашон нашр шудааст, посух дода метавонанд. | draft |
+| `feed.err.paused` | На заявку уже откликнулось достаточно мастеров. | Ба дархост аллакай устоҳои кофӣ посух додаанд. | draft |
+| `feed.err.price` | Цена: укажите сумму больше нуля и за что она, либо оставьте оба поля пустыми. | Нарх: маблағи аз сифр зиёд ва барои чӣ будани онро нависед ё ҳарду майдонро холӣ гузоред. | draft |
+| `feed.err.state` | Заявка уже не принимает отклики. | Дархост дигар посух қабул намекунад. | draft |
+| `feed.err.title` | Действие недоступно | Амал дастрас нест | draft |
+| `feed.err.withdrawn` | Отклик уже отозван. | Посух аллакай бозпас гирифта шудааст. | draft |
+| `feed.lead` | Заявки по вашим специальностям и районам, новые сверху. | Дархостҳо аз рӯи ихтисос ва ноҳияҳои шумо, навтаринҳо дар боло. | draft |
+| `feed.message` | Сообщение клиенту | Паём ба мизоҷ | draft |
+| `feed.message_hint` | Необязательно, до {max} символов: опыт, сроки, вопросы. | Ихтиёрӣ, то {max} аломат: таҷриба, мӯҳлат, саволҳо. | draft |
+| `feed.more` | Показать ещё | Боз нишон додан | draft |
+| `feed.no_address` | Точный адрес клиент сообщит сам. | Суроғаи дақиқро мизоҷ худаш мегӯяд. | draft |
+| `feed.not_eligible` | Лента заявок доступна мастерам с опубликованным профилем: заполните специальности, районы работы и контакты. | Лентаи дархостҳо барои устоҳое дастрас аст, ки профилашон нашр шудааст: ихтисосҳо, ноҳияҳои кор ва тамосҳоро пур кунед. | draft |
+| `feed.not_eligible_link` | Перейти в кабинет | Ба кабинет гузаштан | draft |
+| `feed.open` | Открыть заявку | Кушодани дархост | draft |
+| `feed.price` | Ваша цена | Нархи шумо | draft |
+| `feed.price_hint` | Необязательно: сумма и за что она. | Ихтиёрӣ: маблағ ва барои чӣ. | draft |
+| `feed.respond_submit` | Готов взяться | Омодаам кор кунам | draft |
+| `feed.respond_title` | Готовы взяться? | Омодаед кор кунед? | draft |
+| `feed.status.cancelled` | Заявка отменена | Дархост бекор карда шуд | draft |
+| `feed.status.chosen` | Вас выбрали | Шуморо интихоб карданд | draft |
+| `feed.status.closed` | Заявка закрыта | Дархост баста шуд | draft |
+| `feed.status.open` | Ждёт выбора клиента | Интизори интихоби мизоҷ | draft |
+| `feed.status.other_chosen` | Клиент выбрал другого мастера | Мизоҷ устои дигарро интихоб кард | draft |
+| `feed.status.unavailable` | Больше недоступна | Дигар дастрас нест | draft |
+| `feed.title` | Лента заявок | Лентаи дархостҳо | draft |
+| `feed.unavailable_text` | Эту заявку больше нельзя открыть. | Ин дархостро дигар кушодан мумкин нест. | draft |
+| `feed.unavailable_title` | Заявка больше недоступна | Дархост дигар дастрас нест | draft |
+| `feed.withdraw` | Отозвать отклик | Посухро бозпас гирифтан | draft |
+| `feed.withdraw_hint` | Передумали? Отклик можно отозвать, пока клиент не выбрал мастера. | Фикратонро дигар кардед? То интихоби мизоҷ посухро бозпас гирифтан мумкин аст. | draft |
+| `feed.your_response` | Ваш отклик | Посухи шумо | draft |
 | `footer.lang` | Язык | Забон | approved |
 | `forgot.sent_text` | Если аккаунт с этой почтой есть, мы отправили ссылку для смены пароля. Она действует один час. | Агар ҳисоб бо ин почта бошад, мо пайванди иваз кардани рамзро фиристодем. Он як соат эътибор дорад. | approved |
 | `forgot.sent_title` | Проверьте почту | Почтаи худро санҷед | approved |
@@ -200,6 +239,9 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `master.whatsapp_hint` | Номер, например +992 90 123 45 67 | Рақам, масалан +992 90 123 45 67 | draft |
 | `master.whole_city` | весь город | тамоми шаҳр | draft |
 | `nav.account` | Аккаунт | Ҳисоб | approved |
+| `nav.feed` | Лента | Лента | draft |
+| `nav.menu` | Меню | Меню | draft |
+| `nav.responses` | Отклики | Посухҳо | draft |
 | `nav.signin` | Войти | Ворид шудан | approved |
 | `nav.skip` | Перейти к содержимому | Ба мундариҷа гузаштан | approved |
 | `portfolio.back` | К портфолио | Ба портфолио | draft |
@@ -282,6 +324,10 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `requests.budget_unit` | За что | Барои чӣ | draft |
 | `requests.cancel` | Отменить заявку | Бекор кардани дархост | draft |
 | `requests.cancel_hint` | Заявка опубликована по ошибке. | Дархост хато нашр шудааст. | draft |
+| `requests.choose` | Выбрать этого мастера | Ин усторо интихоб кардан | draft |
+| `requests.choose_phone` | Ваш телефон для мастера | Телефони шумо барои усто | draft |
+| `requests.choose_phone_hint` | Его увидит только выбранный мастер. | Онро танҳо устои интихобшуда мебинад. | draft |
+| `requests.chosen` | Выбран | Интихобшуда | draft |
 | `requests.city` | Город | Шаҳр | draft |
 | `requests.city_choose` | Выберите город | Шаҳрро интихоб кунед | draft |
 | `requests.close` | Закрыть заявку | Бастани дархост | draft |
@@ -290,6 +336,8 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `requests.close_reason.auto_stale` | Закрыта автоматически: давно нет новостей. | Худкор баста шуд: муддати дароз хабаре нест. | draft |
 | `requests.close_reason.client_cancelled` | Вы отменили заявку. | Шумо дархостро бекор кардед. | draft |
 | `requests.close_reason.client_closed` | Вы закрыли заявку. | Шумо дархостро бастед. | draft |
+| `requests.complete` | Работа выполнена | Кор иҷро шуд | draft |
+| `requests.complete_hint` | Мастер закончил работу? Отметьте заявку выполненной. | Усто корро ба анҷом расонд? Дархостро иҷрошуда қайд кунед. | draft |
 | `requests.currency` | сомони | сомонӣ | draft |
 | `requests.description` | Описание работ | Тавсифи корҳо | draft |
 | `requests.description_hint` | От {min} до {max} символов: что сделать, размеры, материалы. | Аз {min} то {max} аломат: чӣ кор кардан, андозаҳо, масолеҳ. | draft |
@@ -298,11 +346,15 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `requests.district_hint` | Нужен для городов, где есть районы. | Барои шаҳрҳое, ки ноҳия доранд, лозим аст. | draft |
 | `requests.district_none` | Без района | Бе ноҳия | draft |
 | `requests.done.cancelled` | Заявка отменена. | Дархост бекор карда шуд. | draft |
+| `requests.done.chosen` | Мастер выбран. Он увидит ваш телефон. | Усто интихоб шуд. Ӯ телефони шуморо мебинад. | draft |
 | `requests.done.closed` | Заявка закрыта. | Дархост баста шуд. | draft |
+| `requests.done.completed` | Отлично! Работа отмечена выполненной. | Хуб! Кор иҷрошуда қайд карда шуд. | draft |
 | `requests.done.created` | Заявка опубликована. Можно добавить фото. | Дархост нашр шуд. Метавонед акс илова кунед. | draft |
 | `requests.done.photos` | Фото добавлены. | Аксҳо илова шуданд. | draft |
 | `requests.done.reopened` | Заявка снова в ленте. | Дархост боз дар лента аст. | draft |
+| `requests.done.responded` | Отклик отправлен. Клиент увидит его в заявке. | Посух фиристода шуд. Мизоҷ онро дар дархост мебинад. | draft |
 | `requests.done.saved` | Изменения сохранены. | Тағйирот захира шуд. | draft |
+| `requests.done.withdrawn` | Отклик отозван. | Посух бозпас гирифта шуд. | draft |
 | `requests.edit_locked` | Заявку нельзя изменить: на неё уже откликнулись. Её можно закрыть или отменить. | Дархостро тағйир додан мумкин нест: ба он аллакай ҷавоб додаанд. Онро бастан ё бекор кардан мумкин аст. | draft |
 | `requests.edit_title` | Изменить заявку | Тағйир додани дархост | draft |
 | `requests.end_title` | Завершить заявку | Анҷоми дархост | draft |
@@ -314,13 +366,17 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `requests.err.locked` | Заявку нельзя менять: на неё уже откликнулись. | Дархостро тағйир додан мумкин нест: ба он аллакай ҷавоб додаанд. | draft |
 | `requests.err.no_files` | Выберите хотя бы один файл. | Ақаллан як файлро интихоб кунед. | draft |
 | `requests.err.not_found` | Заявка не найдена. | Дархост ёфт нашуд. | draft |
+| `requests.err.phone` | Укажите телефон в формате +992 XX XXX XX XX. | Телефонро дар шакли +992 XX XXX XX XX нависед. | draft |
 | `requests.err.photos_limit` | К заявке можно добавить не больше 4 фото. | Ба дархост на бештар аз 4 акс илова кардан мумкин аст. | draft |
 | `requests.err.place` | Выберите город и район из списка. | Шаҳр ва ноҳияро аз рӯйхат интихоб кунед. | draft |
+| `requests.err.response_gone` | Этот отклик больше недоступен. Обновите страницу. | Ин посух дигар дастрас нест. Саҳифаро нав кунед. | draft |
 | `requests.err.save` | Не удалось сохранить, попробуйте ещё раз. | Захира кардан нашуд, боз кӯшиш кунед. | draft |
 | `requests.err.specialty` | Выберите от 1 до 3 специальностей. | Аз 1 то 3 ихтисос интихоб кунед. | draft |
 | `requests.err.state` | Это действие уже недоступно: состояние заявки изменилось. | Ин амал дигар дастрас нест: ҳолати дархост тағйир ёфт. | draft |
 | `requests.err.timing` | Срок: «срочно», «не срочно» или дата не раньше сегодня и не позже чем через 180 дней. | Мӯҳлат: «фаврӣ», «фаврӣ нест» ё санае, ки аз имрӯз барвақттар ва аз 180 рӯз дертар набошад. | draft |
 | `requests.err.too_many` | Не больше 4 файлов за раз. | Дар як вақт на бештар аз 4 файл. | draft |
+| `requests.err.withdrawn` | Мастер отозвал этот отклик. Выберите другого. | Усто ин посухро бозпас гирифт. Дигареро интихоб кунед. | draft |
+| `requests.master_unavailable` | Мастер больше недоступен. | Уста дигар дастрас нест. | draft |
 | `requests.mine_empty` | Заявок пока нет. | Ҳоло дархост нест. | draft |
 | `requests.mine_title` | Мои заявки | Дархостҳои ман | draft |
 | `requests.new_lead` | Опишите работу: подходящие мастера увидят заявку и откликнутся. | Кореро тасвир кунед: усторони мувофиқ дархостро мебинанд ва ҷавоб медиҳанд. | draft |
@@ -334,6 +390,8 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `requests.photos_upload` | Загрузить | Бор кардан | draft |
 | `requests.reopen` | Вернуть в ленту | Ба лента баргардонед | draft |
 | `requests.responses` | Откликов: {n} | Ҷавобҳо: {n} | draft |
+| `requests.responses_empty` | Откликов пока нет. Подходящие мастера уже видят заявку. | Ҳоло посух нест. Устоҳои мувофиқ дархостро мебинанд. | draft |
+| `requests.responses_title` | Отклики мастеров | Посухҳои устоҳо | draft |
 | `requests.save` | Сохранить | Захира кардан | draft |
 | `requests.specialty` | Что нужно сделать | Чӣ кор кардан лозим аст | draft |
 | `requests.specialty_hint` | Выберите от 1 до 3 специальностей. | Аз 1 то 3 ихтисос интихоб кунед. | draft |
@@ -361,6 +419,9 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `reset.password` | Новый пароль, не меньше 10 символов | Рамзи нав, на камтар аз 10 аломат | approved |
 | `reset.submit` | Сохранить пароль | Рамзро захира кунед | approved |
 | `reset.title` | Новый пароль | Рамзи нав | approved |
+| `responses.mine_empty` | Вы пока ни на что не откликнулись. Загляните в ленту заявок. | Шумо ҳоло ба ягон дархост посух надодаед. Ба лентаи дархостҳо нигаред. | draft |
+| `responses.mine_title` | Мои отклики | Посухҳои ман | draft |
+| `responses.responded_at` | Отклик от {date} | Посух аз {date} | draft |
 | `search.active` | Выбранные фильтры | Филтрҳои интихобшуда | draft |
 | `search.available` | Принимают заказы сейчас | Ҳоло фармоиш қабул мекунанд | draft |
 | `search.category` | Направление | Самт | draft |

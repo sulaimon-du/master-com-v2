@@ -1,0 +1,26 @@
+{# Budget and timing of a request (or a response's price), shared by the master pages.
+   Import with context. Never the address, never contacts. #}
+{% macro money(amount, unit) -%}
+{{ ('%.2f' % amount) | replace('.00', '') }} {{ t('requests.currency') }}, {{ t(request_keys.unit[unit]) }}
+{%- endmacro %}
+
+{% macro facts(v) -%}
+<dl class="grid gap-1 text-sm">
+  {% if v.budget_amount is not none %}
+  <div><dt class="inline text-muted">{{ t('requests.budget') }}:</dt> <dd class="inline">{{ money(v.budget_amount, v.budget_unit) }}</dd></div>
+  {% endif %}
+  {% if v.timing %}
+  <div><dt class="inline text-muted">{{ t('requests.timing') }}:</dt> <dd class="inline">{{ t(request_keys.timing[v.timing]) }}{% if v.timing_date %}: {{ v.timing_date.strftime('%d.%m.%Y') }}{% endif %}</dd></div>
+  {% endif %}
+</dl>
+{%- endmacro %}
+
+{% macro photos(list) -%}
+{% if list %}
+<ul class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+  {% for p in list %}
+  <li><a href="{{ p.url }}"><img src="{{ p.thumb_url }}" width="{{ p.width }}" height="{{ p.height }}" alt="" loading="lazy" class="aspect-square w-full rounded-lg object-cover"></a></li>
+  {% endfor %}
+</ul>
+{% endif %}
+{%- endmacro %}

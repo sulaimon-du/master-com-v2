@@ -13,7 +13,20 @@ TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 # Banner codes after a request redirect (`?done=`).
-REQUEST_DONE_CODES = ("created", "saved", "photos", "closed", "cancelled", "reopened")
+REQUEST_DONE_CODES = (
+    "created",
+    "saved",
+    "photos",
+    "closed",
+    "cancelled",
+    "reopened",
+    "chosen",
+    "completed",
+    "responded",
+    "withdrawn",
+)
+# A request's state for a master (MyResponseStatus), as on "My responses" and the master view.
+MASTER_STATUSES = ("open", "other_chosen", "chosen", "closed", "cancelled", "unavailable")
 
 # Translation keys picked by value (status, unit, ...), spelled out so the key-usage test can see
 # them; templates read them as `request_keys.status[x]`.
@@ -23,6 +36,7 @@ templates.env.globals["request_keys"] = {
     "unit": {u: f"requests.unit.{u}" for u in PRICE_UNITS},
     "timing": {k: f"requests.timing.{k}" for k in TIMINGS},
     "done": {d: f"requests.done.{d}" for d in REQUEST_DONE_CODES},
+    "master_status": {s: f"feed.status.{s}" for s in MASTER_STATUSES},
 }
 
 
