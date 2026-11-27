@@ -21,6 +21,7 @@ DISALLOW = (
     "/register",
     "/password/",
     "/confirm",
+    "/partials/",
 )
 
 

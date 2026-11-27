@@ -1,0 +1,17 @@
+<div id="home-masters-block" class="grid gap-4">
+  {% import "partials/master_card.html" as mc with context %}
+  <ul class="flex flex-wrap gap-2" aria-label="{{ t('home.masters_filters') }}">
+    {% for c in masters.chips %}
+    <li><a class="pill inline-flex min-h-11 items-center no-underline{% if c.current %} pill-current{% endif %}" href="{{ c.href }}" hx-get="{{ c.hx_get }}" hx-target="#home-masters-block" hx-swap="outerHTML" hx-push-url="{{ c.href }}"{% if c.current %} aria-current="true"{% endif %} data-chip="{{ c.key }}">{{ c.label }}</a></li>
+    {% endfor %}
+  </ul>
+  {% if masters.items.items %}
+  <ul class="grid gap-4 md:auto-rows-fr md:grid-cols-2 lg:grid-cols-4">
+    {% for m in masters.items.items %}<li class="h-full">{{ mc.card(m, compact=true) }}</li>{% endfor %}
+  </ul>
+  {% else %}
+  <p class="card text-muted">{{ t('home.masters_empty') }}</p>
+  {% endif %}
+  <p><a class="link inline-flex min-h-11 items-center font-semibold" href="{{ masters.search_href }}">{{ t('home.masters_more') }} <span aria-hidden="true">→</span></a></p>
+  <!-- /home-masters-block -->
+</div>
