@@ -1,4 +1,4 @@
-"""The worker's timers (spec D6, PRODUCT_RULES C4/C5) the purge of expired sign-in rows
+"""The worker's timers (spec D6, PRODUCT_RULES C4/C5), the purge of expired sign-in rows
 and of finished timer jobs older than a week.
 
 `schedule` queues one job per timer and 10-minute window (dedupe key per window), so several
@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.core.time import utcnow
 from app.models.auth import AuthSession, AuthToken, OAuthFlow, TelegramSignin
-from app.models.jobs import PERIODIC_KINDS, Job
+from app.models.jobs import PERIODIC_KINDS, PURGE_AUTH, REQUEST_EXPIRY, REQUEST_STALE, Job
 from app.models.request import JobRequest
 from app.services import jobs
 from app.services.auth import SESSION_IDLE
@@ -34,7 +34,7 @@ STALE_CLOSE_AFTER = timedelta(days=30)
 # Finished timer jobs (one per kind every 10 minutes) are kept this long, then deleted.
 TIMER_JOBS_KEPT = timedelta(days=7)
 
-EXPIRY, STALE, PURGE = PERIODIC_KINDS
+EXPIRY, STALE, PURGE = REQUEST_EXPIRY, REQUEST_STALE, PURGE_AUTH
 
 
 def window_start(now: datetime) -> datetime:

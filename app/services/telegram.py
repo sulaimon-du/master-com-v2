@@ -168,6 +168,15 @@ def user_by_telegram_id(db: Session, telegram_id: int) -> User | None:
     return db.scalar(select(User).where(User.telegram_id == telegram_id))
 
 
+def clear_bot_blocked(db: Session, telegram_id: int) -> None:
+    """The Telegram user wrote to the bot: they no longer block it (spec D10.6)."""
+    db.execute(
+        update(User)
+        .where(User.telegram_id == telegram_id, User.telegram_blocked_at.is_not(None))
+        .values(telegram_blocked_at=None)
+    )
+
+
 def _lock_user(db: Session, telegram_id: int) -> User | None:
     """Reload under the lock: a block committed while we waited must not be missed."""
     return db.scalar(

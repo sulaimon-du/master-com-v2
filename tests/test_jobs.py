@@ -16,7 +16,7 @@ from app.core.db import get_sessionmaker
 from app.core.time import utcnow
 from app.models import Job
 from app.schemas.requests import ResponseInput
-from app.services import jobs
+from app.services import jobs, notifications
 from app.services import responses as response_svc
 from app.worker import loop, periodic
 from tests import feed_support as fs
@@ -193,6 +193,8 @@ def handled(monkeypatch) -> list[dict]:  # type: ignore[no-untyped-def]
             raise RuntimeError("boom with details that must not be stored")
 
     monkeypatch.setitem(jobs.HANDLERS, "new_request", handler)
+    # The loop and the CLI install the real handlers: keep this one in place.
+    monkeypatch.setattr(notifications, "install", lambda: None)
     return seen
 
 
@@ -252,6 +254,23 @@ def test_backoff_doubles_and_the_job_fails_after_max_attempts(factory, handled) 
     assert job.failed_at is not None and job.last_error == "RuntimeError"
     assert jobs.run_once(factory, WORKER, now=later + timedelta(days=30)) == 0
     assert len(handled) == 5
+
+
+@pytest.mark.parametrize(("retry_after", "expected"), [(600, 600), (5, 120)])
+def test_retry_after_waits_the_longer_of_it_and_the_backoff(  # type: ignore[no-untyped-def]
+    factory, monkeypatch, retry_after: int, expected: int
+) -> None:
+    def limited(db: Session, payload: dict) -> None:
+        raise jobs.RetryAfter(retry_after)
+
+    monkeypatch.setitem(jobs.HANDLERS, "new_request", limited)
+    (job_id,) = _add(factory)
+    started = utcnow()
+    assert jobs.run_once(factory, WORKER) == 1
+    job = _job(factory, job_id)
+    assert (job.attempts, job.last_error, job.failed_at) == (1, "RetryAfter", None)
+    wait = job.run_at - started
+    assert timedelta(seconds=expected) <= wait < timedelta(seconds=expected + 5)
 
 
 def test_an_unknown_kind_fails_once_without_stopping_the_batch(factory, handled) -> None:  # type: ignore[no-untyped-def]

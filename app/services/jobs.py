@@ -29,6 +29,18 @@ STALE_LOCK = timedelta(minutes=10)
 UNKNOWN_KIND = "unknown_kind"
 STALE_GAVE_UP = "stale_lock"
 
+
+class RetryAfter(Exception):
+    """Raised by a handler that must not run again for `seconds` (e.g. Telegram's 429 answer).
+
+    The job is retried after the longer of this and the usual backoff.
+    """
+
+    def __init__(self, seconds: float) -> None:
+        super().__init__()
+        self.seconds = max(0.0, float(seconds))
+
+
 # A handler gets its own session (one transaction) and the job's payload (ids only).
 Handler = Callable[[Session, dict[str, Any]], None]
 HANDLERS: dict[str, Handler] = {}
@@ -136,12 +148,13 @@ def _lock_mine(db: Session, job_id: int, worker_id: str) -> Job | None:
 
     The lock is held through the handler, so other workers' SKIP LOCKED claims pass over a job
     that is running, however long it takes; only a dead connection lets it be reclaimed. A job
-    already reclaimed by another worker (or finished) returns None: its handler must not run.
+    already reclaimed by another worker (or finished), or locked by someone else right now,
+    returns None: its handler must not run (a locked row is never waited on).
     """
     return db.scalars(
         select(Job)
         .where(Job.id == job_id, Job.locked_by == worker_id, *_pending())
-        .with_for_update()
+        .with_for_update(skip_locked=True)
     ).first()
 
 
@@ -167,6 +180,7 @@ def _run_job(factory: sessionmaker[Session], job_id: int, worker_id: str, now: d
         except Exception as exc:  # the boundary: one job never stops the others
             db.rollback()
             error = type(exc).__name__[:200]
+            retry_after = exc.seconds if isinstance(exc, RetryAfter) else 0.0
             # Type and stack frames only, never the message (it may carry ids, SQL values, URLs).
             frames = "".join(traceback.format_tb(exc.__traceback__))
         # The rollback released the lock: take it again and check the claim is still ours.
@@ -186,7 +200,8 @@ def _run_job(factory: sessionmaker[Session], job_id: int, worker_id: str, now: d
                 frames,
             )
         else:
-            retry_at = utcnow() + backoff(attempts)
+            wait = max(backoff(attempts), timedelta(seconds=retry_after))
+            retry_at = utcnow() + wait
             job.run_at, job.last_error, job.locked_at, job.locked_by = retry_at, error, None, None
             log.warning(
                 "job %d %s failed (attempt %d/%d), retry at %s: %s\n%s",

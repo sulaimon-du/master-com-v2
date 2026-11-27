@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ t('notifications.title') }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-2xl gap-6">
+  <h1 class="text-4xl">{{ t('notifications.title') }}</h1>
+  {% if saved %}<p role="status" class="notice">{{ t('notifications.saved') }}</p>{% endif %}
+  {% if bot_blocked %}<p role="alert" class="notice">{{ t('notifications.bot_blocked') }}</p>{% endif %}
+  <p class="text-sm text-muted">{{ t('notifications.intro') }}</p>
+  {% if not ready.telegram %}<p class="text-sm text-muted">{{ t('notifications.telegram_not_ready') }}</p>{% endif %}
+  {% if not ready.email %}<p class="text-sm text-muted">{{ t('notifications.email_not_ready') }}</p>{% endif %}
+  <form method="post" action="{{ url_for('notifications_save').path }}" class="grid gap-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr>
+            <th scope="col" class="text-left">{{ t('notifications.event') }}</th>
+            {% for c, label in channels %}<th scope="col">{{ t(label) }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for e, event_label in events %}
+          <tr>
+            <th scope="row" class="py-2 text-left font-normal">{{ t(event_label) }}</th>
+            {% for c, channel_label in channels %}
+            <td class="text-center">
+              <input type="checkbox" name="on" value="{{ e }}:{{ c }}" aria-label="{{ t(event_label) }} — {{ t(channel_label) }}"{% if switches[e ~ ':' ~ c] %} checked{% endif %}>
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <button class="btn btn-primary" type="submit">{{ t('notifications.save') }}</button>
+  </form>
+  <p><a class="link" href="{{ url_for('account_page').path }}">{{ t('notifications.back') }}</a></p>
+</section>
+{% endblock %}

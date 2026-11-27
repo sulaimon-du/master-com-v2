@@ -31,9 +31,15 @@ EVENTS = (
 )
 CHANNELS = ("telegram", "email")
 # The worker's own timers (spec D6), enqueued every 10 minutes with a dedupe key per window.
-PERIODIC_KINDS = ("periodic:request_expiry", "periodic:request_stale", "periodic:purge_auth")
-# Every kind the queue accepts. A notification event is also the kind of the job that sends it.
-JOB_KINDS = (*EVENTS, *PERIODIC_KINDS)
+REQUEST_EXPIRY = "periodic:request_expiry"
+REQUEST_STALE = "periodic:request_stale"
+PURGE_AUTH = "periodic:purge_auth"
+PERIODIC_KINDS = (REQUEST_EXPIRY, REQUEST_STALE, PURGE_AUTH)
+# One message to one user on one channel; the event jobs above decide who gets one (Task 8).
+NOTIFY = "notify"
+# Every kind the queue accepts. A notification event is also the kind of the job that decides
+# its recipients; each recipient and channel then gets its own `notify` job.
+JOB_KINDS = (*EVENTS, NOTIFY, *PERIODIC_KINDS)
 
 
 class Job(IdPk, Timestamps, Base):

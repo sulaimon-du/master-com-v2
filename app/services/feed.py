@@ -99,6 +99,36 @@ def matching_request(
     return db.scalar(stmt)
 
 
+def matching_masters(db: Session, request: JobRequest, *, limit: int) -> list[User]:
+    """Owners of the visible masters whose feed this request is in (the D3 rule of `_matches`
+    seen from the request's side), newest published first, at most `limit`.
+
+    Only the master side is checked here; the caller checks the request itself (status, hidden,
+    client active). The two directions are kept in step by a matrix test.
+    """
+    specialty_ids = list(
+        db.scalars(
+            select(RequestSpecialty.specialty_id).where(RequestSpecialty.request_id == request.id)
+        )
+    )
+    place = [MasterSearch.whole_city_ids.contains([request.city_id])]
+    if request.district_id is None:
+        place.append(MasterSearch.city_ids.contains([request.city_id]))
+    else:
+        place.append(MasterSearch.district_ids.contains([request.district_id]))
+    stmt = (
+        search._visible(select(User).select_from(MasterSearch))
+        .where(
+            MasterSearch.specialty_ids.overlap(specialty_ids),
+            or_(*place),
+            User.id != request.client_id,
+        )
+        .order_by(MasterSearch.published_at.desc().nulls_last(), MasterSearch.master_id.desc())
+        .limit(limit)
+    )
+    return list(db.scalars(stmt))
+
+
 # --- cursor -----------------------------------------------------------------------------------
 
 

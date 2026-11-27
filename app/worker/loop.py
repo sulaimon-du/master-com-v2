@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.db import get_sessionmaker
 from app.core.time import utcnow
-from app.services import jobs
+from app.services import jobs, notifications
 from app.worker import periodic
 
 log = logging.getLogger("app.worker")
@@ -22,8 +22,9 @@ ERROR_PAUSE_SECONDS = 30.0
 
 
 def install_handlers() -> None:
-    """Every handler the worker runs. Task 8 adds the notification handlers here."""
+    """Every handler the worker runs: the timers and the notifications."""
     periodic.install()
+    notifications.install()
 
 
 def tick(
