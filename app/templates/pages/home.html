@@ -39,9 +39,11 @@
 
   <section class="grid gap-4" aria-labelledby="home-cats">
     <h2 id="home-cats" class="text-3xl">{{ t('home.categories') }}</h2>
-    <ul class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+    {#- Every tile is as tall as the tallest one (auto-rows-fr + h-full); long names wrap to at
+        most 3 lines, the full name stays in the title. #}
+    <ul class="grid auto-rows-fr grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4" id="home-cat-tiles">
       {% for c in options.categories %}
-      <li><a class="card flex min-h-20 items-center font-semibold no-underline" href="{{ url_for('search_page').path }}?cat={{ c.slug | urlencode }}">{{ c.name }}</a></li>
+      <li class="h-full"><a class="card flex h-full min-h-20 items-center text-sm font-semibold no-underline sm:text-base" href="{{ url_for('search_page').path }}?cat={{ c.slug | urlencode }}" title="{{ c.name }}"><span class="line-clamp-3 break-words hyphens-auto">{{ c.name }}</span></a></li>
       {% endfor %}
     </ul>
   </section>
@@ -59,6 +61,14 @@
       {{ step(2, t('home.step2_title'), t('home.step2_text')) }}
       {{ step(3, t('home.step3_title'), t('home.step3_text')) }}
     </ol>
+  </section>
+
+  <section id="masters" class="grid scroll-mt-4 gap-4" aria-labelledby="home-masters">
+    <div class="grid gap-1">
+      <h2 id="home-masters" class="text-3xl">{{ t('home.masters_title') }}</h2>
+      <p class="max-w-prose text-muted">{{ t('home.masters_lead') }}</p>
+    </div>
+    {% include "partials/home_masters.html" %}
   </section>
 </div>
 {% endblock %}

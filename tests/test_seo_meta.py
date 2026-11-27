@@ -231,6 +231,7 @@ def test_production_robots_txt_and_no_x_robots_tag(monkeypatch: pytest.MonkeyPat
         "/register",
         "/password/",
         "/confirm",
+        "/partials/",
     ):
         assert f"Disallow: {path}" in lines
     assert "Disallow: /" not in lines

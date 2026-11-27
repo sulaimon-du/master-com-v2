@@ -80,3 +80,12 @@ class SearchOptions(BaseModel):
     categories: list[CategoryChoice]
     cities: list[Choice]
     districts: list[Choice]  # of the selected city only; district slugs are unique per city
+
+
+class HomeMasters(BaseModel):
+    """The home page's masters block (R-028): city chips, the filters that took effect, cards."""
+
+    cities: list[Choice]  # the top cities by visible masters, most first
+    city: str | None  # one of `cities`, or None for "all"
+    available: bool
+    items: list[MasterCard]
