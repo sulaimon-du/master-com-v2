@@ -7,25 +7,18 @@ task; today only the client opens `/requests/{id}`.
 
 import logging
 from typing import Annotated
+from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, Depends, File, Form, Path, Query, Request
 from fastapi.datastructures import UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from pydantic import ValidationError
-from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.db import DbSession
-from app.models import RequestPhoto
-from app.models.common import PRICE_UNITS
-from app.models.request import (
-    CLOSE_REASONS,
-    MAX_REQUEST_PHOTOS,
-    REQUEST_STATUSES,
-    TIMINGS,
-)
+from app.models.request import MAX_REQUEST_PHOTOS
 from app.models.user import User
 from app.schemas.requests import FormValues, RequestInput, RequestView
 from app.services import request_options, requests
@@ -36,7 +29,7 @@ from app.web.auth import notice_page
 from app.web.csrf import CSRFProtected
 from app.web.deps import current_lang, current_user
 from app.web.render import render
-from app.web.templating import templates
+from app.web.templating import REQUEST_DONE_CODES
 
 log = logging.getLogger(__name__)
 router = APIRouter(include_in_schema=False)
@@ -45,19 +38,7 @@ CurrentUser = Annotated[User | None, Depends(current_user)]
 Uploads = Annotated[list[UploadFile] | None, File()]
 
 # Banners after a redirect; anything else in the query is ignored.
-DONE_CODES = ("created", "saved", "photos", "closed", "cancelled", "reopened")
-DONE = set(DONE_CODES)
-
-# Translation keys picked by value (status, unit, ...), spelled out so the key-usage test can see
-# them; templates read them as `request_keys.status[x]`.
-request_keys = {
-    "status": {s: f"requests.status.{s}" for s in REQUEST_STATUSES},
-    "close_reason": {r: f"requests.close_reason.{r}" for r in CLOSE_REASONS},
-    "unit": {u: f"requests.unit.{u}" for u in PRICE_UNITS},
-    "timing": {k: f"requests.timing.{k}" for k in TIMINGS},
-    "done": {d: f"requests.done.{d}" for d in sorted(DONE_CODES)},
-}
-templates.env.globals["request_keys"] = request_keys
+DONE = set(REQUEST_DONE_CODES)
 
 NEW = "/requests/new"
 MINE = "/requests/mine"
@@ -74,7 +55,8 @@ def _url(request_id: int, query: str = "") -> str:
 
 
 def _signin(path: str) -> RedirectResponse:
-    return RedirectResponse(f"/signin?next={path}", status_code=303)
+    # The path may carry a query (the prefill); encode it so it stays inside `next`.
+    return RedirectResponse(f"/signin?next={quote(path, safe='/')}", status_code=303)
 
 
 def _redirect(url: str) -> RedirectResponse:
@@ -247,9 +229,12 @@ def request_new(
     c: Annotated[str | None, Query()] = None,
     s: Annotated[str | None, Query()] = None,
 ) -> Response:
+    values = request_options.prefill_values(db, c, s)
     if user is None:
-        return _signin(NEW)
-    return _new_page(request, db, user, request_options.prefill_values(db, c, s))
+        # Keep only the slugs that resolved, so the form is prefilled after sign-in.
+        kept = {k: v for k, v, ok in (("c", c, values.city), ("s", s, values.specialty)) if ok}
+        return _signin(NEW + (f"?{urlencode(kept)}" if kept else ""))
+    return _new_page(request, db, user, values)
 
 
 @router.post(NEW, name="request_create", dependencies=[CSRFProtected])
@@ -321,13 +306,22 @@ def request_edit(
 # --- photos -----------------------------------------------------------------------------------
 
 
-def _photo_keys(db: Session, request_id: int) -> set[str]:
-    rows = db.execute(
-        select(RequestPhoto.storage_key, RequestPhoto.thumb_key).where(
-            RequestPhoto.request_id == request_id
-        )
-    )
-    return {key for pair in rows for key in pair}
+class _RecordingStorage:
+    """Wraps the storage and remembers the keys put, so a failed commit can remove them."""
+
+    def __init__(self, inner: Storage) -> None:
+        self._inner = inner
+        self.written: list[str] = []
+
+    def put(self, key: str, data: bytes, content_type: str) -> None:
+        self._inner.put(key, data, content_type)
+        self.written.append(key)
+
+    def delete(self, key: str) -> None:
+        self._inner.delete(key)
+
+    def url(self, key: str) -> str:
+        return self._inner.url(key)
 
 
 def _delete_files(storage: Storage, keys: set[str] | list[str]) -> None:
@@ -385,11 +379,9 @@ def request_photos(
         return again(422, error="requests.err.no_files")
     data, errors = _read_all(files)
     unreadable = {number for number, _ in errors}
-    storage = get_storage()
-    before = _photo_keys(db, request_id)
+    storage = _RecordingStorage(get_storage())
     try:
         failed = requests.add_request_photos(db, storage, user, request_id, data)
-        added = _photo_keys(db, request_id) - before
     except RequestError as exc:
         db.rollback()
         if exc.code in ("not_found", "inactive"):
@@ -399,17 +391,22 @@ def request_photos(
         db.rollback()
         log.warning("could not store request photos")
         return again(422, error="requests.err.save")
+    except Exception as exc:
+        db.rollback()
+        _delete_files(storage, storage.written)  # the service cleans up too; this is idempotent
+        log.warning("could not store request photos: %s", type(exc).__name__)
+        return again(422, error="requests.err.save")
     try:
         db.commit()
     except SQLAlchemyError:
         db.rollback()
-        _delete_files(storage, added)  # the rows are gone: so must be the files
+        _delete_files(storage, storage.written)  # the rows are gone: so must be the files
         log.warning("could not save request photos")
         return again(422, error="requests.err.save")
     errors += [(n, _file_error_key(code)) for n, code in failed if n not in unreadable]
     errors.sort()
     if errors:
-        return again(200 if added else 422, file_errors=errors)
+        return again(200 if storage.written else 422, file_errors=errors)
     return _redirect(_url(request_id, "?done=photos"))
 
 

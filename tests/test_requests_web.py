@@ -518,19 +518,24 @@ def test_storage_failure_rolls_back_and_is_friendly(client: TestClient, monkeypa
     assert safe.get(f"/requests/{rid}").status_code == 200
 
 
-@pytest.mark.parametrize("which", ["os", "integrity"])
+@pytest.mark.parametrize("which", ["os", "integrity", "operational"])
 def test_other_storage_errors_are_friendly(client: TestClient, monkeypatch, which: str) -> None:  # type: ignore[no-untyped-def]
-    from sqlalchemy.exc import IntegrityError
+    from sqlalchemy.exc import IntegrityError, OperationalError
 
     _signed_in(client)
     rid = _create(client)
 
     def boom(*args, **kwargs):  # type: ignore[no-untyped-def]
-        raise OSError("disk full") if which == "os" else IntegrityError("i", {}, Exception("dup"))
+        if which == "os":
+            raise OSError("disk full")
+        if which == "operational":
+            raise OperationalError("flush", {}, Exception("connection lost"))
+        raise IntegrityError("i", {}, Exception("dup"))
 
     monkeypatch.setattr("app.web.requests.requests.add_request_photos", boom)
     r = _upload(client, rid, [("a.png", _png())])
-    assert r.status_code == 422 and "disk full" not in r.text
+    assert r.status_code == 422 and 'role="alert"' in r.text
+    assert "disk full" not in r.text and "connection lost" not in r.text
     assert _photos(rid) == []
 
 
@@ -542,8 +547,11 @@ def test_files_of_a_failed_commit_are_removed(client: TestClient, monkeypatch) -
     rid = _create(client)
     real_commit = Session.commit
 
+    state = {"failed": False}
+
     def failing_commit(self):  # type: ignore[no-untyped-def]
-        if _stored_keys():  # the files are already written: now the commit dies
+        if not state["failed"] and _stored_keys():  # files are written: the first commit dies
+            state["failed"] = True
             raise OperationalError("commit", {}, Exception("connection lost"))
         return real_commit(self)
 
@@ -551,7 +559,8 @@ def test_files_of_a_failed_commit_are_removed(client: TestClient, monkeypatch) -
     safe = TestClient(client.app, follow_redirects=False, raise_server_exceptions=False)
     safe.cookies.update(client.cookies)
     r = _upload(safe, rid, [("a.png", _png())])
-    assert r.status_code in (422, 500) and "connection lost" not in r.text
+    assert state["failed"]
+    assert r.status_code == 422 and 'role="alert"' in r.text and "connection lost" not in r.text
     monkeypatch.undo()
     assert _photos(rid) == []
     assert _stored_keys() == set()
@@ -566,14 +575,21 @@ def test_photo_files_survive_a_failed_delete_commit(client: TestClient, monkeypa
     assert _upload(client, rid, [("a.png", _png())]).status_code == 303
     photo = _photos(rid)[0]
 
+    real_commit = Session.commit
+    state = {"failed": False}
+
     def failing_commit(self):  # type: ignore[no-untyped-def]
-        raise OperationalError("commit", {}, Exception("connection lost"))
+        if not state["failed"]:
+            state["failed"] = True
+            raise OperationalError("commit", {}, Exception("connection lost"))
+        return real_commit(self)
 
     monkeypatch.setattr(Session, "commit", failing_commit)
     safe = TestClient(client.app, follow_redirects=False, raise_server_exceptions=False)
     safe.cookies.update(client.cookies)
     r = _post(safe, f"/requests/{rid}/photos/{photo.id}/delete")
-    assert r.status_code != 303
+    assert state["failed"]
+    assert r.status_code == 422 and 'role="alert"' in r.text and "connection lost" not in r.text
     monkeypatch.undo()
     assert len(_photos(rid)) == 1
     assert {photo.storage_key, photo.thumb_key} <= _stored_keys()
@@ -693,3 +709,29 @@ def test_tajik_pages_have_texts(client: TestClient) -> None:
         text = client.get(path).text
         assert 'lang="tg"' in text
         assert "requests." not in re.sub(r"requests/", "", text), path
+
+
+def test_guest_prefill_survives_sign_in(client: TestClient) -> None:
+    with get_sessionmaker()() as db:
+        spec = db.get(Specialty, _ids()["s2"])
+        spec_slug, spec_id = spec.slug, spec.id
+        city_id = db.scalars(select(City.id).where(City.slug == "dushanbe")).one()
+    r = client.get(f"/requests/new?c=dushanbe&s={spec_slug}")
+    assert r.status_code == 303
+    assert r.headers["location"] == f"/signin?next=/requests/new%3Fc%3Ddushanbe%26s%3D{spec_slug}"
+    # An invalid slug is dropped from next; the valid one stays.
+    r = client.get("/requests/new?c=dushanbe&s=%3Cscript%3E")
+    assert r.headers["location"] == "/signin?next=/requests/new%3Fc%3Ddushanbe"
+    assert client.get("/requests/new?c=nowhere&s=").headers["location"] == (
+        "/signin?next=/requests/new"
+    )
+    # After signing in the browser follows next and the form is prefilled.
+    make_user("ana@example.com")
+    nxt = f"/requests/new?c=dushanbe&s={spec_slug}"
+    r = _post(
+        client, "/signin", {"email": "ana@example.com", "password": "correct horse 9", "next": nxt}
+    )
+    assert r.status_code == 303 and r.headers["location"] == nxt
+    page = client.get(nxt).text
+    assert re.search(rf'<option value="{city_id}"[^>]*selected', page)
+    assert re.search(rf'value="{spec_id}"[^>]*checked', page)
