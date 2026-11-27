@@ -129,15 +129,23 @@ def _check_place(db: Session, city_id: int, district_id: int | None) -> None:
         raise RequestError("place")
 
 
-def _check_budget(amount: Decimal | None, unit: str | None) -> None:
+def money_ok(amount: Decimal | None, unit: str | None) -> bool:
+    """Neither, or an amount > 0 that fits Numeric(12, 2) with a known unit (C3).
+
+    Shared by a request's budget and a response's price.
+    """
     if amount is None and unit is None:
-        return
+        return True
     if amount is None or unit is None or unit not in PRICE_UNITS:
-        raise RequestError("budget")
+        return False
     if not amount.is_finite() or not 0 < amount <= MAX_BUDGET:
-        raise RequestError("budget")
+        return False
     exponent = amount.as_tuple().exponent
-    if isinstance(exponent, int) and exponent < -2:
+    return not (isinstance(exponent, int) and exponent < -2)
+
+
+def _check_budget(amount: Decimal | None, unit: str | None) -> None:
+    if not money_ok(amount, unit):
         raise RequestError("budget")
 
 

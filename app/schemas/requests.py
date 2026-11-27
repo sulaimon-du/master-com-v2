@@ -6,6 +6,7 @@ every caller gets the same error codes, whatever form or script built the input.
 
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -87,3 +88,62 @@ class FormValues(BaseModel):
     timing: str = "flexible"
     timing_date: str = ""
     address: str = ""
+
+
+# --- masters' side: feed and responses (spec D3, D10.9) ----------------------------------------
+
+
+class ResponseInput(BaseModel):
+    """ "Ready to take it": an optional message (≤ 500) and an optional price (amount + unit).
+
+    Types only, like `RequestInput`; the rules live in the responses service.
+    """
+
+    message: str | None = None
+    price_amount: Decimal | None = None
+    price_unit: str | None = None
+
+
+class FeedCard(BaseModel):
+    """What a master sees of a request in the feed. Never the address, never client contacts."""
+
+    id: int
+    specialties: list[str]
+    place: str
+    description: str
+    budget_amount: Decimal | None
+    budget_unit: str | None
+    timing: str
+    timing_date: date | None
+    created_at: datetime
+    photos: list[PhotoView] = Field(default_factory=list)
+
+
+class FeedPage(BaseModel):
+    """`eligible` is False for a user who is not a visible master: they get no requests at all."""
+
+    eligible: bool
+    items: list[FeedCard] = Field(default_factory=list)
+    next_cursor: str | None = None
+
+
+MyResponseStatus = Literal["open", "other_chosen", "chosen", "closed", "cancelled", "unavailable"]
+
+
+class MyResponseCard(BaseModel):
+    """One of the master's active responses with the request's state for them (spec D10.9).
+
+    For "unavailable" (hidden by moderation, or the client's account is gone) every detail of
+    the request is left out: the master only learns that it is no longer available.
+    """
+
+    request_id: int
+    status: MyResponseStatus
+    responded_at: datetime
+    message: str | None
+    price_amount: Decimal | None
+    price_unit: str | None
+    specialties: list[str] = Field(default_factory=list)
+    place: str | None = None
+    description: str | None = None
+    thumb_url: str | None = None
