@@ -13,7 +13,12 @@ from sqlalchemy.orm import Session
 
 from app.core.time import utcnow
 from app.models import JobRequest, JobResponse, MasterProfile, User
-from app.schemas.requests import MyResponseCard, MyResponseStatus, ResponseInput
+from app.schemas.requests import (
+    MasterRequestView,
+    MyResponseCard,
+    MyResponseStatus,
+    ResponseInput,
+)
 from app.services import feed, jobs
 from app.services import requests as request_svc
 from app.services.auth import is_active
@@ -190,3 +195,86 @@ def my_responses(db: Session, user: User, *, lang: str = "ru") -> list[MyRespons
             card.thumb_url = storage.url(first[0].thumb_key) if first else None
         cards.append(card)
     return cards
+
+
+# --- one request, as this master may see it (spec D10.9) --------------------------------------
+
+
+def request_for_master(
+    db: Session, user: User, request_id: int, *, lang: str = "ru"
+) -> MasterRequestView | None:
+    """The request page for a master, or None (the page is a 404).
+
+    - The master has an active response (or was chosen): the request with its state for them;
+      "unavailable" with no details when it was hidden or the client's account is gone.
+    - Otherwise, a visible master for whom the request is in the feed right now (open, not
+      paused, matching): the request with the respond form.
+    - Anyone else: None, whatever the request's state, so an id reveals nothing.
+    Never the address; the client's name and phone only for the chosen master.
+    """
+    if not is_active(user):
+        return None
+    profile = master_for_user(db, user)
+    if profile is None:
+        return None
+    row = db.execute(
+        select(JobResponse, JobRequest, User)
+        .join(JobRequest, JobRequest.id == JobResponse.request_id)
+        .join(User, User.id == JobRequest.client_id)
+        .where(
+            JobResponse.request_id == request_id,
+            JobResponse.master_id == profile.id,
+            JobResponse.withdrawn_at.is_(None),
+        )
+    ).first()
+    if row is not None:
+        response, request, client = row
+        status = _status(request, client, profile)
+        if status == "unavailable":
+            return MasterRequestView(id=request.id, status="unavailable", responded=True)
+        view = _master_view(db, request, status, lang)
+        view.responded = True
+        view.message = response.message
+        view.price_amount = response.price_amount
+        view.price_unit = response.price_unit
+        view.responded_at = response.updated_at
+        view.can_withdraw = status == "open"
+        if status == "chosen":
+            view.contact = request_svc.client_contact_for_master(db, user, request.id)
+        return view
+    master = feed.eligible_master(db, user)
+    if master is None:
+        return None
+    request = feed.matching_request(db, master, request_id)
+    if request is None or request.status != "open" or request.feed_paused_at is not None:
+        return None
+    view = _master_view(db, request, "open", lang)
+    view.can_respond = True
+    return view
+
+
+def _master_view(
+    db: Session, request: JobRequest, status: MyResponseStatus, lang: str
+) -> MasterRequestView:
+    ids = [request.id]
+    card = feed._card(
+        db,
+        request,
+        request_svc._specialties(db, ids)[request.id],
+        request_svc._photos(db, ids)[request.id],
+        lang,
+    )
+    return MasterRequestView(
+        id=request.id,
+        status=status,
+        request_status=request.status,
+        specialties=card.specialties,
+        place=card.place,
+        description=card.description,
+        budget_amount=card.budget_amount,
+        budget_unit=card.budget_unit,
+        timing=card.timing,
+        timing_date=card.timing_date,
+        created_at=card.created_at,
+        photos=card.photos,
+    )

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% import "partials/request_facts.html" as rq with context %}
+{% block title %}{{ t('feed.title') }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-3xl gap-6">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h1 class="text-4xl">{{ t('feed.title') }}</h1>
+    <a class="btn btn-secondary no-underline" href="{{ url_for('responses_mine').path }}">{{ t('responses.mine_title') }}</a>
+  </div>
+  {% if not page.eligible %}
+  <div class="card grid gap-3">
+    <p>{{ t('feed.not_eligible') }}</p>
+    <p><a class="btn btn-primary no-underline" href="{{ url_for('account_page').path }}">{{ t('feed.not_eligible_link') }}</a></p>
+  </div>
+  {% else %}
+  <p class="text-muted">{{ t('feed.lead') }}</p>
+  {% if page.items %}
+  <ul class="grid gap-3">
+    {% for c in page.items %}
+    <li>
+      <article class="card grid gap-2">
+        <h2 class="text-xl"><a class="no-underline" href="/requests/{{ c.id }}">{{ c.specialties | join(', ') }}</a></h2>
+        <p class="text-sm text-muted">{{ c.place }} · {{ c.created_at|local_date }}</p>
+        <p class="line-clamp-3 whitespace-pre-line">{{ c.description }}</p>
+        {{ rq.facts(c) }}
+        {% if c.photos %}
+        <ul class="flex gap-2">
+          {% for p in c.photos %}<li><img src="{{ p.thumb_url }}" width="64" height="64" alt="" loading="lazy" class="size-16 rounded-lg object-cover"></li>{% endfor %}
+        </ul>
+        {% endif %}
+        <p><a class="btn btn-primary no-underline" href="/requests/{{ c.id }}">{{ t('feed.open') }}</a></p>
+      </article>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="text-muted">{{ t('feed.empty') if first else t('feed.end') }}</p>
+  {% endif %}
+  {% if page.next_cursor %}
+  <p><a class="btn btn-secondary no-underline" href="{{ url_for('feed').path }}?after={{ page.next_cursor | urlencode }}">{{ t('feed.more') }}</a></p>
+  {% endif %}
+  {% endif %}
+</section>
+{% endblock %}

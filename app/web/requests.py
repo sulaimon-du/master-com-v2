@@ -1,8 +1,9 @@
-"""The client's request pages: post, list, open, edit, photos, close, cancel, reopen.
+"""The client's request pages: post, list, open, edit, photos, close, cancel, reopen, choose a
+master, mark the job done.
 
 Every request id from a URL is resolved through the signed-in client by the service, so someone
-else's request is "not found" (404) whatever the route. Masters get their own views in a later
-task; today only the client opens `/requests/{id}`.
+else's request is "not found" (404) whatever the route. `/requests/{id}` shows the client's view
+to the client and otherwise the master's view (`app.web.feed`), or a 404 (spec D10.9).
 """
 
 import logging
@@ -28,6 +29,7 @@ from app.services.storage import Storage, StorageError, get_storage
 from app.web.auth import notice_page
 from app.web.csrf import CSRFProtected
 from app.web.deps import current_lang, current_user
+from app.web.feed import master_request_page
 from app.web.render import render
 from app.web.templating import REQUEST_DONE_CODES
 
@@ -211,8 +213,11 @@ def _detail_page(
     file_errors: list[FileError] | None = None,
     values: FormValues | None = None,
     form_error: str | None = None,
+    choose: tuple[int, str] | None = None,
 ) -> HTMLResponse:
+    """`choose` = (response id, phone as typed) to show again after a refused choice."""
     view = requests.request_for_client(db, user, request_id, lang=current_lang(request))
+    cards = requests.responses_for_client(db, user, request_id)
     done = request.query_params.get("done", "")
     context = _form_context(db, request) if view.editable else {}
     return render(
@@ -228,6 +233,10 @@ def _detail_page(
         done=done if done in DONE else None,
         uploads_enabled=bool(get_settings().uploads_enabled),
         max_photos=MAX_REQUEST_PHOTOS,
+        responses=cards,
+        phone_prefill=requests.contact_phone_prefill(user) or "",
+        choose_response=choose[0] if choose else None,
+        choose_phone=choose[1] if choose else None,
         **context,
     )
 
@@ -281,7 +290,9 @@ def request_detail(
     try:
         return _detail_page(request, db, user, request_id)
     except RequestError:
-        return _not_found(request, user)
+        pass  # not this user's request: maybe a master's
+    page = master_request_page(request, db, user, request_id)
+    return page if page is not None else _not_found(request, user)
 
 
 # --- edit -------------------------------------------------------------------------------------
@@ -502,3 +513,65 @@ def request_reopen(
     request: Request, db: DbSession, user: CurrentUser, request_id: RequestId
 ) -> Response:
     return _lifecycle(request, db, user, request_id, "reopen")
+
+
+# --- choose a master, the job is done ---------------------------------------------------------
+
+MAX_PHONE_CHARS = 32  # a phone is ~13 characters; a longer value is never one
+
+
+@router.post("/requests/{request_id}/choose", name="request_choose", dependencies=[CSRFProtected])
+def request_choose(
+    request: Request,
+    db: DbSession,
+    user: CurrentUser,
+    request_id: RequestId,
+    response_id: Annotated[str, Form()] = "",
+    phone: Annotated[str, Form()] = "",
+) -> Response:
+    if user is None:
+        return _signin(_url(request_id))
+    if len(phone) > MAX_PHONE_CHARS:
+        phone = ""  # never a phone; refused below without echoing a forged value back
+    chosen = 0
+    try:
+        chosen = _id(response_id, "not_found")
+        requests.choose_master(db, user, request_id, chosen, phone)
+    except RequestError as exc:
+        db.rollback()
+        if exc.code == "inactive":
+            return _not_found(request, user)
+        # On the client's own request, a response that is gone is a stale page, not a 404.
+        code = "response_gone" if exc.code == "not_found" else exc.code
+        try:
+            again = (chosen, phone) if exc.code == "phone" else None
+            return _detail_page(
+                request, db, user, request_id,
+                status=422 if exc.code == "phone" else 409,
+                error=_err(code),
+                choose=again,
+            )  # fmt: skip
+        except RequestError:
+            return _not_found(request, user)
+    return _redirect(_url(request_id, "?done=chosen"))
+
+
+@router.post(
+    "/requests/{request_id}/complete", name="request_complete", dependencies=[CSRFProtected]
+)
+def request_complete(
+    request: Request, db: DbSession, user: CurrentUser, request_id: RequestId
+) -> Response:
+    if user is None:
+        return _signin(_url(request_id))
+    try:
+        requests.complete_request(db, user, request_id)
+    except RequestError as exc:
+        db.rollback()
+        if exc.code in ("not_found", "inactive"):
+            return _not_found(request, user)
+        try:
+            return _detail_page(request, db, user, request_id, status=409, error=_err(exc.code))
+        except RequestError:
+            return _not_found(request, user)
+    return _redirect(_url(request_id, "?done=completed"))

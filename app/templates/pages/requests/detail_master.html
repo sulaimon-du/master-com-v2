@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% import "partials/request_facts.html" as rq with context %}
+{% import "partials/portfolio_forms.html" as pf with context %}
+{% block title %}{{ t('requests.detail_title', id=view.id) }} · {{ app_name }}{% endblock %}
+{% block content %}
+{# A request as a master sees it (spec D4): never the address; the client's name and phone
+   only for the chosen master. #}
+<section class="mx-auto grid max-w-3xl gap-6">
+  <p><a class="link" href="{{ url_for('responses_mine').path if view.responded else url_for('feed').path }}">{{ t('responses.mine_title') if view.responded else t('feed.title') }}</a></p>
+  <h1 class="text-4xl">{{ view.specialties | join(', ') }}</h1>
+  {% if done %}<p role="status" class="notice">{{ t(request_keys.done[done]) }}</p>{% endif %}
+  {{ pf.error_notice(error) }}
+
+  <div class="card grid gap-2">
+    {% if view.responded %}<p><span class="pill">{{ t(request_keys.master_status[view.status]) }}</span>
+      {% if view.request_status == 'completed' %}<span class="text-sm text-muted">{{ t(request_keys.status.completed) }}</span>{% endif %}</p>{% endif %}
+    <p class="text-sm text-muted">{{ view.place }} · {{ view.created_at|local_date }}</p>
+    <p class="whitespace-pre-line">{{ view.description }}</p>
+    {{ rq.facts(view) }}
+    <p class="text-sm text-muted">{{ t('feed.no_address') }}</p>
+  </div>
+
+  {% if view.photos %}
+  <section class="grid gap-3" aria-labelledby="photos-title">
+    <h2 id="photos-title" class="text-2xl">{{ t('requests.photos_title') }}</h2>
+    {{ rq.photos(view.photos) }}
+  </section>
+  {% endif %}
+
+  {% if view.contact %}
+  <section class="card grid gap-2" aria-labelledby="contact-title">
+    <h2 id="contact-title" class="text-2xl">{{ t('feed.contact_title') }}</h2>
+    {% if view.contact.name %}<p><span class="text-muted">{{ t('feed.contact_name') }}:</span> {{ view.contact.name }}</p>{% endif %}
+    <p><span class="text-muted">{{ t('feed.contact_phone') }}:</span> <a href="tel:{{ view.contact.phone }}">{{ view.contact.phone }}</a></p>
+  </section>
+  {% elif view.responded and view.status == 'open' %}
+  <p class="notice">{{ t('feed.contact_later') }}</p>
+  {% endif %}
+
+  {% if view.responded %}
+  <section class="card grid gap-2" aria-labelledby="mine-title">
+    <h2 id="mine-title" class="text-2xl">{{ t('feed.your_response') }}</h2>
+    <p class="text-sm text-muted">{{ t('responses.responded_at', date=view.responded_at|local_date) }}</p>
+    {% if view.message %}<p class="whitespace-pre-line">{{ view.message }}</p>{% endif %}
+    {% if view.price_amount is not none %}<p class="text-sm">{{ t('feed.price') }}: {{ rq.money(view.price_amount, view.price_unit) }}</p>{% endif %}
+    {% if view.can_withdraw %}
+    <form method="post" action="/requests/{{ view.id }}/withdraw" class="grid gap-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <p class="text-sm text-muted">{{ t('feed.withdraw_hint') }}</p>
+      <button class="btn btn-secondary" type="submit">{{ t('feed.withdraw') }}</button>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if view.can_respond %}
+  <section class="grid gap-3" aria-labelledby="respond-title">
+    <h2 id="respond-title" class="text-2xl">{{ t('feed.respond_title') }}</h2>
+    <form method="post" action="/requests/{{ view.id }}/respond" class="card grid gap-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="grid gap-1.5">
+        <label for="r-message" class="text-sm font-semibold">{{ t('feed.message') }}</label>
+        <textarea id="r-message" name="message" rows="4" maxlength="{{ message_max }}" class="input" aria-describedby="r-message-hint">{{ values.message }}</textarea>
+        <p id="r-message-hint" class="text-sm text-muted">{{ t('feed.message_hint', max=message_max) }}</p>
+      </div>
+      <fieldset class="grid gap-2">
+        <legend class="text-sm font-semibold">{{ t('feed.price') }}</legend>
+        <p class="text-sm text-muted">{{ t('feed.price_hint') }}</p>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div class="grid gap-1.5">
+            <label for="r-amount" class="text-sm">{{ t('requests.budget_amount') }}</label>
+            <input id="r-amount" name="price_amount" type="text" inputmode="decimal" maxlength="16" value="{{ values.price_amount }}" class="input">
+          </div>
+          <div class="grid gap-1.5">
+            <label for="r-unit" class="text-sm">{{ t('requests.budget_unit') }}</label>
+            <select id="r-unit" name="price_unit" class="input">
+              <option value="">{{ t('requests.budget_none') }}</option>
+              {% for u in units %}<option value="{{ u }}" {% if u == values.price_unit %}selected{% endif %}>{{ t(request_keys.unit[u]) }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+      </fieldset>
+      <button class="btn btn-primary" type="submit">{{ t('feed.respond_submit') }}</button>
+    </form>
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

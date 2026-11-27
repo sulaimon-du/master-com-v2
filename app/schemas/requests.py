@@ -183,3 +183,33 @@ class ClientContactView(BaseModel):
 
     name: str | None
     phone: str
+
+
+class MasterRequestView(BaseModel):
+    """A request as one master may see it (spec D4, D10.9). Never the address.
+
+    `status` is the request's state for this master. For "unavailable" (hidden by moderation,
+    or the client's account is gone) every detail is left out: only the id and the status.
+    `contact` is the client's name and phone, for the chosen master only.
+    """
+
+    id: int
+    status: MyResponseStatus
+    request_status: str | None = None
+    specialties: list[str] = Field(default_factory=list)
+    place: str | None = None
+    description: str | None = None
+    budget_amount: Decimal | None = None
+    budget_unit: str | None = None
+    timing: str | None = None
+    timing_date: date | None = None
+    created_at: datetime | None = None
+    photos: list[PhotoView] = Field(default_factory=list)
+    responded: bool = False
+    message: str | None = None
+    price_amount: Decimal | None = None
+    price_unit: str | None = None
+    responded_at: datetime | None = None
+    contact: ClientContactView | None = None
+    can_respond: bool = False
+    can_withdraw: bool = False

@@ -14,6 +14,7 @@ from app.core.security_headers import SecurityHeadersMiddleware
 from app.web import (
     account,
     auth,
+    feed,
     master,
     media,
     pages,
@@ -75,6 +76,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(profile.router)
     app.include_router(search.router)
     app.include_router(requests.router)
+    app.include_router(feed.router)
     app.include_router(media.router)
     app.include_router(robots.router)
     app.include_router(sitemap.router)
