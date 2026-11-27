@@ -1,0 +1,437 @@
+{
+  "_comment": "Demo portfolio photos (R-027): Wikimedia Commons, public domain or CC0 only. Credits: docs/demo_photo_credits.md. Files are downloaded at seed time, never committed.",
+  "photos": [
+    {
+      "specialty": "elektrik",
+      "title": "File:Distribution board and wall in workshop.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/Distribution_board_and_wall_in_workshop.jpg/1920px-Distribution_board_and_wall_in_workshop.jpg",
+      "license": "Public domain",
+      "license_code": "pd",
+      "author": "W.carter",
+      "source": "https://commons.wikimedia.org/wiki/File:Distribution_board_and_wall_in_workshop.jpg"
+    },
+    {
+      "specialty": "elektrik",
+      "title": "File:Small house distribution panel 1.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c7/Small_house_distribution_panel_1.jpg/1920px-Small_house_distribution_panel_1.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Retired electrician",
+      "source": "https://commons.wikimedia.org/wiki/File:Small_house_distribution_panel_1.jpg"
+    },
+    {
+      "specialty": "elektrik",
+      "title": "File:Small house distribution panel 2.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Small_house_distribution_panel_2.jpg/1920px-Small_house_distribution_panel_2.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Retired electrician",
+      "source": "https://commons.wikimedia.org/wiki/File:Small_house_distribution_panel_2.jpg"
+    },
+    {
+      "specialty": "elektrik",
+      "title": "File:Wall Circuit Breaker and Wiring.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Wall_Circuit_Breaker_and_Wiring.jpg/1920px-Wall_Circuit_Breaker_and_Wiring.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Paul The Writer",
+      "source": "https://commons.wikimedia.org/wiki/File:Wall_Circuit_Breaker_and_Wiring.jpg"
+    },
+    {
+      "specialty": "elektrik",
+      "title": "File:Модульные блоки защиты российских брендов.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/%D0%9C%D0%BE%D0%B4%D1%83%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5_%D0%B1%D0%BB%D0%BE%D0%BA%D0%B8_%D0%B7%D0%B0%D1%89%D0%B8%D1%82%D1%8B_%D1%80%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%B8%D1%85_%D0%B1%D1%80%D0%B5%D0%BD%D0%B4%D0%BE%D0%B2.jpg/1920px-%D0%9C%D0%BE%D0%B4%D1%83%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5_%D0%B1%D0%BB%D0%BE%D0%BA%D0%B8_%D0%B7%D0%B0%D1%89%D0%B8%D1%82%D1%8B_%D1%80%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%B8%D1%85_%D0%B1%D1%80%D0%B5%D0%BD%D0%B4%D0%BE%D0%B2.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Retired electrician",
+      "source": "https://commons.wikimedia.org/wiki/File:%D0%9C%D0%BE%D0%B4%D1%83%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5_%D0%B1%D0%BB%D0%BE%D0%BA%D0%B8_%D0%B7%D0%B0%D1%89%D0%B8%D1%82%D1%8B_%D1%80%D0%BE%D1%81%D1%81%D0%B8%D0%B9%D1%81%D0%BA%D0%B8%D1%85_%D0%B1%D1%80%D0%B5%D0%BD%D0%B4%D0%BE%D0%B2.jpg"
+    },
+    {
+      "specialty": "kamenshchik",
+      "title": "File:Albert B. Koett House, Mutter Gottes, Covington, KY - 32690485007.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/35/Albert_B._Koett_House%2C_Mutter_Gottes%2C_Covington%2C_KY_-_32690485007.jpg/1920px-Albert_B._Koett_House%2C_Mutter_Gottes%2C_Covington%2C_KY_-_32690485007.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "w_lemay",
+      "source": "https://commons.wikimedia.org/wiki/File:Albert_B._Koett_House,_Mutter_Gottes,_Covington,_KY_-_32690485007.jpg"
+    },
+    {
+      "specialty": "kamenshchik",
+      "title": "File:Albert B. Koett House, Mutter Gottes, Covington, KY - 32690485587.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Albert_B._Koett_House%2C_Mutter_Gottes%2C_Covington%2C_KY_-_32690485587.jpg/1920px-Albert_B._Koett_House%2C_Mutter_Gottes%2C_Covington%2C_KY_-_32690485587.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "w_lemay",
+      "source": "https://commons.wikimedia.org/wiki/File:Albert_B._Koett_House,_Mutter_Gottes,_Covington,_KY_-_32690485587.jpg"
+    },
+    {
+      "specialty": "kamenshchik",
+      "title": "File:Detail of the Intricate Brickwork on the Mas'ud III Tower.jpg",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/1/12/Detail_of_the_Intricate_Brickwork_on_the_Mas%27ud_III_Tower.jpg",
+      "license": "Public domain",
+      "license_code": "pd",
+      "author": "U.S. Department of State",
+      "source": "https://commons.wikimedia.org/wiki/File:Detail_of_the_Intricate_Brickwork_on_the_Mas%27ud_III_Tower.jpg"
+    },
+    {
+      "specialty": "kamenshchik",
+      "title": "File:North-facing wall of the eastern wing, Julien Trekkerstraat, Sint-Stevens-Woluwe.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/19/North-facing_wall_of_the_eastern_wing%2C_Julien_Trekkerstraat%2C_Sint-Stevens-Woluwe.jpg/1920px-North-facing_wall_of_the_eastern_wing%2C_Julien_Trekkerstraat%2C_Sint-Stevens-Woluwe.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Caramelia14",
+      "source": "https://commons.wikimedia.org/wiki/File:North-facing_wall_of_the_eastern_wing,_Julien_Trekkerstraat,_Sint-Stevens-Woluwe.jpg"
+    },
+    {
+      "specialty": "kamenshchik",
+      "title": "File:Precast concrete and brick construction detail of Mountbatten House, Chatham, Kent.png",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Precast_concrete_and_brick_construction_detail_of_Mountbatten_House%2C_Chatham%2C_Kent.png/1920px-Precast_concrete_and_brick_construction_detail_of_Mountbatten_House%2C_Chatham%2C_Kent.png",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Sunolafjagtenben-hur",
+      "source": "https://commons.wikimedia.org/wiki/File:Precast_concrete_and_brick_construction_detail_of_Mountbatten_House,_Chatham,_Kent.png"
+    },
+    {
+      "specialty": "krovelshchik",
+      "title": "File:12. Roof and Porch Construction. (d29dbcf9-302d-4aea-b877-1f8c8a33f339).jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6b/12._Roof_and_Porch_Construction._%28d29dbcf9-302d-4aea-b877-1f8c8a33f339%29.jpg/1920px-12._Roof_and_Porch_Construction._%28d29dbcf9-302d-4aea-b877-1f8c8a33f339%29.jpg",
+      "license": "Public domain",
+      "license_code": "pd",
+      "author": "NPS photo",
+      "source": "https://commons.wikimedia.org/wiki/File:12._Roof_and_Porch_Construction._(d29dbcf9-302d-4aea-b877-1f8c8a33f339).jpg"
+    },
+    {
+      "specialty": "krovelshchik",
+      "title": "File:C-haus.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/C-haus.jpg/1920px-C-haus.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Bukk",
+      "source": "https://commons.wikimedia.org/wiki/File:C-haus.jpg"
+    },
+    {
+      "specialty": "krovelshchik",
+      "title": "File:Close up of breather material and new shingles. (aa54f697-8e1a-4201-a046-117d594da269).jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Close_up_of_breather_material_and_new_shingles._%28aa54f697-8e1a-4201-a046-117d594da269%29.jpg/1920px-Close_up_of_breather_material_and_new_shingles._%28aa54f697-8e1a-4201-a046-117d594da269%29.jpg",
+      "license": "Public domain",
+      "license_code": "pd",
+      "author": "NPS Photo",
+      "source": "https://commons.wikimedia.org/wiki/File:Close_up_of_breather_material_and_new_shingles._(aa54f697-8e1a-4201-a046-117d594da269).jpg"
+    },
+    {
+      "specialty": "krovelshchik",
+      "title": "File:Dachdecker - Roofing work 1.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e2/Dachdecker_-_Roofing_work_1.jpg/1920px-Dachdecker_-_Roofing_work_1.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Sciencia58",
+      "source": "https://commons.wikimedia.org/wiki/File:Dachdecker_-_Roofing_work_1.jpg"
+    },
+    {
+      "specialty": "krovelshchik",
+      "title": "File:Hartlepool (32693664303).jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/57/Hartlepool_%2832693664303%29.jpg/1920px-Hartlepool_%2832693664303%29.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Alex Liivet from Chester, United Kingdom",
+      "source": "https://commons.wikimedia.org/wiki/File:Hartlepool_(32693664303).jpg"
+    },
+    {
+      "specialty": "krovelshchik",
+      "title": "File:Old roofing removed and new sheeting in place on the right rear of the museum building. (6a372128-6dc3-4daf-ac93-c45187482570).jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/Old_roofing_removed_and_new_sheeting_in_place_on_the_right_rear_of_the_museum_building._%286a372128-6dc3-4daf-ac93-c45187482570%29.jpg/1920px-Old_roofing_removed_and_new_sheeting_in_place_on_the_right_rear_of_the_museum_building._%286a372128-6dc3-4daf-ac93-c45187482570%29.jpg",
+      "license": "Public domain",
+      "license_code": "pd",
+      "author": "NPS Photo",
+      "source": "https://commons.wikimedia.org/wiki/File:Old_roofing_removed_and_new_sheeting_in_place_on_the_right_rear_of_the_museum_building._(6a372128-6dc3-4daf-ac93-c45187482570).jpg"
+    },
+    {
+      "specialty": "krovelshchik",
+      "title": "File:Reroofing of Sint-Michielskerk, Sint-Lievens-Houtem, 2026.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b7/Reroofing_of_Sint-Michielskerk%2C_Sint-Lievens-Houtem%2C_2026.jpg/1920px-Reroofing_of_Sint-Michielskerk%2C_Sint-Lievens-Houtem%2C_2026.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "DimiTalen",
+      "source": "https://commons.wikimedia.org/wiki/File:Reroofing_of_Sint-Michielskerk,_Sint-Lievens-Houtem,_2026.jpg"
+    },
+    {
+      "specialty": "krovelshchik",
+      "title": "File:Roofing 001.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d1/Roofing_001.jpg/1920px-Roofing_001.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Jeuwre",
+      "source": "https://commons.wikimedia.org/wiki/File:Roofing_001.jpg"
+    },
+    {
+      "specialty": "krovelshchik",
+      "title": "File:Roofing 004.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2e/Roofing_004.jpg/1920px-Roofing_004.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Jeuwre",
+      "source": "https://commons.wikimedia.org/wiki/File:Roofing_004.jpg"
+    },
+    {
+      "specialty": "kukhni",
+      "title": "File:Blue white kitchen interior (Unsplash).jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/26/Blue_white_kitchen_interior_%28Unsplash%29.jpg/1920px-Blue_white_kitchen_interior_%28Unsplash%29.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "NeONBRAND neonbrand",
+      "source": "https://commons.wikimedia.org/wiki/File:Blue_white_kitchen_interior_(Unsplash).jpg"
+    },
+    {
+      "specialty": "kukhni",
+      "title": "File:Cucina di notte.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e4/Cucina_di_notte.jpg/1920px-Cucina_di_notte.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Luigi221",
+      "source": "https://commons.wikimedia.org/wiki/File:Cucina_di_notte.jpg"
+    },
+    {
+      "specialty": "kukhni",
+      "title": "File:Kitchen cabinet - Haas-Lilienthal House - San Francisco, CA - DSC05025.JPG",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/Kitchen_cabinet_-_Haas-Lilienthal_House_-_San_Francisco%2C_CA_-_DSC05025.JPG/1920px-Kitchen_cabinet_-_Haas-Lilienthal_House_-_San_Francisco%2C_CA_-_DSC05025.JPG",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Daderot",
+      "source": "https://commons.wikimedia.org/wiki/File:Kitchen_cabinet_-_Haas-Lilienthal_House_-_San_Francisco,_CA_-_DSC05025.JPG"
+    },
+    {
+      "specialty": "kukhni",
+      "title": "File:Kitchen cabinet hardware 2009.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cf/Kitchen_cabinet_hardware_2009.jpg/1920px-Kitchen_cabinet_hardware_2009.jpg",
+      "license": "Public domain",
+      "license_code": "pd",
+      "author": "Tomwsulcer",
+      "source": "https://commons.wikimedia.org/wiki/File:Kitchen_cabinet_hardware_2009.jpg"
+    },
+    {
+      "specialty": "plitochnik",
+      "title": "File:Bathroom 1 - Before Remodel (bf15146d-1dd8-b71b-0b36-f93f3b6127a9).JPG",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e3/Bathroom_1_-_Before_Remodel_%28bf15146d-1dd8-b71b-0b36-f93f3b6127a9%29.JPG/1920px-Bathroom_1_-_Before_Remodel_%28bf15146d-1dd8-b71b-0b36-f93f3b6127a9%29.JPG",
+      "license": "Public domain",
+      "license_code": "pd",
+      "author": "NPS Photo",
+      "source": "https://commons.wikimedia.org/wiki/File:Bathroom_1_-_Before_Remodel_(bf15146d-1dd8-b71b-0b36-f93f3b6127a9).JPG"
+    },
+    {
+      "specialty": "plitochnik",
+      "title": "File:Darlington Station (32619775264).jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4d/Darlington_Station_%2832619775264%29.jpg/1920px-Darlington_Station_%2832619775264%29.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Alex Liivet from Chester, United Kingdom",
+      "source": "https://commons.wikimedia.org/wiki/File:Darlington_Station_(32619775264).jpg"
+    },
+    {
+      "specialty": "plitochnik",
+      "title": "File:John Hauck House, West End, Cincinnati, OH (27229387217).jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/40/John_Hauck_House%2C_West_End%2C_Cincinnati%2C_OH_%2827229387217%29.jpg/1920px-John_Hauck_House%2C_West_End%2C_Cincinnati%2C_OH_%2827229387217%29.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Warren LeMay from Cincinnati, OH, United States",
+      "source": "https://commons.wikimedia.org/wiki/File:John_Hauck_House,_West_End,_Cincinnati,_OH_(27229387217).jpg"
+    },
+    {
+      "specialty": "plotnik",
+      "title": "File:Betsy's house - porch scroll work.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bd/Betsy%27s_house_-_porch_scroll_work.jpg/1920px-Betsy%27s_house_-_porch_scroll_work.jpg",
+      "license": "Public domain",
+      "license_code": "pd",
+      "author": "Jas9494",
+      "source": "https://commons.wikimedia.org/wiki/File:Betsy%27s_house_-_porch_scroll_work.jpg"
+    },
+    {
+      "specialty": "plotnik",
+      "title": "File:Fachwerk-Quereinhaus in Kettenhausen.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/Fachwerk-Quereinhaus_in_Kettenhausen.jpg/1920px-Fachwerk-Quereinhaus_in_Kettenhausen.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Tribrans",
+      "source": "https://commons.wikimedia.org/wiki/File:Fachwerk-Quereinhaus_in_Kettenhausen.jpg"
+    },
+    {
+      "specialty": "plotnik",
+      "title": "File:Post frame building framing 01.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c9/Post_frame_building_framing_01.jpg/1920px-Post_frame_building_framing_01.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Wikideas1",
+      "source": "https://commons.wikimedia.org/wiki/File:Post_frame_building_framing_01.jpg"
+    },
+    {
+      "specialty": "plotnik",
+      "title": "File:Post frame building framing 03.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b9/Post_frame_building_framing_03.jpg/1920px-Post_frame_building_framing_03.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Wikideas1",
+      "source": "https://commons.wikimedia.org/wiki/File:Post_frame_building_framing_03.jpg"
+    },
+    {
+      "specialty": "polovshchik",
+      "title": "File:Fertigparkett Stiegenelement.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a7/Fertigparkett_Stiegenelement.jpg/1920px-Fertigparkett_Stiegenelement.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Best Tech Nick 25",
+      "source": "https://commons.wikimedia.org/wiki/File:Fertigparkett_Stiegenelement.jpg"
+    },
+    {
+      "specialty": "polovshchik",
+      "title": "File:Locaux Mairie École avant travaux Estrablin 06.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Locaux_Mairie_%C3%89cole_avant_travaux_Estrablin_06.jpg/1920px-Locaux_Mairie_%C3%89cole_avant_travaux_Estrablin_06.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Jlgay38",
+      "source": "https://commons.wikimedia.org/wiki/File:Locaux_Mairie_%C3%89cole_avant_travaux_Estrablin_06.jpg"
+    },
+    {
+      "specialty": "polovshchik",
+      "title": "File:Locaux Mairie École avant travaux Estrablin 09.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a9/Locaux_Mairie_%C3%89cole_avant_travaux_Estrablin_09.jpg/1920px-Locaux_Mairie_%C3%89cole_avant_travaux_Estrablin_09.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Jlgay38",
+      "source": "https://commons.wikimedia.org/wiki/File:Locaux_Mairie_%C3%89cole_avant_travaux_Estrablin_09.jpg"
+    },
+    {
+      "specialty": "polovshchik",
+      "title": "File:Locaux Mairie École avant travaux Estrablin 10.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/bd/Locaux_Mairie_%C3%89cole_avant_travaux_Estrablin_10.jpg/1920px-Locaux_Mairie_%C3%89cole_avant_travaux_Estrablin_10.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Jlgay38",
+      "source": "https://commons.wikimedia.org/wiki/File:Locaux_Mairie_%C3%89cole_avant_travaux_Estrablin_10.jpg"
+    },
+    {
+      "specialty": "polovshchik",
+      "title": "File:Parquet Floor.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ce/Parquet_Floor.jpg/1920px-Parquet_Floor.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Kurtkaiser",
+      "source": "https://commons.wikimedia.org/wiki/File:Parquet_Floor.jpg"
+    },
+    {
+      "specialty": "polovshchik",
+      "title": "File:Parquet floor wood texture.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Parquet_floor_wood_texture.jpg/1920px-Parquet_floor_wood_texture.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Kurt Kaiser",
+      "source": "https://commons.wikimedia.org/wiki/File:Parquet_floor_wood_texture.jpg"
+    },
+    {
+      "specialty": "remont-kvartir",
+      "title": "File:Interior renovation, Sint-Michielskerk, Sint-Lievens-Houtem, 2026.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/51/Interior_renovation%2C_Sint-Michielskerk%2C_Sint-Lievens-Houtem%2C_2026.jpg/1920px-Interior_renovation%2C_Sint-Michielskerk%2C_Sint-Lievens-Houtem%2C_2026.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "DimiTalen",
+      "source": "https://commons.wikimedia.org/wiki/File:Interior_renovation,_Sint-Michielskerk,_Sint-Lievens-Houtem,_2026.jpg"
+    },
+    {
+      "specialty": "remont-kvartir",
+      "title": "File:Kitchen renovation project floors finished microwave in walls painted blinds in.JPG",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/15/Kitchen_renovation_project_floors_finished_microwave_in_walls_painted_blinds_in.JPG/1920px-Kitchen_renovation_project_floors_finished_microwave_in_walls_painted_blinds_in.JPG",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Tomwsulcer",
+      "source": "https://commons.wikimedia.org/wiki/File:Kitchen_renovation_project_floors_finished_microwave_in_walls_painted_blinds_in.JPG"
+    },
+    {
+      "specialty": "remont-kvartir",
+      "title": "File:The new interior of Bend Guard Station including new cabinets, appliances and flooring (51820526194).jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c6/The_new_interior_of_Bend_Guard_Station_including_new_cabinets%2C_appliances_and_flooring_%2851820526194%29.jpg/1920px-The_new_interior_of_Bend_Guard_Station_including_new_cabinets%2C_appliances_and_flooring_%2851820526194%29.jpg",
+      "license": "Public domain",
+      "license_code": "pd",
+      "author": "Forest Service - Northern Region",
+      "source": "https://commons.wikimedia.org/wiki/File:The_new_interior_of_Bend_Guard_Station_including_new_cabinets,_appliances_and_flooring_(51820526194).jpg"
+    },
+    {
+      "specialty": "santekhnik",
+      "title": "File:247 Home Rescue back of sink plumbing.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1d/247_Home_Rescue_back_of_sink_plumbing.jpg/1920px-247_Home_Rescue_back_of_sink_plumbing.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "247homerescue",
+      "source": "https://commons.wikimedia.org/wiki/File:247_Home_Rescue_back_of_sink_plumbing.jpg"
+    },
+    {
+      "specialty": "santekhnik",
+      "title": "File:Compression fitting isolating valve 15mm screwdriver turn.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/14/Compression_fitting_isolating_valve_15mm_screwdriver_turn.jpg/1920px-Compression_fitting_isolating_valve_15mm_screwdriver_turn.jpg",
+      "license": "Public domain",
+      "license_code": "pd",
+      "author": "Mike1024",
+      "source": "https://commons.wikimedia.org/wiki/File:Compression_fitting_isolating_valve_15mm_screwdriver_turn.jpg"
+    },
+    {
+      "specialty": "santekhnik",
+      "title": "File:John Hauck House, West End, Cincinnati, OH (27229385787).jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/58/John_Hauck_House%2C_West_End%2C_Cincinnati%2C_OH_%2827229385787%29.jpg/1920px-John_Hauck_House%2C_West_End%2C_Cincinnati%2C_OH_%2827229385787%29.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Warren LeMay from Cincinnati, OH, United States",
+      "source": "https://commons.wikimedia.org/wiki/File:John_Hauck_House,_West_End,_Cincinnati,_OH_(27229385787).jpg"
+    },
+    {
+      "specialty": "santekhnik",
+      "title": "File:John Hauck House, West End, Cincinnati, OH (27229386667).jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2f/John_Hauck_House%2C_West_End%2C_Cincinnati%2C_OH_%2827229386667%29.jpg/1920px-John_Hauck_House%2C_West_End%2C_Cincinnati%2C_OH_%2827229386667%29.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Warren LeMay from Cincinnati, OH, United States",
+      "source": "https://commons.wikimedia.org/wiki/File:John_Hauck_House,_West_End,_Cincinnati,_OH_(27229386667).jpg"
+    },
+    {
+      "specialty": "santekhnik",
+      "title": "File:John Hauck House, West End, Cincinnati, OH (27229387827).jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/84/John_Hauck_House%2C_West_End%2C_Cincinnati%2C_OH_%2827229387827%29.jpg/1920px-John_Hauck_House%2C_West_End%2C_Cincinnati%2C_OH_%2827229387827%29.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Warren LeMay from Cincinnati, OH, United States",
+      "source": "https://commons.wikimedia.org/wiki/File:John_Hauck_House,_West_End,_Cincinnati,_OH_(27229387827).jpg"
+    },
+    {
+      "specialty": "santekhnik",
+      "title": "File:MLC chiller pump replacement-1.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/17/MLC_chiller_pump_replacement-1.jpg/1920px-MLC_chiller_pump_replacement-1.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "IanVG",
+      "source": "https://commons.wikimedia.org/wiki/File:MLC_chiller_pump_replacement-1.jpg"
+    },
+    {
+      "specialty": "santekhnik",
+      "title": "File:Soap dish - built-in - white sink.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b0/Soap_dish_-_built-in_-_white_sink.jpg/1920px-Soap_dish_-_built-in_-_white_sink.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "meltdown61",
+      "source": "https://commons.wikimedia.org/wiki/File:Soap_dish_-_built-in_-_white_sink.jpg"
+    },
+    {
+      "specialty": "shtukatur",
+      "title": "File:Bungaroosh at Sussex Road, Hove (August 2010).JPG",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/01/Bungaroosh_at_Sussex_Road%2C_Hove_%28August_2010%29.JPG/1920px-Bungaroosh_at_Sussex_Road%2C_Hove_%28August_2010%29.JPG",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Hassocks5489",
+      "source": "https://commons.wikimedia.org/wiki/File:Bungaroosh_at_Sussex_Road,_Hove_(August_2010).JPG"
+    },
+    {
+      "specialty": "shtukatur",
+      "title": "File:Wall Plastering 1.jpg",
+      "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/Wall_Plastering_1.jpg/1920px-Wall_Plastering_1.jpg",
+      "license": "CC0",
+      "license_code": "cc0",
+      "author": "Abdul Aziz Issah",
+      "source": "https://commons.wikimedia.org/wiki/File:Wall_Plastering_1.jpg"
+    }
+  ]
+}

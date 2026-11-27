@@ -28,6 +28,7 @@ uv run uvicorn --factory app.main:create_app --reload
 - Emails (confirmation, password reset) are written to the terminal log; open the link from there.
 - Leave `CLIENT_IP_HEADER` empty locally; rate limits then count the connection address.
 - Google requests for unconfirmed accounts wait for the owner: `uv run python -m app.cli claims list`, then `claims approve <id>` or `claims reject <id>` (R-019).
+- Demo masters with photos (R-027): `uv run python -m app.cli demo seed`, removed with `demo remove`; sign-in details go to the git-ignored `.superpowers/demo-accounts.txt`. On staging see [`docs/INFRASTRUCTURE.md`](docs/INFRASTRUCTURE.md#demo-accounts-on-staging-r-027).
 - Google sign-in is hidden unless `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set in `.env`. For local testing, add `http://localhost:8000/auth/google/callback` as a redirect URI in the Google console.
 
 ## Checks

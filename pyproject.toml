@@ -52,6 +52,8 @@ ignore = []
 # RUF001: test data is Russian and Tajik, so Cyrillic letters are expected.
 "tests/**" = ["S101", "S105", "S106", "RUF001"]
 "migrations/**" = ["E501"]
+# Demo seed texts (R-027) are Russian data, not UI strings.
+"app/seed/demo.py" = ["RUF001"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
