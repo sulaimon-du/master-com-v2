@@ -4,6 +4,11 @@
     uv run python -m app.cli claims approve <id>
     uv run python -m app.cli claims reject <id>
     uv run python -m app.cli search rebuild
+    uv run python -m app.cli demo seed [--count 10]
+    uv run python -m app.cli demo remove
+
+Demo accounts (R-027) on staging: run from a laptop with the staging settings in the
+git-ignored `.env.staging`: `uv run --env-file .env.staging python -m app.cli demo seed`.
 
 On staging (no shell on Render free) the same decision is one statement in the Neon SQL Editor:
     UPDATE google_claims SET status = 'approved', resolved_at = now()
@@ -13,9 +18,80 @@ On staging (no shell on Render free) the same decision is one statement in the N
 import argparse
 import sys
 
+from sqlalchemy.engine import make_url
+
+from app.core.config import Settings, get_settings
 from app.core.db import get_sessionmaker
 from app.models.user import User
 from app.services import auth, search_index
+from app.services.storage import get_storage
+
+DEMO_COUNT = 10  # app.seed.demo.MASTERS; a literal so other commands never import demo code
+
+
+def demo_target(settings: Settings) -> str:
+    """Where the demo command writes: environment, database host and name, storage.
+
+    Never the database user or password.
+    """
+    url = make_url(str(settings.database_url))
+    return (
+        f"target: APP_ENV={settings.app_env}, database={url.host or 'local socket'}/"
+        f"{url.database or ''}, storage={'R2' if settings.r2_enabled else 'disk'}"
+    )
+
+
+def run_demo(args: argparse.Namespace) -> int:
+    """Seed or remove the demo accounts. Prints counts only, never the password."""
+    from app.seed import demo  # lazy: the deploy-time `search rebuild` never loads demo code
+
+    settings = get_settings()
+    if settings.app_env == "production":
+        print("demo accounts are never created or removed in production", file=sys.stderr)
+        return 2
+    if settings.is_production_like and not settings.r2_enabled:
+        # Local disk on a laptop would hold the photos while the staging site points at R2.
+        print("staging needs the R2 settings for demo photos; nothing was done", file=sys.stderr)
+        return 2
+    storage = get_storage()
+    print(demo_target(settings))
+    with get_sessionmaker()() as db:
+        if args.action == "seed":
+            written: list[str] = []
+            try:
+                stats = demo.seed(
+                    db,
+                    storage,
+                    count=args.count,
+                    accounts_file=demo.ACCOUNTS_FILE,
+                    written=written,
+                )
+                db.commit()
+            except BaseException as exc:
+                db.rollback()
+                demo.delete_files(storage, written)  # nothing points at them any more
+                if isinstance(exc, demo.DemoError):
+                    print(str(exc), file=sys.stderr)
+                    return 1
+                raise
+            print(demo.describe(stats))
+            print(f"sign-in details: {demo.ACCOUNTS_FILE.relative_to(demo.ROOT)}")
+            return 0
+        try:
+            removed = demo.remove(db)
+        except demo.DemoError as exc:
+            db.rollback()
+            print(str(exc), file=sys.stderr)
+            return 1
+        db.commit()
+        failed = demo.delete_files(storage, removed.keys)
+        print(
+            f"removed {removed.users} demo users, {removed.masters} masters, "
+            f"{removed.photos} portfolio photos, {removed.requests} requests; "
+            f"{removed.unlinked} closed real requests unlinked from a demo master; "
+            f"{len(removed.keys) - failed} files deleted, {failed} failed"
+        )
+        return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -28,7 +104,13 @@ def main(argv: list[str] | None = None) -> int:
         actions.add_parser(name).add_argument("claim_id", type=int)
     search = groups.add_parser("search", help="The master search index (week 7)")
     search.add_subparsers(dest="action", required=True).add_parser("rebuild")
+    demo_cmd = groups.add_parser("demo", help="Demo master accounts for staging (R-027)")
+    demo_actions = demo_cmd.add_subparsers(dest="action", required=True)
+    demo_actions.add_parser("seed").add_argument("--count", type=int, default=DEMO_COUNT)
+    demo_actions.add_parser("remove")
     args = parser.parse_args(argv)
+    if args.group == "demo":
+        return run_demo(args)
 
     with get_sessionmaker()() as db:
         if args.group == "search":
