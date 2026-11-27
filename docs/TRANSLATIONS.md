@@ -8,7 +8,7 @@ is stale.
 checked. To approve, tell Claude which keys are fine (or send corrections); they are recorded in
 `app/locales/tg_approved.json`.
 
-**496 texts, 400 drafts to check.**
+**503 texts, 407 drafts to check.**
 
 | Key | Русский | Тоҷикӣ | Status |
 |---|---|---|---|
@@ -154,6 +154,13 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `home.categories` | Направления работ | Самтҳои корӣ | draft |
 | `home.how_title` | Как это работает | Чӣ тавр кор мекунад | draft |
 | `home.lead` | Ищите мастеров по специальности и городу, смотрите их работы и выбирайте лучшего. | Устоҳоро аз рӯи ихтисос ва шаҳр ҷустуҷӯ кунед, корҳои онҳоро бинед ва беҳтаринро интихоб кунед. | draft |
+| `home.masters_all` | Все | Ҳама | draft |
+| `home.masters_available` | Свободны сейчас | Ҳоло холӣ | draft |
+| `home.masters_empty` | Пока никого нет. Попробуйте другой город или уберите фильтр. | Ҳоло касе нест. Шаҳри дигарро санҷед ё филтрро хориҷ кунед. | draft |
+| `home.masters_filters` | Быстрые фильтры | Филтрҳои зуд | draft |
+| `home.masters_lead` | Лучшие по рейтингу. Выберите город или тех, кто свободен сейчас. | Беҳтаринҳо аз рӯи рейтинг. Шаҳрро интихоб кунед ё онҳоеро, ки ҳоло холӣ ҳастанд. | draft |
+| `home.masters_more` | Все мастера | Ҳамаи устоҳо | draft |
+| `home.masters_title` | Мастера | Устоҳо | draft |
 | `home.request_text` | Опишите работу, и подходящие мастера откликнутся сами. Заявка бесплатна. | Кореро тасвир кунед, усторони мувофиқ худашон ҷавоб медиҳанд. Дархост ройгон аст. | draft |
 | `home.request_title` | Нужен мастер? | Усто лозим аст? | draft |
 | `home.search_title` | Найти мастера | Ёфтани уста | draft |

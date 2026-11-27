@@ -279,6 +279,19 @@ def counts_by_city_specialty(db: Session) -> dict[tuple[int, int], int]:
     return _count_pairs(db, places)
 
 
+def counts_by_city(db: Session) -> dict[int, int]:
+    """city_id → visible masters serving the city or any of its districts (each counted once)."""
+    places = _visible(
+        select(
+            MasterSearch.master_id, func.unnest(MasterSearch.city_ids).label("city_id")
+        ).select_from(MasterSearch)
+    ).subquery()
+    stmt = select(places.c.city_id, func.count(distinct(places.c.master_id))).group_by(
+        places.c.city_id
+    )
+    return {city: n for city, n in db.execute(stmt)}
+
+
 def counts_by_district_specialty(db: Session, *, named_only: bool) -> dict[tuple[int, int], int]:
     """(district_id, specialty_id) → visible masters who named the district, or (not
     `named_only`) who named it or serve its whole city."""
@@ -314,6 +327,11 @@ def cached_counts_by_city_specialty(db: Session) -> dict[tuple[int, int], int]:
     return cache.get_or_compute(
         ("counts_by_city_specialty",), COUNTS_TTL, lambda: counts_by_city_specialty(db)
     )
+
+
+def cached_counts_by_city(db: Session) -> dict[int, int]:
+    """`counts_by_city`, at most ten minutes old (the home page's city chips). Do not modify."""
+    return cache.get_or_compute(("counts_by_city",), COUNTS_TTL, lambda: counts_by_city(db))
 
 
 def cached_counts_by_district_specialty(
@@ -644,7 +662,12 @@ def _cards(
 
 
 def _run(
-    db: Session, query: SearchQuery, words: list[str], lang: str, notices: list[str]
+    db: Session,
+    query: SearchQuery,
+    words: list[str],
+    lang: str,
+    notices: list[str],
+    limit: int = PAGE_SIZE,
 ) -> SearchResult:
     filters = _resolve(db, query, notices)
     conds = _conditions(filters, words, query.available)
@@ -674,7 +697,7 @@ def _run(
             )
             .where(*conds)
             .order_by(*_order(sort, filters, words))
-            .limit(PAGE_SIZE)
+            .limit(limit)
             .offset(offset)
         ).all()
         items = _cards(db, rows, filters, words, lang)
@@ -715,9 +738,10 @@ def _run(
     )
 
 
-def search(db: Session, query: SearchQuery, *, lang: str) -> SearchResult:
-    """One page of visible masters. Read-only: its settings live in a savepoint rolled back at
-    the end, so the 2 s timeout and the trigram threshold never reach the caller's queries."""
+def search(db: Session, query: SearchQuery, *, lang: str, limit: int = PAGE_SIZE) -> SearchResult:
+    """One page of visible masters (at most `limit` cards; page maths stays per PAGE_SIZE).
+    Read-only: its settings live in a savepoint rolled back at the end, so the 2 s timeout and
+    the trigram threshold never reach the caller's queries."""
     words = query_words(query.q)
     notices: list[str] = []
     savepoint = db.begin_nested()
@@ -728,7 +752,7 @@ def search(db: Session, query: SearchQuery, *, lang: str) -> SearchResult:
                 func.set_config("statement_timeout", STATEMENT_TIMEOUT, True),
             )
         )
-        return _run(db, query, words, lang, notices)
+        return _run(db, query, words, lang, notices, min(limit, PAGE_SIZE))
     except OperationalError as exc:
         if not isinstance(exc.orig, QueryCanceled):
             raise
