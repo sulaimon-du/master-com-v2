@@ -110,8 +110,11 @@ def test_c4_counts_from_the_last_reopen(db: Session) -> None:
     request_svc.reopen_feed(db, client, request.id)
     reopened = _reload(db, request).opened_at
 
-    closed, _ = periodic.expire_requests(db, reopened + 27 * DAY - SECOND)
-    assert request.id not in closed and _reload(db, request).status == "open"
+    closed, reminded = periodic.expire_requests(db, reopened + 27 * DAY - SECOND)
+    assert request.id not in closed and request.id not in reminded
+    row = _reload(db, request)
+    assert (row.status, row.expiry_reminded_at) == ("open", None)
+    assert len(_jobs(db, "expiry_reminder", request.id)) == 1
     _, reminded = periodic.expire_requests(db, reopened + 27 * DAY)
     assert request.id in reminded and len(_jobs(db, "expiry_reminder", request.id)) == 2
 
@@ -149,14 +152,23 @@ def test_c5_closes_exactly_at_30_days_without_a_review_prompt(db: Session) -> No
     closed, _ = periodic.stale_requests(db, T + 30 * DAY - SECOND)
     assert request.id not in closed and _reload(db, request).status == "master_chosen"
 
+    assert len(_jobs(db, "done_check", request.id)) == 1  # asked once on the way (day 14+)
     now = T + 30 * DAY
-    closed, _ = periodic.stale_requests(db, now)
-    assert request.id in closed
+    closed, asked = periodic.stale_requests(db, now)
+    assert request.id in closed and request.id not in asked
+    assert len(_jobs(db, "done_check", request.id)) == 1  # the closing run asks nothing
     row = _reload(db, request)
     assert (row.status, row.close_reason, row.closed_at) == ("closed", "auto_stale", now)
     assert row.chosen_master_id is not None  # history kept
     for kind in ("review_prompt", "request_cancelled"):
         assert _jobs(db, kind, request.id) == []
+
+
+def test_c5_past_30_days_closes_without_a_late_done_check(db: Session) -> None:
+    request = _chosen(db)  # the worker was down from day 13 to day 31
+    closed, asked = periodic.stale_requests(db, T + 31 * DAY)
+    assert request.id in closed and request.id not in asked
+    assert _jobs(db, "done_check", request.id) == []
 
 
 def test_c5_leaves_completed_requests_alone(db: Session) -> None:
@@ -277,3 +289,30 @@ def test_purge_deletes_only_expired_sign_in_rows(db: Session) -> None:
     db.expire_all()
     assert [db.get(model, i) for model, i in gone] == [None] * len(gone)
     assert all(db.get(model, i) is not None for model, i in stay)
+
+
+# --- old timer jobs -------------------------------------------------------------------------
+
+
+def test_finished_timer_jobs_older_than_a_week_are_purged(db: Session) -> None:
+    now = utcnow()
+    old, recent = now - 7 * DAY, now - 7 * DAY + SECOND
+
+    def job(kind: str, **values: datetime) -> Job:
+        row = Job(kind=kind, payload={}, dedupe_key=f"t-{uuid.uuid4().hex}", **values)
+        db.add(row)
+        return row
+
+    gone = [job(periodic.EXPIRY, done_at=old), job(periodic.PURGE, failed_at=old)]
+    kept = [
+        job(periodic.STALE, done_at=recent),
+        job(periodic.EXPIRY),  # still pending
+        job("chosen", done_at=now - 365 * DAY),  # notification dedupe keys stay forever
+        job("done_check", failed_at=now - 365 * DAY),
+    ]
+    db.flush()
+    gone_ids, kept_ids = [j.id for j in gone], [j.id for j in kept]
+    assert periodic.purge_timer_jobs(db, now) >= len(gone)
+    db.expire_all()
+    assert [db.get(Job, i) for i in gone_ids] == [None, None]
+    assert all(db.get(Job, i) is not None for i in kept_ids)

@@ -9,7 +9,7 @@ from datetime import timedelta
 from typing import Any
 
 import pytest
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session
 
 from app.core.db import get_sessionmaker
@@ -44,7 +44,8 @@ def factory():  # type: ignore[no-untyped-def]
 def _add(factory, n: int = 1, kind: str = "new_request", **values: Any) -> list[int]:  # type: ignore[no-untyped-def]
     with factory() as s:
         values.setdefault("run_at", utcnow() - timedelta(seconds=1))
-        rows = [Job(kind=kind, payload={"n": i}, **values) for i in range(n)]
+        payload = values.pop("payload", None)
+        rows = [Job(kind=kind, payload=payload or {"n": i}, **values) for i in range(n)]
         s.add_all(rows)
         s.commit()
         return [r.id for r in rows]
@@ -263,19 +264,61 @@ def test_an_unknown_kind_fails_once_without_stopping_the_batch(factory, handled)
     assert jobs.run_once(factory, WORKER, now=utcnow() + timedelta(days=1)) == 0
 
 
-def test_a_reclaimed_job_is_not_finished_by_the_old_worker(factory, monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    (job_id,) = _add(factory)
+def test_a_job_reclaimed_after_its_worker_died_is_not_run_by_it(factory, handled) -> None:  # type: ignore[no-untyped-def]
+    (job_id,) = _add(factory, payload={"fail": True})  # the handler writes a marker job
+    with factory() as s:
+        assert jobs.claim(s, WORKER) == [job_id]
+        s.commit()
+    # This worker's connection died before it locked the job; another worker took it over.
+    later = utcnow() + timedelta(minutes=11)
+    with factory() as s:
+        assert jobs.claim(s, "new-holder", now=later) == [job_id]
+        s.commit()
+    jobs._run_job(factory, job_id, WORKER, later)
+    assert handled == []
+    job = _job(factory, job_id)
+    assert (job.locked_by, job.attempts, job.done_at, job.last_error) == (
+        "new-holder",
+        2,
+        None,
+        None,
+    )
+    with factory() as s:
+        assert _count(s, dedupe_key="written-then-failed") == 0
+
+
+@pytest.mark.parametrize(("max_attempts", "action"), [(5, "claim"), (1, "give_up_stale")])
+def test_a_running_job_is_never_taken_from_its_live_worker(  # type: ignore[no-untyped-def]
+    factory, monkeypatch, max_attempts: int, action: str
+) -> None:
+    started, release = threading.Event(), threading.Event()
 
     def slow(db: Session, payload: dict) -> None:
-        # Meanwhile another worker took the job over (this one looked dead).
-        with factory() as other:
-            other.get(Job, job_id).locked_by = "new-holder"
-            other.commit()
+        started.set()
+        assert release.wait(timeout=10)
 
     monkeypatch.setitem(jobs.HANDLERS, "new_request", slow)
-    assert jobs.run_once(factory, WORKER) == 1
+    (job_id,) = _add(factory, max_attempts=max_attempts)
+    worker_a = threading.Thread(target=jobs.run_once, args=(factory, "worker-a"), daemon=True)
+    worker_a.start()
+    try:
+        assert started.wait(timeout=10)
+        later = utcnow() + timedelta(minutes=11)  # A's claim looks stale by now
+        with factory() as b:
+            # Waiting on A's row lock would raise here instead of hanging.
+            b.execute(text("SET LOCAL lock_timeout = '2s'"))
+            if action == "claim":
+                assert jobs.claim(b, "worker-b", now=later) == []
+            else:
+                assert jobs.give_up_stale(b, now=later) == 0
+            b.commit()
+    finally:
+        release.set()
+        worker_a.join(timeout=10)
+    assert not worker_a.is_alive()
     job = _job(factory, job_id)
-    assert job.done_at is None and job.locked_by == "new-holder"
+    assert (job.locked_by, job.attempts, job.failed_at) == ("worker-a", 1, None)
+    assert job.done_at is not None
 
 
 def test_register_refuses_an_unknown_kind() -> None:

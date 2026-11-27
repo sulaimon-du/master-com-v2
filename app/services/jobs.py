@@ -76,11 +76,12 @@ def _pending():  # type: ignore[no-untyped-def]
 def claim(
     db: Session, worker_id: str, *, now: datetime | None = None, limit: int = CLAIM_BATCH
 ) -> list[int]:
-    """Lock up to `limit` due jobs for `worker_id` and return their ids, oldest first.
+    """Lock up to `limit` due jobs for `worker_id`; returns their ids in ascending id order.
 
-    Rows another transaction is claiming are skipped, so two workers never take the same job.
-    A claim counts as an attempt (a job that kills its worker still runs out of attempts).
-    The caller commits, which releases the row locks but keeps `locked_at`/`locked_by`.
+    The batch is the earliest `run_at` first (then id). Rows another transaction holds (a claim
+    in progress, or a job a live worker is running) are skipped, so two workers never take the
+    same job and a claim never waits. A claim counts as an attempt (a job that kills its worker
+    still runs out of attempts). The caller commits, which keeps `locked_at`/`locked_by`.
     """
     now = now or utcnow()
     due = (
@@ -107,13 +108,19 @@ def claim(
 def give_up_stale(db: Session, *, now: datetime | None = None) -> int:
     """Fail jobs whose worker died on their last attempt (they would never be claimed again)."""
     now = now or utcnow()
-    result = db.execute(
-        update(Job)
+    # A job still running holds its row lock: skipped, never waited on.
+    dead = (
+        select(Job.id)
         .where(
             *_pending(),
             Job.locked_at <= now - STALE_LOCK,
             Job.attempts >= Job.max_attempts,
         )
+        .with_for_update(skip_locked=True)
+    )
+    result = db.execute(
+        update(Job)
+        .where(Job.id.in_(dead.scalar_subquery()))
         .values(failed_at=now, last_error=STALE_GAVE_UP, locked_at=None, locked_by=None)
     )
     return result.rowcount  # type: ignore[attr-defined, no-any-return]
@@ -124,32 +131,37 @@ def backoff(attempts: int) -> timedelta:
     return timedelta(minutes=2**attempts)
 
 
-def _mine(job_id: int, worker_id: str):  # type: ignore[no-untyped-def]
-    # Only the current claim holder may finish a job (a reclaimed job has a new holder).
-    return update(Job).where(Job.id == job_id, Job.locked_by == worker_id, *_pending())
+def _lock_mine(db: Session, job_id: int, worker_id: str) -> Job | None:
+    """Lock the job for the rest of this transaction if `worker_id` still holds the claim.
+
+    The lock is held through the handler, so other workers' SKIP LOCKED claims pass over a job
+    that is running, however long it takes; only a dead connection lets it be reclaimed. A job
+    already reclaimed by another worker (or finished) returns None: its handler must not run.
+    """
+    return db.scalars(
+        select(Job)
+        .where(Job.id == job_id, Job.locked_by == worker_id, *_pending())
+        .with_for_update()
+    ).first()
 
 
 def _run_job(factory: sessionmaker[Session], job_id: int, worker_id: str, now: datetime) -> None:
     with factory() as db:
-        job = db.get(Job, job_id)
-        if job is None or job.locked_by != worker_id:
+        job = _lock_mine(db, job_id, worker_id)
+        if job is None:
+            db.rollback()
             return
-        kind, payload, attempts, max_attempts = (
-            job.kind,
-            dict(job.payload),
-            job.attempts,
-            job.max_attempts,
-        )
+        kind, payload = job.kind, dict(job.payload)
         handler = HANDLERS.get(kind)
         if handler is None:
-            db.execute(_mine(job_id, worker_id).values(failed_at=now, last_error=UNKNOWN_KIND))
+            job.failed_at, job.last_error = now, UNKNOWN_KIND
             db.commit()
             log.error("job %d failed: no handler for kind %s", job_id, kind)
             return
         try:
             handler(db, payload)
-            # The handler's changes and "done" commit together.
-            db.execute(_mine(job_id, worker_id).values(done_at=utcnow(), last_error=None))
+            # The handler's changes and "done" commit together, under the same row lock.
+            job.done_at, job.last_error = utcnow(), None
             db.commit()
             return
         except Exception as exc:  # the boundary: one job never stops the others
@@ -157,8 +169,14 @@ def _run_job(factory: sessionmaker[Session], job_id: int, worker_id: str, now: d
             error = type(exc).__name__[:200]
             # Type and stack frames only, never the message (it may carry ids, SQL values, URLs).
             frames = "".join(traceback.format_tb(exc.__traceback__))
+        # The rollback released the lock: take it again and check the claim is still ours.
+        job = _lock_mine(db, job_id, worker_id)
+        if job is None:
+            db.rollback()
+            return
+        attempts, max_attempts = job.attempts, job.max_attempts
         if attempts >= max_attempts:
-            values: dict[str, Any] = {"failed_at": utcnow(), "last_error": error}
+            job.failed_at, job.last_error = utcnow(), error
             log.error(
                 "job %d %s gave up after %d attempts: %s\n%s",
                 job_id,
@@ -169,7 +187,7 @@ def _run_job(factory: sessionmaker[Session], job_id: int, worker_id: str, now: d
             )
         else:
             retry_at = utcnow() + backoff(attempts)
-            values = {"run_at": retry_at, "last_error": error, "locked_at": None, "locked_by": None}
+            job.run_at, job.last_error, job.locked_at, job.locked_by = retry_at, error, None, None
             log.warning(
                 "job %d %s failed (attempt %d/%d), retry at %s: %s\n%s",
                 job_id,
@@ -180,7 +198,6 @@ def _run_job(factory: sessionmaker[Session], job_id: int, worker_id: str, now: d
                 error,
                 frames,
             )
-        db.execute(_mine(job_id, worker_id).values(**values))
         db.commit()
 
 

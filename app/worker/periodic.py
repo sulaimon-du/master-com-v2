@@ -1,4 +1,5 @@
-"""The worker's timers (spec D6, PRODUCT_RULES C4/C5) and the purge of expired sign-in rows.
+"""The worker's timers (spec D6, PRODUCT_RULES C4/C5) the purge of expired sign-in rows
+and of finished timer jobs older than a week.
 
 `schedule` queues one job per timer and 10-minute window (dedupe key per window), so several
 workers, restarts or a CLI run never repeat a window. Each job's handler does the work in the
@@ -18,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.core.time import utcnow
 from app.models.auth import AuthSession, AuthToken, OAuthFlow, TelegramSignin
+from app.models.jobs import PERIODIC_KINDS, Job
 from app.models.request import JobRequest
 from app.services import jobs
 from app.services.auth import SESSION_IDLE
@@ -29,10 +31,10 @@ EXPIRY_CLOSE_AFTER = timedelta(days=30)
 # C5: a request with a chosen master, from `master_chosen_at`.
 DONE_ASK_AFTER = timedelta(days=14)
 STALE_CLOSE_AFTER = timedelta(days=30)
+# Finished timer jobs (one per kind every 10 minutes) are kept this long, then deleted.
+TIMER_JOBS_KEPT = timedelta(days=7)
 
-EXPIRY = "periodic:request_expiry"
-STALE = "periodic:request_stale"
-PURGE = "periodic:purge_auth"
+EXPIRY, STALE, PURGE = PERIODIC_KINDS
 
 
 def window_start(now: datetime) -> datetime:
@@ -143,6 +145,20 @@ def purge_auth(db: Session, now: datetime) -> int:
     return sum(db.execute(s).rowcount for s in statements)  # type: ignore[attr-defined]
 
 
+def purge_timer_jobs(db: Session, now: datetime) -> int:
+    """Delete finished timer jobs older than a week. Notification jobs are never deleted:
+    their dedupe keys are what stops a second send.
+    """
+    finished_before = now - TIMER_JOBS_KEPT
+    result = db.execute(
+        delete(Job).where(
+            Job.kind.in_(PERIODIC_KINDS),
+            (Job.done_at <= finished_before) | (Job.failed_at <= finished_before),
+        )
+    )
+    return result.rowcount  # type: ignore[attr-defined, no-any-return]
+
+
 def _run_expiry(db: Session, payload: dict[str, Any]) -> None:
     expire_requests(db, utcnow())
 
@@ -152,7 +168,9 @@ def _run_stale(db: Session, payload: dict[str, Any]) -> None:
 
 
 def _run_purge(db: Session, payload: dict[str, Any]) -> None:
-    purge_auth(db, utcnow())
+    now = utcnow()
+    purge_auth(db, now)
+    purge_timer_jobs(db, now)
 
 
 def install() -> None:
