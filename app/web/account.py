@@ -37,6 +37,7 @@ def account_page(
         user=user,
         master_slug=master.slug if master else None,
         notice=NOTICES.get(notice),
+        bot_blocked=user.telegram_blocked_at is not None,
     )
 
 

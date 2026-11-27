@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import ColumnElement, and_, exists, or_, select, tuple_
+from sqlalchemy import ColumnElement, Select, and_, exists, or_, select, tuple_
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -97,6 +97,40 @@ def matching_request(
     if lock:
         stmt = stmt.with_for_update(of=JobRequest).execution_options(populate_existing=True)
     return db.scalar(stmt)
+
+
+def matching_masters_query(db: Session, request: JobRequest) -> Select[Any]:
+    """Owners (`User`) of the visible masters whose feed this request is in: the D3 rule of
+    `_matches` seen from the request's side, newest published first. Callers may add columns,
+    conditions and a limit.
+
+    Only the master side is checked here; the caller checks the request itself (status, hidden,
+    client active). The two directions are kept in step by a matrix test.
+    """
+    specialty_ids = list(
+        db.scalars(
+            select(RequestSpecialty.specialty_id).where(RequestSpecialty.request_id == request.id)
+        )
+    )
+    place = [MasterSearch.whole_city_ids.contains([request.city_id])]
+    if request.district_id is None:
+        place.append(MasterSearch.city_ids.contains([request.city_id]))
+    else:
+        place.append(MasterSearch.district_ids.contains([request.district_id]))
+    return (
+        search._visible(select(User).select_from(MasterSearch))
+        .where(
+            MasterSearch.specialty_ids.overlap(specialty_ids),
+            or_(*place),
+            User.id != request.client_id,
+        )
+        .order_by(MasterSearch.published_at.desc().nulls_last(), MasterSearch.master_id.desc())
+    )
+
+
+def matching_masters(db: Session, request: JobRequest, *, limit: int) -> list[User]:
+    """`matching_masters_query`, at most `limit` owners."""
+    return list(db.scalars(matching_masters_query(db, request).limit(limit)))
 
 
 # --- cursor -----------------------------------------------------------------------------------

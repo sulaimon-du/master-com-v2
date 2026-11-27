@@ -50,5 +50,24 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  # Background jobs and timers (spec D7). Off by default: `docker compose --profile worker up`.
+  # No migrations or seed: the web service owns the schema.
+  worker:
+    profiles: ["worker"]
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://mc:mc@db:5432/mastercom
+    command: ["python", "-m", "app.worker"]
+    # The worker serves no HTTP, so the image's /health check does not apply.
+    healthcheck:
+      disable: true
+    depends_on:
+      db:
+        condition: service_healthy
+      web:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
   db-data:

@@ -252,3 +252,25 @@ def test_language_of_the_account_wins() -> None:
 
 def test_text_gives_help() -> None:
     assert dialog.on_text(_tg()).text == _t("bot.help")
+
+
+@pytest.mark.parametrize(
+    "send",
+    [
+        lambda: dialog.on_text(_tg()),
+        lambda: dialog.on_start(_tg(), ""),
+        lambda: dialog.on_callback(_tg(), dialog.CANCEL),
+    ],
+)
+def test_any_update_clears_the_bot_blocked_mark(send) -> None:  # type: ignore[no-untyped-def]
+    uid = _linked_user()
+    other = make_user("other@example.com")
+    with get_sessionmaker()() as db:
+        db.get(User, uid).telegram_blocked_at = utcnow()
+        blocked_other = db.get(User, other)
+        blocked_other.telegram_id, blocked_other.telegram_blocked_at = TG_ID + 1, utcnow()
+        db.commit()
+    send()
+    assert _db_user(uid).telegram_blocked_at is None
+    # Only the account of the Telegram user who wrote.
+    assert _db_user(other).telegram_blocked_at is not None

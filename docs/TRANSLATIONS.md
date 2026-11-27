@@ -8,7 +8,7 @@ is stale.
 checked. To approve, tell Claude which keys are fine (or send corrections); they are recorded in
 `app/locales/tg_approved.json`.
 
-**503 texts, 407 drafts to check.**
+**537 texts, 441 drafts to check.**
 
 | Key | Русский | Тоҷикӣ | Status |
 |---|---|---|---|
@@ -251,6 +251,40 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `nav.responses` | Отклики | Посухҳо | draft |
 | `nav.signin` | Войти | Ворид шудан | approved |
 | `nav.skip` | Перейти к содержимому | Ба мундариҷа гузаштан | approved |
+| `notifications.back` | Вернуться в аккаунт | Бозгашт ба аккаунт | draft |
+| `notifications.bot_blocked` | Бот UstoiMan заблокирован в Telegram, поэтому сообщения туда не приходят. Откройте бота и нажмите «Старт». | Боти UstoiMan дар Telegram баста шудааст, бинобар ин паёмҳо ба он ҷо намерасанд. Ботро кушоед ва «Start»-ро пахш кунед. | draft |
+| `notifications.channel.email` | Почта | Почта | draft |
+| `notifications.channel.telegram` | Telegram | Telegram | draft |
+| `notifications.email_not_ready` | Почта не подтверждена: письма придут после подтверждения. | Почта тасдиқ нашудааст: мактубҳо пас аз тасдиқ меоянд. | draft |
+| `notifications.event` | Событие | Ҳодиса | draft |
+| `notifications.event.chosen` | Меня выбрали исполнителем | Маро иҷрокунанда интихоб карданд | draft |
+| `notifications.event.done_check` | Вопрос «Работа выполнена?» | Савол «Кор иҷро шуд?» | draft |
+| `notifications.event.expiry_reminder` | Заявка скоро закроется | Дархост ба зудӣ баста мешавад | draft |
+| `notifications.event.new_request` | Новая подходящая заявка (мастерам) | Дархости нави мувофиқ (барои устоҳо) | draft |
+| `notifications.event.new_response` | Новый отклик на мою заявку | Ҷавоби нав ба дархости ман | draft |
+| `notifications.event.request_cancelled` | Заявку, где меня выбрали, закрыли | Дархосте, ки дар он маро интихоб карданд, баста шуд | draft |
+| `notifications.event.review_prompt` | Работа завершена: оставить отзыв | Кор анҷом ёфт: шарҳ гузоштан | draft |
+| `notifications.intro` | Выберите, о чём и куда вам сообщать: в Telegram-бот UstoiMan или на почту. | Интихоб кунед, ки дар бораи чӣ ва ба куҷо ба шумо хабар диҳем: ба боти Telegram-и UstoiMan ё ба почта. | draft |
+| `notifications.open` | Настроить уведомления | Танзими огоҳиномаҳо | draft |
+| `notifications.save` | Сохранить | Нигоҳ доштан | draft |
+| `notifications.saved` | Настройки уведомлений сохранены. | Танзимоти огоҳиномаҳо нигоҳ дошта шуд. | draft |
+| `notifications.telegram_not_ready` | Telegram не привязан к аккаунту: уведомления в Telegram придут после привязки. | Telegram ба аккаунт пайваст нашудааст: огоҳиномаҳо дар Telegram пас аз пайвастшавӣ меоянд. | draft |
+| `notifications.title` | Уведомления | Огоҳиномаҳо | draft |
+| `notify.chosen` | Клиент выбрал вас исполнителем по заявке: {summary}. Контактный телефон клиента — на странице заявки. | Мизоҷ шуморо иҷрокунандаи дархост интихоб кард: {summary}. Телефони мизоҷ дар саҳифаи дархост аст. | draft |
+| `notify.chosen.subject` | Вас выбрали исполнителем | Шуморо иҷрокунанда интихоб карданд | draft |
+| `notify.done_check` | Мастер уже выполнил работу по заявке? {summary}. Отметьте «Работа выполнена» или закройте заявку на её странице. | Усто кори дархостро аллакай иҷро кард? {summary}. Дар саҳифаи дархост «Кор иҷро шуд»-ро қайд кунед ё дархостро бандед. | draft |
+| `notify.done_check.subject` | Работа выполнена? | Кор иҷро шуд? | draft |
+| `notify.expiry_reminder` | Ваша заявка закроется через 3 дня: {summary}. Если она больше не нужна — закройте её; потом можно создать новую. | Дархости шумо пас аз 3 рӯз баста мешавад: {summary}. Агар он дигар лозим набошад, онро пӯшед; баъдтар метавонед дархости нав созед. | draft |
+| `notify.expiry_reminder.subject` | Заявка скоро закроется | Дархост ба зудӣ баста мешавад | draft |
+| `notify.footer` | Настроить уведомления: {link} | Танзими огоҳиномаҳо: {link} | draft |
+| `notify.new_request` | Новая заявка по вашей специальности: {summary}. | Дархости нав аз рӯи ихтисоси шумо: {summary}. | draft |
+| `notify.new_request.subject` | Новая заявка на UstoiMan | Дархости нав дар UstoiMan | draft |
+| `notify.new_response` | Мастер откликнулся на вашу заявку: {summary}. | Устое ба дархости шумо ҷавоб дод: {summary}. | draft |
+| `notify.new_response.subject` | Новый отклик на вашу заявку | Ҷавоби нав ба дархости шумо | draft |
+| `notify.request_cancelled` | Клиент закрыл заявку, по которой выбрал вас: {summary}. | Мизоҷ дархостеро, ки дар он шуморо интихоб карда буд, баст: {summary}. | draft |
+| `notify.request_cancelled.subject` | Заявка закрыта | Дархост баста шуд | draft |
+| `notify.review_prompt` | Работа по заявке выполнена: {summary}. Спасибо! На странице заявки скоро можно будет оставить отзыв о мастере. | Кор аз рӯи дархост иҷро шуд: {summary}. Ташаккур! Ба зудӣ дар саҳифаи дархост дар бораи усто шарҳ гузоштан мумкин мешавад. | draft |
+| `notify.review_prompt.subject` | Работа выполнена — оставьте отзыв | Кор иҷро шуд — шарҳ гузоред | draft |
 | `portfolio.back` | К портфолио | Ба портфолио | draft |
 | `portfolio.collection_desc` | Описание (по желанию) | Тавсиф (ихтиёрӣ) | draft |
 | `portfolio.collection_title` | Название | Ном | draft |

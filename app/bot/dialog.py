@@ -43,11 +43,16 @@ class TgUser:
     language_code: str | None
 
 
-def _run[T](fn: Callable[[Session], T]) -> T:
-    """Run `fn` in its own session; commit after it, roll back and re-raise on an error."""
+def _run[T](user: TgUser, fn: Callable[[Session], T]) -> T:
+    """Run `fn` in its own session; commit after it, roll back and re-raise on an error.
+
+    Any update from a user means they have not blocked the bot (any more): their account gets
+    Telegram notifications again (spec D10.6).
+    """
     with get_sessionmaker()() as db:
         try:
             result = fn(db)
+            telegram.clear_bot_blocked(db, user.id)
             db.commit()
         except Exception:
             db.rollback()
@@ -104,7 +109,7 @@ def on_start(user: TgUser, payload: str) -> Reply:
             return Reply(translate(lang, "bot.ask_phone"), ask_contact=True, lang=lang)
         return Reply(translate(lang, "bot.welcome"))
 
-    return _run(run)
+    return _run(user, run)
 
 
 def _not_linked(lang: str) -> Reply:
@@ -139,7 +144,7 @@ def on_callback(user: TgUser, data: str) -> Reply:
             key = "bot.linked_done"
         return Reply(translate(lang, key), ask_contact=ask, lang=lang)
 
-    return _run(run)
+    return _run(user, run)
 
 
 _PHONE_OUTCOMES = {
@@ -170,8 +175,8 @@ def on_contact(user: TgUser, contact_user_id: int | None, phone_number: str) -> 
             return Reply(translate(lang, key), ask_contact=True, lang=lang)
         return Reply(translate(lang, key), buttons=buttons, remove_keyboard=True)
 
-    return _run(run)
+    return _run(user, run)
 
 
 def on_text(user: TgUser) -> Reply:
-    return _run(lambda db: _simple(db, user, "bot.help"))
+    return _run(user, lambda db: _simple(db, user, "bot.help"))

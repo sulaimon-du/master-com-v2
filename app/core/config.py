@@ -59,6 +59,12 @@ class Settings(BaseSettings):
     telegram_bot_username: str | None = None
     telegram_webhook_secret: SecretStr | None = None
     telegram_webhook_url: str | None = None
+    # Background jobs (spec D7). RUN_WORKER=1 runs the worker loop in a thread of the bot
+    # process (staging; Render free has no background workers). WORKER_WAKE_URL: the site GETs
+    # it after a commit that queued a job, so the worker polls at once and a sleeping bot
+    # service wakes up. No secrets in it; empty = no ping (production runs its own worker).
+    run_worker: bool = False
+    worker_wake_url: str | None = None
     # Public address of the site, no trailing slash; the bot builds absolute links from it.
     site_url: str = "http://localhost:8000"
     # Uploaded images (avatars, portfolio) are stored here when R2 is not configured.
@@ -106,6 +112,7 @@ class Settings(BaseSettings):
         "r2_public_url",
         "sentry_dsn",
         "sentry_release",
+        "worker_wake_url",
         mode="before",
     )
     @classmethod
@@ -124,6 +131,24 @@ class Settings(BaseSettings):
         name = info.field_name.upper()
         # The endpoint is the account's S3 address: a host only. The public URL may have a path.
         return _clean_https(value, name, allow_path=name == "R2_PUBLIC_URL")
+
+    @field_validator("run_worker", mode="before")
+    @classmethod
+    def _blank_is_off(cls, value: object) -> object:
+        return False if isinstance(value, str) and not value.strip() else value
+
+    @field_validator("worker_wake_url")
+    @classmethod
+    def _wake_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        parts = urlsplit(value)
+        # http is fine locally; never credentials or a query, so the ping carries nothing.
+        if parts.scheme not in ("http", "https") or not parts.hostname:
+            raise ValueError("WORKER_WAKE_URL must be an http(s):// URL")
+        if parts.username or parts.password or parts.query or parts.fragment:
+            raise ValueError("WORKER_WAKE_URL must not contain credentials or a query")
+        return value
 
     @model_validator(mode="after")
     def _add_platform_host(self) -> "Settings":

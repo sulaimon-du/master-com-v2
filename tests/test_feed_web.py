@@ -545,3 +545,47 @@ def test_chosen_master_loses_contact_when_request_is_hidden(scene: dict) -> None
     _update(JobRequest, rid, hidden_at=utcnow())
     r = scene["ali"].get(f"/requests/{rid}")
     assert r.status_code == 200 and CLIENT_PHONE not in r.text and DESCRIPTION not in r.text
+
+
+def test_the_web_app_never_sends_telegram_messages(  # type: ignore[no-untyped-def]
+    client: TestClient, scene: dict, monkeypatch
+) -> None:
+    """The bot token lives on the bot service only (R-021): pages queue jobs, never send."""
+    from app.services import telegram_send
+
+    def refuse(*args: object, **kwargs: object) -> None:
+        raise AssertionError("the web app called Telegram")
+
+    monkeypatch.setattr(telegram_send, "send_message", refuse)
+    monkeypatch.setattr(telegram_send, "transport", refuse)
+    ana, rid = scene["ana"], scene["rid"]
+    for browser in (ana, scene["ali"]):
+        assert browser.get("/account/notifications").status_code == 200
+        assert _post(browser, "/account/notifications", {"on": "chosen:email"}).status_code == 303
+        assert browser.get("/account").status_code == 200
+    r = ana.post(
+        "/requests/new",
+        data={
+            "specialty": [str(_spec_id("santekhnik"))],
+            "city": str(_city_id()),
+            "description": DESCRIPTION,
+            "timing": "flexible",
+            "csrf_token": csrf_token(ana),
+        },
+    )
+    assert r.status_code == 303
+    assert _respond(scene["ali"], rid).status_code == 303
+    resp = _response_id(rid, scene["ali_profile"])
+    r = _post(ana, f"/requests/{rid}/choose", {"response_id": str(resp), "phone": CLIENT_PHONE})
+    assert r.status_code == 303
+    assert _post(ana, f"/requests/{rid}/complete").status_code == 303
+
+
+def _spec_id(slug: str) -> int:
+    with get_sessionmaker()() as db:
+        return spec(db, slug).id
+
+
+def _city_id() -> int:
+    with get_sessionmaker()() as db:
+        return city_without_districts(db).id

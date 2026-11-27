@@ -418,7 +418,7 @@ def test_reopen_feed_math_and_clock(db: Session) -> None:
 
 @pytest.fixture
 def queued(monkeypatch: pytest.MonkeyPatch) -> list[tuple]:
-    """Every job the services enqueue, instead of the (no-op) queue."""
+    """Every job the services enqueue, instead of the real queue (tested in test_jobs)."""
     calls: list[tuple] = []
 
     def record(db, kind, payload, *, dedupe_key=None, run_at=None):  # type: ignore[no-untyped-def]

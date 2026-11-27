@@ -547,8 +547,10 @@ def _seed_client(db: Session, n: int, spec: DemoClient, password_hash: str) -> N
             timing="flexible",
         ),
     )
-    # Demo requests must not fan out to real masters' Telegram or email: drop the job.
-    db.execute(delete(Job).where(Job.dedupe_key == f"new_request:{request.id}"))
+    # Demo requests must not fan out to real masters' Telegram or email: drop every job about
+    # it (create_request queues `new_request` {request_id}; notify jobs come only from the
+    # worker running that job, so none exist yet).
+    db.execute(delete(Job).where(Job.payload["request_id"].as_integer() == request.id))
 
 
 def seed(
@@ -677,7 +679,12 @@ def remove(db: Session) -> RemoveStats:
             .values(responses_count=func.greatest(JobRequest.responses_count - n, 0))
         )
 
-    job_filters = [Job.payload["request_id"].as_integer().in_(request_ids)]
+    # Event jobs carry request_id or response_id; notify jobs also carry the recipient's
+    # user_id (a demo master told about a real request). None may outlive the rows.
+    job_filters = [
+        Job.payload["request_id"].as_integer().in_(request_ids),
+        Job.payload["user_id"].as_integer().in_(user_ids),
+    ]
     if response_ids:
         job_filters.append(Job.payload["response_id"].as_integer().in_(response_ids))
     db.execute(delete(Job).where(or_(*job_filters)))

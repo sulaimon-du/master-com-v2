@@ -667,3 +667,98 @@ def test_cli_seed_and_remove_never_print_the_password(
     storage = get_storage()
     assert isinstance(storage, LocalDiskStorage)
     assert not list(storage.root.rglob("*.webp"))
+
+
+# --- jobs (the real queue since PR C; ledger demo M6) -----------------------------------------
+
+
+def _jobs_for(db: Session, request_ids: list[int]) -> list[Job]:
+    return list(
+        db.scalars(select(Job).where(Job.payload["request_id"].as_integer().in_(request_ids)))
+    )
+
+
+def test_seeding_queues_no_live_notification_jobs(
+    db: Session, storage, accounts, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    queued: list[tuple[str, dict]] = []
+    real_enqueue = requests_svc.jobs.enqueue
+
+    def spy(db_, kind, payload, **kw):  # type: ignore[no-untyped-def]
+        queued.append((kind, payload))
+        return real_enqueue(db_, kind, payload, **kw)
+
+    monkeypatch.setattr(requests_svc.jobs, "enqueue", spy)
+    _seed(db, storage, accounts, count=2)
+    db.flush()
+    request_ids = list(
+        db.scalars(
+            select(JobRequest.id)
+            .join(User, User.id == JobRequest.client_id)
+            .where(User.email.like("demo-client-%"))
+        )
+    )
+    assert len(request_ids) == 3
+    # create_request really queued the fan-out (the same kind and payload as the site) ...
+    assert sorted(p["request_id"] for k, p in queued if k == "new_request") == sorted(request_ids)
+    # ... and the seed dropped it: no job about a demo request is left to run.
+    assert _jobs_for(db, request_ids) == []
+    assert not db.scalar(
+        select(func.count()).select_from(Job).where(Job.kind.in_(("new_request", "notify")))
+    )
+
+
+def test_remove_deletes_every_job_about_demo_rows_and_keeps_real_ones(
+    db: Session, storage, accounts
+) -> None:
+    from app.services import jobs
+
+    _seed(db, storage, accounts, count=2)
+    demo_request = db.scalar(
+        select(JobRequest)
+        .join(User, User.id == JobRequest.client_id)
+        .where(User.email.like("demo-client-%"))
+    )
+    demo_master = db.scalar(
+        select(MasterProfile)
+        .join(User, User.id == MasterProfile.user_id)
+        .where(User.email == demo.master_email(1))
+    )
+    assert demo_request is not None and demo_master is not None
+    client = User(email="real-client-jobs@example.com", name="Клиент")
+    db.add(client)
+    db.flush()
+    real_request = JobRequest(
+        client_id=client.id,
+        city_id=demo_request.city_id,
+        description="Реальная заявка клиента на укладку плитки",
+        timing="flexible",
+        responses_count=1,
+    )
+    db.add(real_request)
+    db.flush()
+    response = JobResponse(request_id=real_request.id, master_id=demo_master.id)
+    db.add(response)
+    db.flush()
+    # What Tasks 7-8 queue: event jobs (ids only) and per-recipient notify jobs.
+    jobs.enqueue(db, "new_request", {"request_id": demo_request.id}, dedupe_key="t:a")
+    jobs.enqueue(db, "new_response", {"response_id": response.id}, dedupe_key="t:b")
+    jobs.enqueue(
+        db,
+        "notify",
+        {
+            "event": "new_request",
+            "request_id": real_request.id,
+            "user_id": demo_master.user_id,
+            "channel": "telegram",
+        },
+        dedupe_key="t:c",
+    )
+    jobs.enqueue(db, "new_request", {"request_id": real_request.id}, dedupe_key="t:keep")
+    db.flush()
+
+    demo.remove(db)
+    db.flush()
+
+    left = db.scalars(select(Job.dedupe_key).where(Job.dedupe_key.like("t:%"))).all()
+    assert left == ["t:keep"]

@@ -17,6 +17,7 @@ from app.web import (
     feed,
     master,
     media,
+    notifications,
     pages,
     portfolio,
     profile,
@@ -70,6 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(pages.router)
     app.include_router(auth.router)
     app.include_router(account.router)
+    app.include_router(notifications.router)
     app.include_router(telegram.router)
     app.include_router(master.router)
     app.include_router(portfolio.router)
