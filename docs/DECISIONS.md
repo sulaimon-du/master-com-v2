@@ -246,6 +246,7 @@ Part A: search page and home. Part B: SEO pages, meta tags, robots and sitemap (
 - **Reopening a paused request** (back in the feed for 15 more responses) does not notify masters again: it is not a new request, and a second fan-out would be spam. Only `create_request` queues `new_request`.
 - **Request photos** are public by an unguessable storage key (R2 public bucket), the same as portfolio photos; the request page itself stays private (404 to anyone who may not see it).
 - **Withdraw button** is shown only while the request is open, although the service still allows withdrawing later (until chosen): the page stays simpler, the service stays permissive. `/feed` and `/responses/` are disallowed in `robots.txt`.
+- **Notification texts:** messages carry no names of either side (and no address, phone or email); the D10.1 note "the client can be reached through UstoiMan chat later" in the "you were chosen" message is deferred to week 10 (chat).
 
 ## Open
 - Final name and positioning (round 6): working name **UstoiMan** (R-023); final name and domain still open.

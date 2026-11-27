@@ -240,6 +240,32 @@ def test_fan_out_is_capped_per_request_newest_masters_first(
     assert first.id not in told
 
 
+def test_unreachable_or_opted_out_masters_never_crowd_out_a_reachable_one(
+    db: Session, town, scene
+) -> None:
+    _, older, _, request = scene  # reachable, published first
+    newer = [fs.master(db, city_ids=(town.id,))[0] for _ in range(notifications.FANOUT_CAP)]
+    # A few are linked but opted out of new requests on every channel they have.
+    for u in newer[:3]:
+        reachable(u)
+        notifications.save_prefs(
+            db, u.id, {(e, c) for e in EVENTS for c in CHANNELS if e != "new_request"}
+        )
+    newer[3].telegram_id, newer[3].telegram_blocked_at = 777000111, utcnow()  # bot blocked
+    db.flush()
+    notifications.fan_out_new_request(db, {"request_id": request.id})
+    assert _channels(db, older, "new_request") == ["email", "telegram"]
+    assert all(_notify_jobs(db, user=u) == [] for u in newer)
+
+
+def test_an_opt_out_on_one_channel_keeps_the_other(db: Session, scene) -> None:
+    _, owner, _, request = scene
+    everything = {(e, c) for e in EVENTS for c in CHANNELS}
+    notifications.save_prefs(db, owner.id, everything - {("new_request", "email")})
+    notifications.fan_out_new_request(db, {"request_id": request.id})
+    assert _channels(db, owner, "new_request") == ["telegram"]
+
+
 def _old_notifications(db: Session, user: User, n: int, at: datetime) -> None:
     db.add_all(
         Job(
@@ -611,6 +637,18 @@ def test_send_message_delivery_semantics(tg: FakeTelegram) -> None:
     assert str(down.value) == "" and down.value.__cause__ is None
     tg.raises = telegram_send.NoAnswer()  # sent, then the read timed out: delivered
     assert telegram_send.send_message(1, "hi") is Delivery.SENT
+
+
+@pytest.mark.parametrize("status", [401, 404])
+def test_a_rejected_token_fails_loud_without_leaking_it(  # type: ignore[no-untyped-def]
+    tg: FakeTelegram, caplog, status: int
+) -> None:
+    tg.answer = (status, b'{"ok": false, "description": "Unauthorized"}')
+    with caplog.at_level("DEBUG"), pytest.raises(telegram_send.TelegramNotConfigured) as bad:
+        telegram_send.send_message(1, "hi")
+    assert str(bad.value) == "" and bad.value.__cause__ is None
+    assert [r.levelname for r in caplog.records] == ["ERROR"]
+    assert TOKEN not in caplog.text and "api.telegram.org" not in caplog.text
 
 
 def test_a_429_without_retry_after_still_retries(tg: FakeTelegram) -> None:

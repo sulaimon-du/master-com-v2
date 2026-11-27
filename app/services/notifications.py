@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
-from sqlalchemy import func, select, text, update
+from sqlalchemy import ColumnElement, and_, exists, func, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -83,6 +83,21 @@ def save_prefs(db: Session, user_id: int, enabled: set[tuple[str, str]]) -> None
             set_={"enabled": stmt.excluded.enabled},
         )
     )
+
+
+def _reachable(event: str, channel: str) -> ColumnElement[bool]:
+    """SQL twin of `channel_ready` and the user's switch for (event, channel), on `User`."""
+    if channel == "telegram":
+        ready = and_(User.telegram_id.is_not(None), User.telegram_blocked_at.is_(None))
+    else:
+        ready = and_(User.email.is_not(None), User.email_verified_at.is_not(None))
+    switched_off = exists().where(
+        NotificationPref.user_id == User.id,
+        NotificationPref.event == event,
+        NotificationPref.channel == channel,
+        NotificationPref.enabled.is_(False),
+    )
+    return and_(ready, ~switched_off)
 
 
 def _wants(db: Session, user: User, event: str) -> list[str]:
@@ -250,9 +265,19 @@ def fan_out_new_request(
     request = _live_request(db, payload.get("request_id"))
     if request is None or request.status != "open" or request.feed_paused_at is not None:
         return
-    masters = feed.matching_masters(db, request, limit=FANOUT_CAP)
-    wanted = [(m, _wants(db, m, "new_request")) for m in masters]
-    wanted = sorted(((m, c) for m, c in wanted if c), key=lambda pair: pair[0].id)
+    # Reachability and opt-outs are filtered before the cap, so 200 unreachable masters never
+    # crowd out a reachable one.
+    reach = {c: _reachable("new_request", c) for c in CHANNELS}
+    rows = db.execute(
+        feed.matching_masters_query(db, request)
+        .add_columns(*(r.label(c) for c, r in reach.items()))
+        .where(or_(*reach.values()))
+        .limit(FANOUT_CAP)
+    ).all()
+    wanted = sorted(
+        ((row[0], [c for c in CHANNELS if row._mapping[c]]) for row in rows),
+        key=lambda pair: pair[0].id,
+    )
     if not wanted:
         return
     # Two fan-outs at once must not both see 19 and make it 21: lock each master's count

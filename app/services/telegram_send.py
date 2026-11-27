@@ -6,6 +6,7 @@ Delivery semantics (Global Constraints): retry only when the message certainly w
 - HTTP 429                                       -> `jobs.RetryAfter(parameters.retry_after)`
 - no answer after the request was sent (read timeout)             -> `Delivery.SENT` (no retry)
 - HTTP 403 (the user blocked the bot)                             -> `Delivery.BLOCKED`
+- HTTP 401 or 404 (a revoked, wrong or malformed token)           -> `TelegramNotConfigured`
 - any other 4xx (chat not found, bad request)                     -> `Delivery.REJECTED`
 
 The token is read from settings at send time and lives only on the bot service (R-021); with no
@@ -42,7 +43,7 @@ class Delivery(enum.Enum):
 
 
 class TelegramNotConfigured(Exception):
-    """TELEGRAM_BOT_TOKEN is not set where the worker runs."""
+    """TELEGRAM_BOT_TOKEN is missing, or Telegram does not accept it (401/404)."""
 
 
 class TelegramUnavailable(Exception):
@@ -122,5 +123,9 @@ def send_message(chat_id: int, text: str) -> Delivery:
         raise RetryAfter(_retry_after(answer)) from None
     if status >= 500:
         raise TelegramUnavailable from None
+    if status in (401, 404):
+        # A revoked, wrong or malformed token: a configuration error, never a silent drop.
+        log.error("telegram send refused with HTTP %d: check TELEGRAM_BOT_TOKEN", status)
+        raise TelegramNotConfigured from None
     log.warning("telegram send rejected with HTTP %d", status)
     return Delivery.REJECTED
