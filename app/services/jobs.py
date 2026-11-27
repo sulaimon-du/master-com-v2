@@ -119,6 +119,8 @@ def wake_worker() -> None:
 
 @event.listens_for(Session, "after_commit")
 def _wake_after_commit(session: Session) -> None:
+    if session.in_nested_transaction():
+        return  # a savepoint released: the job is not committed until the outer transaction is
     if not session.info.pop(_QUEUED, False):
         return
     try:
@@ -127,9 +129,13 @@ def _wake_after_commit(session: Session) -> None:
         log.info("worker wake-up skipped: %s", type(exc).__name__)
 
 
-@event.listens_for(Session, "after_rollback")
-def _forget_after_rollback(session: Session) -> None:
-    session.info.pop(_QUEUED, None)
+@event.listens_for(Session, "after_transaction_end")
+def _forget_at_outer_end(session: Session, transaction: Any) -> None:
+    # Only the outermost transaction: a savepoint's end (released or rolled back) keeps the
+    # flag, so the outer commit still pings (at worst once too often). After a commit the flag
+    # is already popped; after a rollback this drops it.
+    if transaction.parent is None:
+        session.info.pop(_QUEUED, None)
 
 
 def new_worker_id() -> str:

@@ -228,6 +228,28 @@ def test_scrub_breadcrumb(configured) -> None:
     assert logged is not None and EMAIL not in json.dumps(logged)
 
 
+def test_scrub_breadcrumb_removes_the_bot_token_from_a_telegram_url() -> None:
+    # The worker sends with urllib (spec D8): its httplib breadcrumb carries the Bot API URL,
+    # which has the token in its path.
+    monitoring.sentry_options(make_settings(sentry_dsn=DSN), component="bot")
+    crumb = {
+        "type": "http",
+        "category": "httplib",
+        "data": {
+            "url": f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            "method": "POST",
+            "status_code": 200,
+        },
+    }
+    result = monitoring.scrub_breadcrumb(crumb, {})
+    assert result is not None
+    dumped = json.dumps(result)
+    assert BOT_TOKEN not in dumped
+    assert BOT_TOKEN.split(":", 1)[1] not in dumped
+    assert result["data"]["url"].startswith("https://api.telegram.org/")
+    assert result["data"]["url"].endswith("/sendMessage")
+
+
 def test_secret_settings_are_collected(configured) -> None:
     secrets = monitoring._secret_values(configured)
     assert BOT_TOKEN in secrets and SECRET_KEY in secrets and DSN in secrets

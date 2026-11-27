@@ -290,9 +290,18 @@ def test_wakes_never_poll_more_often_than_the_minimum_gap(monkeypatch) -> None: 
 class _Recorder(BaseHTTPRequestHandler):
     hits: ClassVar[list[dict[str, Any]]] = []
     delay = 0.0
+    # When set, each request waits here (after it is counted) until the test opens the gate.
+    gate: ClassVar[threading.Event | None] = None
 
     def do_GET(self) -> None:
         time.sleep(type(self).delay)
+        gate = type(self).gate
+        if gate is not None:
+            type(self).hits.append({"path": self.path, "headers": {}, "body": None})
+            gate.wait(10)
+            self.send_response(200)
+            self.end_headers()
+            return
         type(self).hits.append(
             {
                 "path": self.path,
@@ -309,13 +318,17 @@ class _Recorder(BaseHTTPRequestHandler):
 
 @pytest.fixture
 def wake_server(monkeypatch) -> Iterator[type[_Recorder]]:  # type: ignore[no-untyped-def]
-    _Recorder.hits, _Recorder.delay = [], 0.0
-    server = ThreadingHTTPServer(("127.0.0.1", 0), _Recorder)
+    # A class per server: a slow handler of an earlier test's server never records into this
+    # test's list.
+    recorder = type("Recorder", (_Recorder,), {"hits": [], "delay": 0.0, "gate": None})
+    server = ThreadingHTTPServer(("127.0.0.1", 0), recorder)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     monkeypatch.setenv("WORKER_WAKE_URL", f"http://127.0.0.1:{server.server_port}/health")
     get_settings.cache_clear()
-    yield _Recorder
+    yield recorder
+    if recorder.gate is not None:
+        recorder.gate.set()
     server.shutdown()
     server.server_close()
     get_settings.cache_clear()
@@ -393,14 +406,53 @@ def test_a_broken_ping_never_fails_the_commit(monkeypatch, empty_jobs) -> None: 
         assert db.scalars(select(Job)).all()
 
 
-def test_a_burst_of_commits_sends_at_most_one_ping_at_a_time(wake_server, empty_jobs) -> None:  # type: ignore[no-untyped-def]
-    wake_server.delay = 0.3
+def test_a_burst_of_commits_sends_at_most_one_ping_at_a_time(  # type: ignore[no-untyped-def]
+    wake_server, empty_jobs, monkeypatch
+) -> None:
+    # The first ping is held by the server until all five commits are done; a long client
+    # timeout keeps it in flight however slow the commits are.
+    wake_server.gate = threading.Event()
+    monkeypatch.setattr(jobs, "WAKE_TIMEOUT_SECONDS", 10.0)
     for _ in range(5):
         with get_sessionmaker()() as db:
             _enqueue_new(db)
             db.commit()
-    assert _wait_for(lambda: not jobs._ping_in_flight.locked(), timeout=3)
+    assert _wait_for(lambda: len(wake_server.hits) == 1)
+    assert jobs._ping_in_flight.locked()
+    wake_server.gate.set()
+    assert _wait_for(lambda: not jobs._ping_in_flight.locked(), timeout=5)
     assert len(wake_server.hits) == 1
+
+
+def test_a_savepoint_never_pings_only_the_outer_commit_does(wake_server, empty_jobs) -> None:  # type: ignore[no-untyped-def]
+    with get_sessionmaker()() as db:
+        db.execute(select(1))
+        with db.begin_nested():  # released
+            _enqueue_new(db, "sp-released")
+        nested = db.begin_nested()
+        _enqueue_new(db, "sp-rolled-back")
+        nested.rollback()
+        time.sleep(0.2)
+        assert wake_server.hits == []  # nothing committed yet
+        db.commit()
+    assert _wait_for(lambda: len(wake_server.hits) == 1)
+    time.sleep(0.2)
+    assert len(wake_server.hits) == 1
+    with get_sessionmaker()() as db:
+        assert db.scalars(select(Job.dedupe_key)).all() == ["sp-released"]
+
+
+def test_a_rolled_back_outer_transaction_with_savepoints_never_pings(  # type: ignore[no-untyped-def]
+    wake_server, empty_jobs
+) -> None:
+    with get_sessionmaker()() as db:
+        db.execute(select(1))
+        with db.begin_nested():
+            _enqueue_new(db)
+        db.rollback()
+        db.commit()
+    time.sleep(0.3)
+    assert wake_server.hits == []
 
 
 def test_no_wake_url_no_ping(monkeypatch, empty_jobs) -> None:  # type: ignore[no-untyped-def]

@@ -20,7 +20,8 @@ Minor findings from the per-task and whole-branch reviews of weeks 8–9 (reques
 - Task 4: the `hide_other_requests` fixture takes locks in the two-session test.
 - Task 4: validation runs before not_found.
 - Task 5: the contacts mapping is duplicated (M1).
-- Task 6: M7 and M8 of the Task 6 review (deferred at the review).
+- Task 6: M7 — a forged feed cursor longer than 64 characters returns FastAPI's JSON 422 (the app-wide path/query validation minor, see Task 3).
+- Task 6: M8 — private helpers used across modules (`feed._card`, `request_svc._specialties`/`_photos`) and the extra `responses_for_client` query on the client's request page.
 - PR B whole-branch: M-c — the UX of a master whose own profile is hidden, on the master request views.
 - PR B whole-branch: M-d — "My responses" is not paginated.
 
@@ -32,7 +33,10 @@ Minor findings from the per-task and whole-branch reviews of weeks 8–9 (reques
 - Task 8: M4 — Telegram 400 "chat not found" repeats for every job of that user (consider marking the channel off).
 - Task 8: M5 — do not queue email notifications while no email provider is configured (before week 12).
 - Task 8: M7 — process note: TDD order.
-- Task 9: see the Task 9 review (to be added when it is done).
+- Task 9: M3 — Sentry noise during a long outage: a crashing loop logs one `ERROR` every 30 s; back off (or log once per outage) instead.
+- Task 9: M4 — require an https `WORKER_WAKE_URL` on staging/production (http only in development).
+- Task 9: M7 — make the poll interval configurable (fewer polls → less Neon compute on staging).
+- Task 9: M6 — process note: TDD order (the tests came after the code).
 
 ## Demo seed (separate branch `demo-seed`)
 - M2: a total deadline for downloading the photos.
