@@ -1,16 +1,17 @@
-"""The client's side of a request: post, edit, photos, close, reopen the feed and own views.
+"""The client's side of a request: post, edit, photos, choose, complete, close, reopen, views.
 
 Every id from a URL is resolved *through* the client, so a foreign id is "not found".
-Lock order: a request row is locked before its photo rows. Callers commit; storage files of a
-deleted photo are removed by the caller after the commit (the keys are returned).
+Lock order: a request row is locked before its photo or response rows (the same order as the
+responses service). Callers commit; storage files of a deleted photo are removed by the caller
+after the commit (the keys are returned).
 """
 
 import contextlib
 from datetime import timedelta
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
-from sqlalchemy import delete, select
+from sqlalchemy import Select, delete, select
 from sqlalchemy.orm import Session
 
 from app.core.time import local_today, utcnow
@@ -18,6 +19,8 @@ from app.models import (
     City,
     District,
     JobRequest,
+    JobResponse,
+    MasterProfile,
     RequestPhoto,
     RequestSpecialty,
     Specialty,
@@ -26,11 +29,19 @@ from app.models import (
 from app.models.catalog import Category
 from app.models.common import PRICE_UNITS
 from app.models.request import FEED_PAUSE_STEP, MAX_REQUEST_PHOTOS, TIMINGS
-from app.schemas.master import PhotoView
-from app.schemas.requests import RequestCard, RequestInput, RequestView
+from app.schemas.master import ContactsView, PhotoView
+from app.schemas.requests import (
+    ClientContactView,
+    ClientResponseCard,
+    RequestCard,
+    RequestInput,
+    RequestView,
+)
+from app.services import jobs
 from app.services.auth import is_active
 from app.services.images import ImageError, ProcessedImage, process_portfolio
 from app.services.storage import Storage, get_storage, new_key
+from app.services.telegram import normalize_phone
 
 RequestCode = Literal[
     "specialty",
@@ -45,6 +56,8 @@ RequestCode = Literal[
     "locked",
     "state",
     "inactive",
+    "phone",  # the contact phone given when choosing a master is missing or not a phone
+    "withdrawn",  # the chosen response was withdrawn meanwhile
 ]
 
 MAX_SPECIALTIES = 3
@@ -73,7 +86,7 @@ def _require_active(user: User) -> None:
 def _request(db: Session, user: User, request_id: int, *, lock: bool = False) -> JobRequest:
     stmt = select(JobRequest).where(JobRequest.id == request_id, JobRequest.client_id == user.id)
     if lock:
-        stmt = stmt.with_for_update().execution_options(populate_existing=True)
+        stmt = stmt.with_for_update(of=JobRequest).execution_options(populate_existing=True)
     request = db.scalar(stmt)
     if request is None:
         raise RequestError("not_found")
@@ -305,17 +318,102 @@ def delete_request_photo(db: Session, user: User, request_id: int, photo_id: int
 _CLOSE = {"closed": ("closed", "client_closed"), "cancelled": ("cancelled", "client_cancelled")}
 
 
+def _shown_master(stmt: Select[Any]) -> Select[Any]:
+    """Active responses the client may see and choose (spec D10.5).
+
+    The master's profile is not hidden by moderation and its owner is active right now.
+    A master who merely unpublished stays: existing responses are kept.
+    """
+    return (
+        stmt.join(MasterProfile, MasterProfile.id == JobResponse.master_id)
+        .join(User, User.id == MasterProfile.user_id)
+        .where(
+            JobResponse.withdrawn_at.is_(None),
+            MasterProfile.hidden_at.is_(None),
+            User.blocked_at.is_(None),
+            User.deleted_at.is_(None),
+        )
+    )
+
+
+def contact_phone_prefill(user: User) -> str | None:
+    """The phone to offer in the choose form: the client's verified phone, if any (D10.1)."""
+    return user.phone if user.phone_verified_at is not None else None
+
+
+def choose_master(
+    db: Session, user: User, request_id: int, response_id: int, client_phone: str
+) -> JobRequest:
+    """Pick one active response of an open request; store the contact phone for that master.
+
+    A second click (or a second tab) finds the request no longer open: "state", no effect.
+    """
+    _require_active(user)
+    phone = normalize_phone(client_phone or "")
+    if phone is None:
+        raise RequestError("phone")
+    request = _request(db, user, request_id, lock=True)
+    response = db.scalar(
+        select(JobResponse)
+        .where(JobResponse.id == response_id, JobResponse.request_id == request.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if request.status != "open":
+        raise RequestError("state")
+    if response is None:
+        raise RequestError("not_found")
+    if response.withdrawn_at is not None:
+        raise RequestError("withdrawn")
+    shown = db.scalar(_shown_master(select(JobResponse.id)).where(JobResponse.id == response.id))
+    if shown is None:  # a blocked or hidden master is not in the client's list either
+        raise RequestError("not_found")
+    request.status = "master_chosen"
+    request.chosen_master_id = response.master_id
+    request.master_chosen_at = utcnow()
+    request.client_phone = phone
+    db.flush()
+    jobs.enqueue(db, "chosen", {"request_id": request.id}, dedupe_key=f"chosen:{request.id}")
+    return request
+
+
+def complete_request(db: Session, user: User, request_id: int) -> JobRequest:
+    """The chosen master did the job: master_chosen -> completed, then ask for a review."""
+    _require_active(user)
+    request = _request(db, user, request_id, lock=True)
+    if request.status != "master_chosen":
+        raise RequestError("state")
+    request.status = "completed"
+    request.completed_at = utcnow()
+    db.flush()
+    jobs.enqueue(
+        db, "review_prompt", {"request_id": request.id}, dedupe_key=f"review_prompt:{request.id}"
+    )
+    return request
+
+
 def close_request(
     db: Session, user: User, request_id: int, reason: Literal["closed", "cancelled"]
 ) -> JobRequest:
-    """Close ("no longer needed") or cancel ("posted by mistake") an open or chosen request."""
+    """Close ("no longer needed") or cancel ("posted by mistake") an open or chosen request.
+
+    After a master was chosen, that master is told (spec D10.3); other responders are not.
+    """
     _require_active(user)
     request = _request(db, user, request_id, lock=True)
     if reason not in _CLOSE or request.status not in ("open", "master_chosen"):
         raise RequestError("state")
+    was_chosen = request.status == "master_chosen"
     request.status, request.close_reason = _CLOSE[reason]
     request.closed_at = utcnow()
     db.flush()
+    if was_chosen:
+        jobs.enqueue(
+            db,
+            "request_cancelled",
+            {"request_id": request.id},
+            dedupe_key=f"request_cancelled:{request.id}",
+        )
     return request
 
 
@@ -438,3 +536,73 @@ def request_for_client(
         feed_paused=request.feed_paused_at is not None,
         editable=request.status == "open" and request.responses_count == 0,
     )
+
+
+def responses_for_client(db: Session, user: User, request_id: int) -> list[ClientResponseCard]:
+    """Active responses on the client's own request, newest (re)response first.
+
+    Withdrawn responses and masters who are blocked, deleted or hidden by moderation are left
+    out. The client sees each master's contacts, as on a profile for a signed-in user (D4).
+    """
+    request = _request(db, user, request_id)
+    rows = db.execute(
+        _shown_master(select(JobResponse, MasterProfile))
+        .where(JobResponse.request_id == request.id)
+        .order_by(JobResponse.updated_at.desc(), JobResponse.id.desc())
+    ).all()
+    storage = get_storage()
+    active = is_active(user)
+    can_choose = request.status == "open" and active
+    return [
+        ClientResponseCard(
+            response_id=response.id,
+            slug=profile.slug,
+            display_name=profile.display_name,
+            avatar_url=storage.url(profile.avatar_key) if profile.avatar_key else None,
+            headline=profile.headline,
+            published=profile.published_at is not None,
+            responded_at=response.updated_at,
+            message=response.message,
+            price_amount=response.price_amount,
+            price_unit=response.price_unit,
+            contacts=ContactsView(
+                phone=profile.contact_phone,
+                telegram=profile.contact_telegram,
+                whatsapp=profile.contact_whatsapp,
+                instagram=profile.contact_instagram,
+            )
+            if active
+            else None,
+            chosen=request.chosen_master_id == profile.id,
+            choosable=can_choose,
+        )
+        for response, profile in rows
+    ]
+
+
+def client_contact_for_master(db: Session, user: User, request_id: int) -> ClientContactView | None:
+    """The client's name and contact phone, for the chosen master only; else None.
+
+    Only while the job is on (master_chosen) or done (completed); not after a close or cancel,
+    not when the request is hidden, and not when either account is blocked or deleted.
+    """
+    if not is_active(user):
+        return None
+    row = db.execute(
+        select(JobRequest, User)
+        .join(User, User.id == JobRequest.client_id)
+        .join(MasterProfile, MasterProfile.id == JobRequest.chosen_master_id)
+        .where(
+            JobRequest.id == request_id,
+            MasterProfile.user_id == user.id,
+            JobRequest.status.in_(("master_chosen", "completed")),
+            JobRequest.hidden_at.is_(None),
+            User.blocked_at.is_(None),
+            User.deleted_at.is_(None),
+        )
+    ).first()
+    if row is None:
+        return None
+    request, client = row
+    assert request.client_phone is not None  # noqa: S101  (ck_requests_client_phone_when_chosen)
+    return ClientContactView(name=client.name, phone=request.client_phone)

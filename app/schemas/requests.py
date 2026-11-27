@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from app.schemas.master import PhotoView
+from app.schemas.master import ContactsView, PhotoView
 
 
 class RequestInput(BaseModel):
@@ -147,3 +147,39 @@ class MyResponseCard(BaseModel):
     place: str | None = None
     description: str | None = None
     thumb_url: str | None = None
+
+
+# --- lifecycle: choosing a master (spec D4, D10.1, D10.5) --------------------------------------
+
+
+class ClientResponseCard(BaseModel):
+    """One active response on the client's own request: the master card with their contacts.
+
+    The client is signed in, so they get the same contacts as on the master's profile (D4);
+    `contacts` is None for an inactive (blocked or deleted) viewer, as on profiles.
+    `published` False means the master unpublished: no profile link, but still choosable.
+    """
+
+    response_id: int
+    slug: str
+    display_name: str
+    avatar_url: str | None
+    headline: str | None
+    published: bool
+    responded_at: datetime
+    message: str | None
+    price_amount: Decimal | None
+    price_unit: str | None
+    contacts: ContactsView | None
+    chosen: bool
+    choosable: bool
+
+
+class ClientContactView(BaseModel):
+    """What the chosen master learns about the client: the name and the contact phone.
+
+    Never the email, the Telegram id or the address (spec D4, D10.1).
+    """
+
+    name: str | None
+    phone: str

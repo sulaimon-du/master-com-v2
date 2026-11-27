@@ -166,7 +166,7 @@ def my_responses(db: Session, user: User, *, lang: str = "ru") -> list[MyRespons
         .join(JobRequest, JobRequest.id == JobResponse.request_id)
         .join(User, User.id == JobRequest.client_id)
         .where(JobResponse.master_id == profile.id, JobResponse.withdrawn_at.is_(None))
-        .order_by(JobResponse.created_at.desc(), JobResponse.id.desc())
+        .order_by(JobResponse.updated_at.desc(), JobResponse.id.desc())
     ).all()
     shown = [r.id for _, r, client in rows if _status(r, client, profile) != "unavailable"]
     specialties, photos = request_svc._specialties(db, shown), request_svc._photos(db, shown)
@@ -177,7 +177,7 @@ def my_responses(db: Session, user: User, *, lang: str = "ru") -> list[MyRespons
         card = MyResponseCard(
             request_id=request.id,
             status=status,
-            responded_at=response.created_at,
+            responded_at=response.updated_at,  # a re-respond shows its own date
             message=response.message,
             price_amount=response.price_amount,
             price_unit=response.price_unit,
