@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% import "partials/request_form.html" as rf with context %}
+{% import "partials/portfolio_forms.html" as pf with context %}
+{% block title %}{{ t('requests.detail_title', id=view.id) }} · {{ app_name }}{% endblock %}
+{% block content %}
+<section class="mx-auto grid max-w-3xl gap-6">
+  <p><a class="link" href="{{ url_for('requests_mine').path }}">{{ t('requests.back') }}</a></p>
+  <h1 class="text-4xl">{{ view.specialties | join(', ') }}</h1>
+  {% if done %}<p role="status" class="notice">{{ t(request_keys.done[done]) }}</p>{% endif %}
+  {{ pf.error_notice(error) }}
+  {{ pf.file_errors_list(file_errors) }}
+
+  <div class="card grid gap-2">
+    <p><span class="pill">{{ t(request_keys.status[view.status]) }}</span>
+      {% if view.close_reason %}<span class="text-sm text-muted">{{ t(request_keys.close_reason[view.close_reason]) }}</span>{% endif %}</p>
+    <p class="text-sm text-muted">{{ view.place }} · {{ view.created_at|local_date }} · {{ t('requests.responses', n=view.responses_count) }}</p>
+    <p class="whitespace-pre-line">{{ view.description }}</p>
+    <dl class="grid gap-1 text-sm">
+      {% if view.budget_amount is not none %}
+      <div><dt class="inline text-muted">{{ t('requests.budget') }}:</dt> <dd class="inline">{{ ('%.2f' % view.budget_amount) | replace('.00', '') }} {{ t('requests.currency') }}, {{ t(request_keys.unit[view.budget_unit]) }}</dd></div>
+      {% endif %}
+      <div><dt class="inline text-muted">{{ t('requests.timing') }}:</dt> <dd class="inline">{{ t(request_keys.timing[view.timing]) }}{% if view.timing_date %}: {{ view.timing_date.strftime('%d.%m.%Y') }}{% endif %}</dd></div>
+      {% if view.address %}
+      <div><dt class="inline text-muted">{{ t('requests.address') }}:</dt> <dd class="inline">{{ view.address }}</dd></div>
+      <p class="text-muted">{{ t('requests.address_private') }}</p>
+      {% endif %}
+    </dl>
+  </div>
+
+  {% if view.feed_paused and view.status == 'open' %}
+  <form method="post" action="/requests/{{ view.id }}/reopen" class="card grid gap-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <p>{{ t('requests.paused') }}</p>
+    <button class="btn btn-primary" type="submit">{{ t('requests.reopen') }}</button>
+  </form>
+  {% endif %}
+
+  <section class="grid gap-3" aria-labelledby="photos-title">
+    <h2 id="photos-title" class="text-2xl">{{ t('requests.photos_title') }}</h2>
+    {% if view.photos %}
+    <ul class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {% for p in view.photos %}
+      <li class="card grid gap-2">
+        <img src="{{ p.thumb_url }}" width="{{ p.width }}" height="{{ p.height }}" alt="" loading="lazy" class="aspect-square w-full rounded-lg object-cover">
+        {% if view.editable %}
+        <form method="post" action="/requests/{{ view.id }}/photos/{{ p.id }}/delete">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-secondary w-full" type="submit">{{ t('requests.photo_delete') }}</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="text-muted">{{ t('requests.photos_empty') }}</p>
+    {% endif %}
+    {% if view.editable and uploads_enabled and view.photos | length < max_photos %}
+    <form method="post" action="/requests/{{ view.id }}/photos" enctype="multipart/form-data" class="card grid gap-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="grid gap-1.5">
+        <label for="photos" class="text-sm font-semibold">{{ t('requests.photos_add') }}</label>
+        <input id="photos" name="photos" type="file" multiple accept="image/jpeg,image/png,image/webp" class="input">
+        <p class="text-sm text-muted">{{ t('requests.photos_hint', max=max_photos) }}</p>
+      </div>
+      <button class="btn btn-primary" type="submit">{{ t('requests.photos_upload') }}</button>
+    </form>
+    {% endif %}
+  </section>
+
+  {% if view.editable %}
+  <section class="grid gap-3" aria-labelledby="edit-title">
+    <h2 id="edit-title" class="text-2xl">{{ t('requests.edit_title') }}</h2>
+    {{ pf.error_notice(form_error) }}
+    <form method="post" action="/requests/{{ view.id }}/edit" class="card grid gap-5">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      {{ rf.fields(values, options, 'e') }}
+      <button class="btn btn-primary" type="submit">{{ t('requests.save') }}</button>
+    </form>
+  </section>
+  {% elif view.status == 'open' %}
+  <p class="notice">{{ t('requests.edit_locked') }}</p>
+  {% endif %}
+
+  {% if view.status in ('open', 'master_chosen') %}
+  <section class="grid gap-3" aria-labelledby="end-title">
+    <h2 id="end-title" class="text-2xl">{{ t('requests.end_title') }}</h2>
+    <div class="grid gap-3 sm:grid-cols-2">
+      <form method="post" action="/requests/{{ view.id }}/close" class="card grid gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <p class="text-sm text-muted">{{ t('requests.close_hint') }}</p>
+        <button class="btn btn-secondary" type="submit">{{ t('requests.close') }}</button>
+      </form>
+      <form method="post" action="/requests/{{ view.id }}/cancel" class="card grid gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <p class="text-sm text-muted">{{ t('requests.cancel_hint') }}</p>
+        <button class="btn btn-secondary" type="submit">{{ t('requests.cancel') }}</button>
+      </form>
+    </div>
+  </section>
+  {% endif %}
+</section>
+{% endblock %}

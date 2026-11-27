@@ -32,6 +32,8 @@ class User(IdPk, Timestamps, Base):
     is_admin: Mapped[bool] = mapped_column(server_default=false())
     blocked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Set when the Bot API answers 403 (the user blocked the bot); cleared when they write to it.
+    telegram_blocked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
         CheckConstraint("email = lower(email)", name="email_lowercase"),

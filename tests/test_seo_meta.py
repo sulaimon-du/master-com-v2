@@ -223,6 +223,7 @@ def test_production_robots_txt_and_no_x_robots_tag(monkeypatch: pytest.MonkeyPat
         "/search",
         "/account",
         "/master/",
+        "/requests/",
         "/auth/",
         "/signin",
         "/register",

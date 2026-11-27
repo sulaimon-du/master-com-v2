@@ -8,7 +8,7 @@ is stale.
 checked. To approve, tell Claude which keys are fine (or send corrections); they are recorded in
 `app/locales/tg_approved.json`.
 
-**350 texts, 254 drafts to check.**
+**435 texts, 339 drafts to check.**
 
 | Key | Русский | Тоҷикӣ | Status |
 |---|---|---|---|
@@ -22,6 +22,7 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `account.google_unavailable` | Вход через Google сейчас недоступен. | Воридшавӣ бо Google ҳоло дастрас нест. | approved |
 | `account.heading_master` | Мастер | Уста | draft |
 | `account.heading_methods` | Способы входа | Роҳҳои воридшавӣ | approved |
+| `account.heading_requests` | Заявки | Дархостҳо | draft |
 | `account.heading_sessions` | Сессии | Сессияҳо | approved |
 | `account.linked_already` | К аккаунту уже привязан Google. | Ба ҳисоб Google аллакай пайваст аст. | approved |
 | `account.linked_email_taken` | Почта этого Google-аккаунта принадлежит другому аккаунту UstoiMan. Привязать его нельзя. | Почтаи ин ҳисоби Google ба ҳисоби дигари UstoiMan тааллуқ дорад. Онро пайваст кардан мумкин нест. | approved |
@@ -114,6 +115,8 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `home.categories` | Направления работ | Самтҳои корӣ | draft |
 | `home.how_title` | Как это работает | Чӣ тавр кор мекунад | draft |
 | `home.lead` | Ищите мастеров по специальности и городу, смотрите их работы и выбирайте лучшего. | Устоҳоро аз рӯи ихтисос ва шаҳр ҷустуҷӯ кунед, корҳои онҳоро бинед ва беҳтаринро интихоб кунед. | draft |
+| `home.request_text` | Опишите работу, и подходящие мастера откликнутся сами. Заявка бесплатна. | Кореро тасвир кунед, усторони мувофиқ худашон ҷавоб медиҳанд. Дархост ройгон аст. | draft |
+| `home.request_title` | Нужен мастер? | Усто лозим аст? | draft |
 | `home.search_title` | Найти мастера | Ёфтани уста | draft |
 | `home.step1_text` | Выберите специальность и город или просто напишите, что нужно сделать. | Ихтисос ва шаҳрро интихоб кунед ё танҳо нависед, ки чӣ кор кардан лозим аст. | draft |
 | `home.step1_title` | Найдите | Ёбед | draft |
@@ -268,6 +271,88 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `register.sent_title` | Проверьте почту | Почтаи худро санҷед | approved |
 | `register.submit` | Создать аккаунт | Сохтани ҳисоб | approved |
 | `register.title` | Регистрация | Сабти ном | approved |
+| `requests.address` | Точный адрес | Суроғаи дақиқ | draft |
+| `requests.address_hint` | Необязательно. Адрес видите только вы. | Ихтиёрӣ. Суроғаро танҳо шумо мебинед. | draft |
+| `requests.address_private` | Мастера адрес не видят. | Усторон суроғаро намебинанд. | draft |
+| `requests.back` | К моим заявкам | Ба дархостҳои ман | draft |
+| `requests.budget` | Бюджет | Буҷет | draft |
+| `requests.budget_amount` | Сумма | Маблағ | draft |
+| `requests.budget_hint` | Необязательно: сумма и за что она. | Ихтиёрӣ: маблағ ва барои чӣ. | draft |
+| `requests.budget_none` | Не указывать | Нишон дода нашавад | draft |
+| `requests.budget_unit` | За что | Барои чӣ | draft |
+| `requests.cancel` | Отменить заявку | Бекор кардани дархост | draft |
+| `requests.cancel_hint` | Заявка опубликована по ошибке. | Дархост хато нашр шудааст. | draft |
+| `requests.city` | Город | Шаҳр | draft |
+| `requests.city_choose` | Выберите город | Шаҳрро интихоб кунед | draft |
+| `requests.close` | Закрыть заявку | Бастани дархост | draft |
+| `requests.close_hint` | Работа больше не нужна. | Кор дигар лозим нест. | draft |
+| `requests.close_reason.auto_expired` | Закрыта автоматически: прошло 30 дней. | Худкор баста шуд: 30 рӯз гузашт. | draft |
+| `requests.close_reason.auto_stale` | Закрыта автоматически: давно нет новостей. | Худкор баста шуд: муддати дароз хабаре нест. | draft |
+| `requests.close_reason.client_cancelled` | Вы отменили заявку. | Шумо дархостро бекор кардед. | draft |
+| `requests.close_reason.client_closed` | Вы закрыли заявку. | Шумо дархостро бастед. | draft |
+| `requests.currency` | сомони | сомонӣ | draft |
+| `requests.description` | Описание работ | Тавсифи корҳо | draft |
+| `requests.description_hint` | От {min} до {max} символов: что сделать, размеры, материалы. | Аз {min} то {max} аломат: чӣ кор кардан, андозаҳо, масолеҳ. | draft |
+| `requests.detail_title` | Заявка № {id} | Дархости № {id} | draft |
+| `requests.district` | Район | Ноҳия | draft |
+| `requests.district_hint` | Нужен для городов, где есть районы. | Барои шаҳрҳое, ки ноҳия доранд, лозим аст. | draft |
+| `requests.district_none` | Без района | Бе ноҳия | draft |
+| `requests.done.cancelled` | Заявка отменена. | Дархост бекор карда шуд. | draft |
+| `requests.done.closed` | Заявка закрыта. | Дархост баста шуд. | draft |
+| `requests.done.created` | Заявка опубликована. Можно добавить фото. | Дархост нашр шуд. Метавонед акс илова кунед. | draft |
+| `requests.done.photos` | Фото добавлены. | Аксҳо илова шуданд. | draft |
+| `requests.done.reopened` | Заявка снова в ленте. | Дархост боз дар лента аст. | draft |
+| `requests.done.saved` | Изменения сохранены. | Тағйирот захира шуд. | draft |
+| `requests.edit_locked` | Заявку нельзя изменить: на неё уже откликнулись. Её можно закрыть или отменить. | Дархостро тағйир додан мумкин нест: ба он аллакай ҷавоб додаанд. Онро бастан ё бекор кардан мумкин аст. | draft |
+| `requests.edit_title` | Изменить заявку | Тағйир додани дархост | draft |
+| `requests.end_title` | Завершить заявку | Анҷоми дархост | draft |
+| `requests.err.address` | Адрес не должен быть длиннее 300 символов. | Суроға набояд аз 300 аломат дароз бошад. | draft |
+| `requests.err.budget` | Бюджет: укажите сумму больше нуля и за что она, либо оставьте оба поля пустыми. | Буҷет: маблағи аз сифр зиёд ва барои чӣ будани онро нишон диҳед ё ҳарду майдонро холӣ монед. | draft |
+| `requests.err.description` | Описание должно быть от 20 до 2000 символов. | Тавсиф бояд аз 20 то 2000 аломат бошад. | draft |
+| `requests.err.district_required` | Для этого города выберите район. | Барои ин шаҳр ноҳияро интихоб кунед. | draft |
+| `requests.err.inactive` | Аккаунт недоступен. | Ҳисоб дастрас нест. | draft |
+| `requests.err.locked` | Заявку нельзя менять: на неё уже откликнулись. | Дархостро тағйир додан мумкин нест: ба он аллакай ҷавоб додаанд. | draft |
+| `requests.err.no_files` | Выберите хотя бы один файл. | Ақаллан як файлро интихоб кунед. | draft |
+| `requests.err.not_found` | Заявка не найдена. | Дархост ёфт нашуд. | draft |
+| `requests.err.photos_limit` | К заявке можно добавить не больше 4 фото. | Ба дархост на бештар аз 4 акс илова кардан мумкин аст. | draft |
+| `requests.err.place` | Выберите город и район из списка. | Шаҳр ва ноҳияро аз рӯйхат интихоб кунед. | draft |
+| `requests.err.save` | Не удалось сохранить, попробуйте ещё раз. | Захира кардан нашуд, боз кӯшиш кунед. | draft |
+| `requests.err.specialty` | Выберите от 1 до 3 специальностей. | Аз 1 то 3 ихтисос интихоб кунед. | draft |
+| `requests.err.state` | Это действие уже недоступно: состояние заявки изменилось. | Ин амал дигар дастрас нест: ҳолати дархост тағйир ёфт. | draft |
+| `requests.err.timing` | Срок: «срочно», «не срочно» или дата не раньше сегодня и не позже чем через 180 дней. | Мӯҳлат: «фаврӣ», «фаврӣ нест» ё санае, ки аз имрӯз барвақттар ва аз 180 рӯз дертар набошад. | draft |
+| `requests.err.too_many` | Не больше 4 файлов за раз. | Дар як вақт на бештар аз 4 файл. | draft |
+| `requests.mine_empty` | Заявок пока нет. | Ҳоло дархост нест. | draft |
+| `requests.mine_title` | Мои заявки | Дархостҳои ман | draft |
+| `requests.new_lead` | Опишите работу: подходящие мастера увидят заявку и откликнутся. | Кореро тасвир кунед: усторони мувофиқ дархостро мебинанд ва ҷавоб медиҳанд. | draft |
+| `requests.new_title` | Новая заявка | Дархости нав | draft |
+| `requests.paused` | Заявка убрана из ленты: получено 15 откликов. Верните её, чтобы получить ещё. | Дархост аз лента хориҷ шуд: 15 ҷавоб гирифта шуд. Барои ҷавобҳои бештар онро баргардонед. | draft |
+| `requests.photo_delete` | Удалить фото | Нест кардани акс | draft |
+| `requests.photos_add` | Добавить фото | Илова кардани акс | draft |
+| `requests.photos_empty` | Фото не добавлены. | Акс илова нашудааст. | draft |
+| `requests.photos_hint` | До {max} фото: JPEG, PNG или WebP, до 10 МБ каждое. | То {max} акс: JPEG, PNG ё WebP, ҳар кадом то 10 МБ. | draft |
+| `requests.photos_title` | Фото | Акс | draft |
+| `requests.photos_upload` | Загрузить | Бор кардан | draft |
+| `requests.reopen` | Вернуть в ленту | Ба лента баргардонед | draft |
+| `requests.responses` | Откликов: {n} | Ҷавобҳо: {n} | draft |
+| `requests.save` | Сохранить | Захира кардан | draft |
+| `requests.specialty` | Что нужно сделать | Чӣ кор кардан лозим аст | draft |
+| `requests.specialty_hint` | Выберите от 1 до 3 специальностей. | Аз 1 то 3 ихтисос интихоб кунед. | draft |
+| `requests.status.cancelled` | Отменена | Бекор карда шуд | draft |
+| `requests.status.closed` | Закрыта | Баста шуд | draft |
+| `requests.status.completed` | Выполнена | Иҷро шуд | draft |
+| `requests.status.master_chosen` | Мастер выбран | Усто интихоб шуд | draft |
+| `requests.status.open` | Открыта | Кушода | draft |
+| `requests.submit` | Опубликовать заявку | Нашри дархост | draft |
+| `requests.timing` | Когда нужно | Кай лозим аст | draft |
+| `requests.timing.date` | К дате | То санаи муайян | draft |
+| `requests.timing.flexible` | Не срочно | Фаврӣ нест | draft |
+| `requests.timing.urgent` | Срочно | Фаврӣ | draft |
+| `requests.timing_date` | Дата (если «к дате») | Сана (агар «то санаи муайян») | draft |
+| `requests.unit.fixed` | за всю работу | барои тамоми кор | draft |
+| `requests.unit.hour` | за час | барои як соат | draft |
+| `requests.unit.m2` | за м² | барои як м² | draft |
+| `requests.unit.piece` | за штуку | барои як дона | draft |
+| `requests.unit.running_m` | за погонный метр | барои як метри давомдор | draft |
 | `resend.submit` | Отправить ссылку | Пайвандро фиристед | approved |
 | `resend.text` | Укажите почту, на которую регистрировались. Мы отправим новую ссылку для подтверждения. | Суроғаи почтаро нависед, ки бо он сабт шудаед. Мо пайванди навро барои тасдиқ мефиристем. | approved |
 | `reset.done_text` | Все входы на других устройствах завершены. Войдите с новым паролем. | Ҳамаи воридшавиҳо дар дастгоҳҳои дигар қатъ карда шуданд. Бо рамзи нав ворид шавед. | approved |

@@ -106,7 +106,7 @@ def test_empty_page_is_200_noindex_with_a_call_to_post_a_request(web: TestClient
     assert r.status_code == 200
     assert _robots(r.text) == "noindex, follow"
     empty = _section(r.text, "seo-empty")
-    assert 'href="/"' in empty
+    assert 'href="/requests/new?c=dushanbe&amp;s=santekhnik"' in empty
     assert "seo." not in r.text  # every key has a text
     assert "{" not in _title(r.text)
 

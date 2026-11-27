@@ -19,16 +19,30 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
-from app.models.common import PRICE_UNITS, CreatedAt, IdPk, Timestamps, not_blank, one_of
+from app.models.common import (
+    PRICE_UNITS,
+    CreatedAt,
+    IdPk,
+    Timestamps,
+    not_blank,
+    one_of,
+    phone_ok,
+)
 
 # open -> master_chosen -> completed; closed and cancelled end it early (BRIEF §4.8).
 # closed: the client (or the 30-day auto-close, PRODUCT_RULES C4) ended it; cancelled: withdrawn.
 REQUEST_STATUSES = ("open", "master_chosen", "completed", "closed", "cancelled")
 TIMINGS = ("urgent", "date", "flexible")
+# Why a request ended: the client closed it ("no longer needed"), cancelled it ("posted by
+# mistake"), or the C4/C5 timers did (PRODUCT_RULES).
+CLOSE_REASONS = ("client_closed", "client_cancelled", "auto_expired", "auto_stale")
+# The 15-response limit: the feed pauses after this many active responses (and again every +15).
+FEED_PAUSE_STEP = 15
 MAX_REQUEST_PHOTOS = 4
 
 
@@ -58,6 +72,18 @@ class JobRequest(IdPk, Timestamps, Base):
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     hidden_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # Lifecycle clocks. C4 counts from `opened_at` (creation and every reopen), C5 from
+    # `master_chosen_at`.
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    master_chosen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    close_reason: Mapped[str | None] = mapped_column(String(20))
+    expiry_reminded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    done_asked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Where the chosen master reaches the client; shown to that master only (spec D10.1).
+    client_phone: Mapped[str | None] = mapped_column(String(16))
+    # Pause when active responses reach this number; "reopen" sets it to responses_count + 15.
+    feed_pause_at: Mapped[int] = mapped_column(Integer, server_default=str(FEED_PAUSE_STEP))
+
     __table_args__ = (
         ForeignKeyConstraint(
             ["district_id", "city_id"],
@@ -83,8 +109,25 @@ class JobRequest(IdPk, Timestamps, Base):
             "(status IN ('closed', 'cancelled')) = (closed_at IS NOT NULL)", name="closed_at"
         ),
         CheckConstraint("responses_count >= 0", name="responses_count_not_negative"),
+        CheckConstraint(one_of("close_reason", CLOSE_REASONS), name="close_reason_value"),
+        CheckConstraint(
+            "(status IN ('closed', 'cancelled')) = (close_reason IS NOT NULL)", name="close_reason"
+        ),
+        CheckConstraint(
+            "(chosen_master_id IS NOT NULL) = (master_chosen_at IS NOT NULL)",
+            name="master_chosen_at",
+        ),
+        CheckConstraint(phone_ok("client_phone"), name="client_phone_format"),
+        CheckConstraint(
+            "status NOT IN ('master_chosen', 'completed') OR client_phone IS NOT NULL",
+            name="client_phone_when_chosen",
+        ),
+        CheckConstraint("feed_pause_at > 0", name="feed_pause_at_positive"),
         # Masters' feed: open requests, newest first.
         Index("ix_requests_status_created_at", "status", "created_at"),
+        # Timers: C4 scans open requests by age, C5 scans chosen ones.
+        Index("ix_requests_status_opened_at", "status", "opened_at"),
+        Index("ix_requests_status_master_chosen_at", "status", "master_chosen_at"),
     )
 
 
@@ -127,6 +170,8 @@ class JobResponse(IdPk, Timestamps, Base):
     message: Mapped[str | None] = mapped_column(String(500))
     price_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2))
     price_unit: Mapped[str | None] = mapped_column(String(10))
+    # Soft withdraw; responding again clears it (spec D10.2).
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
         UniqueConstraint("request_id", "master_id"),

@@ -11,6 +11,7 @@ from app.models.auth import (
 from app.models.catalog import Category, Specialty, SpecialtySynonym
 from app.models.complaint import Complaint
 from app.models.imports import DataRemovalRequest, ImportBlocklist, ProfileClaim
+from app.models.jobs import Job, NotificationPref
 from app.models.master import MasterArea, MasterProfile, MasterSpecialty
 from app.models.place import City, District
 from app.models.portfolio import PortfolioCollection, PortfolioPhoto
@@ -30,12 +31,14 @@ __all__ = [
     "District",
     "GoogleClaim",
     "ImportBlocklist",
+    "Job",
     "JobRequest",
     "JobResponse",
     "MasterArea",
     "MasterProfile",
     "MasterSearch",
     "MasterSpecialty",
+    "NotificationPref",
     "OAuthFlow",
     "PlaceSynonym",
     "PortfolioCollection",

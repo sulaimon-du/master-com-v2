@@ -13,6 +13,7 @@ DISALLOW = (
     "/search",
     "/account",
     "/master/",
+    "/requests/",
     "/auth/",
     "/signin",
     "/register",

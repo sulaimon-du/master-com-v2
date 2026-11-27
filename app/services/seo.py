@@ -7,6 +7,7 @@ service's; this module adds what makes it a page of its own: the index rule, can
 """
 
 import re
+from urllib.parse import urlencode
 
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -61,6 +62,7 @@ class LandingView(BaseModel):
     other_specialties: list[Link]  # other specialties in this city
     prev_href: str | None
     next_href: str | None
+    request_href: str  # "post a request" with this page's city and specialty prefilled
 
 
 def landing_path(
@@ -284,6 +286,7 @@ def landing(
         other_specialties=other_specialties,
         prev_href=path(lang, result.page - 1) if result.page > 1 else None,
         next_href=path(lang, result.page + 1) if result.page < result.pages else None,
+        request_href="/requests/new?" + urlencode({"c": city_row.slug, "s": specialty_row.slug}),
     )
 
 

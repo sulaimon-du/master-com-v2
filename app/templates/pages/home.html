@@ -31,6 +31,12 @@
     </form>
   </section>
 
+  <section class="card grid gap-3" aria-labelledby="home-request">
+    <h2 id="home-request" class="text-3xl">{{ t('home.request_title') }}</h2>
+    <p class="max-w-prose text-muted">{{ t('home.request_text') }}</p>
+    <p><a class="btn btn-primary no-underline" href="{{ url_for('request_new').path }}">{{ t('seo.post_request') }}</a></p>
+  </section>
+
   <section class="grid gap-4" aria-labelledby="home-cats">
     <h2 id="home-cats" class="text-3xl">{{ t('home.categories') }}</h2>
     <ul class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
