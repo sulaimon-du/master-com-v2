@@ -65,7 +65,11 @@ def _block(view: HomeMasters, lang: str) -> MastersBlock:
             view.available,
         )
     )
-    params = {"c": view.city or "", "available": "1" if view.available else ""}
+    params = {
+        "c": view.city or "",
+        "available": "1" if view.available else "",
+        "sort": "rating",  # the block shows the best-rated first; keep that order on /search
+    }
     return MastersBlock(chips=chips, items=view, search_href=search_href(params))
 
 

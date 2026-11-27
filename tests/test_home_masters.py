@@ -118,7 +118,7 @@ def test_city_chip_filters_and_is_marked_current(web: TestClient, db: Session) -
     assert in_dushanbe.slug not in html
     assert re.search(r'<a [^>]*aria-current="true"[^>]*data-chip="khujand"', html)
     assert not re.search(r'<a [^>]*aria-current="true"[^>]*data-chip="all"', html)
-    assert 'href="/search?c=khujand"' in html
+    assert 'href="/search?c=khujand&amp;sort=rating"' in html
 
 
 def test_available_toggle_filters_and_keeps_the_city(web: TestClient, db: Session) -> None:
@@ -133,7 +133,7 @@ def test_available_toggle_filters_and_keeps_the_city(web: TestClient, db: Sessio
     assert 'href="/?m_city=dushanbe#masters"' in html
     assert 'href="/?m_city=khujand&amp;m_available=1#masters"' in html
     assert 'href="/?m_available=1#masters"' in html  # "all"
-    assert 'href="/search?c=dushanbe&amp;available=1"' in html
+    assert 'href="/search?c=dushanbe&amp;available=1&amp;sort=rating"' in html
 
 
 @pytest.mark.parametrize(
