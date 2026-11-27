@@ -10,3 +10,10 @@ app/static/css/*.css
 app/static/js/*.js
 app/static/fonts/
 media/
+# Local settings for other environments (e.g. `.env.staging` for `app.cli demo seed`)
+.env.*
+!.env.example
+# Downloaded demo photos (R-027) and other local caches
+.cache/
+# Demo account sign-in details (R-027): never commit
+.superpowers/demo-accounts.txt

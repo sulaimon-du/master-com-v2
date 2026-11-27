@@ -80,6 +80,18 @@ Turning uploads on after the deploy:
 3. Upload an avatar: the image address on the profile must start with `R2_PUBLIC_URL`. Redeploy and check that the photo is still there.
 If an upload fails, the user sees "could not save, try again"; check the R2 token's permissions and the endpoint.
 
+### Demo accounts on staging (R-027)
+
+Ten filled, clearly fake master profiles (plus three demo clients with one open request each) so search, the SEO pages and the feed have content. Render free has no shell, so the command runs on your laptop against the staging database and R2:
+
+1. Create `.env.staging` in the repo root (git-ignored, never paste it into a chat) with the staging `DATABASE_URL` (Neon → Connection string), `APP_ENV=staging`, `SECRET_KEY` (any 32+ characters; only the site's own must stay secret), `SITE_URL=https://master-com-staging.onrender.com` and all five `R2_*` values from the Render dashboard.
+2. Seed: `uv run --env-file .env.staging python -m app.cli demo seed` (optional `--count 1..10`). The first line shows the target (`APP_ENV=staging, storage=R2`); without the R2 values it refuses. It downloads the public-domain/CC0 work photos listed in `app/seed/data/demo_photos.json` once into `.cache/demo_photos/` (credits: `docs/demo_photo_credits.md`); a photo that cannot be downloaded is replaced by a generated picture. Running it again creates only what is missing.
+3. Sign in as any demo master or client: emails and the shared password are in `.superpowers/demo-accounts.txt` (git-ignored; the command never prints the password). Demo emails end in `@ustoiman.invalid`, which can never receive mail; demo masters show phone numbers from the range reserved for films (`+44 7700 900xxx`), which belong to nobody.
+4. New masters appear in search at once and in the SEO links and sitemap within 10 minutes (cache).
+5. Remove everything: `uv run --env-file .env.staging python -m app.cli demo remove` deletes the demo users, their profiles, portfolio photos (rows and R2 files), requests, responses, sessions and search rows. If a real request has chosen a demo master, it refuses and changes nothing; close that request first.
+
+**Remove the demo accounts before any real launch.** The command refuses to run with `APP_ENV=production`.
+
 ### Telegram bot service (`master-com-bot-staging`)
 
 | Name | Value | Where set | Secret |
