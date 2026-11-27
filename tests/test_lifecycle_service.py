@@ -140,6 +140,18 @@ def test_blocked_master_is_not_choosable(db: Session, why: str) -> None:
     assert request.status == "open"
 
 
+def test_hidden_request_is_not_choosable(db: Session, queued) -> None:  # type: ignore[no-untyped-def]
+    """Hidden by moderation: no choice, since the master could never see the contact."""
+    client, request, _, _, response = _setup(db)
+    request.hidden_at = utcnow()
+    db.flush()
+    assert _code(svc.choose_master, db, client, request.id, response.id, PHONE) == "state"
+    assert request.status == "open" and request.chosen_master_id is None
+    assert _events(queued) == []
+    (card,) = svc.responses_for_client(db, client, request.id)
+    assert card.choosable is False
+
+
 def test_unpublished_master_stays_choosable(db: Session) -> None:
     """Existing responses stay when a master unpublishes (spec D10.5)."""
     client, request, _, profile, response = _setup(db)
@@ -413,6 +425,7 @@ def test_choose_and_withdraw_from_two_sessions_agree(migrated_engine) -> None:
             t.start()
         for t in threads:
             t.join(timeout=30)
+            assert not t.is_alive()
         assert results in (
             {"choose": "ok", "withdraw": "chosen"},
             {"choose": "withdrawn", "withdraw": "ok"},
@@ -465,6 +478,7 @@ def test_double_choose_from_two_sessions_chooses_once(migrated_engine) -> None:
             t.start()
         for t in threads:
             t.join(timeout=30)
+            assert not t.is_alive()
         assert sorted(results) == ["ok", "state"]
         with factory() as s:
             row = s.get(JobRequest, request_id)

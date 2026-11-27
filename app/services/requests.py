@@ -353,14 +353,15 @@ def choose_master(
     if phone is None:
         raise RequestError("phone")
     request = _request(db, user, request_id, lock=True)
+    # Hidden by moderation: the chosen master could never see the contact (no dead-end choice).
+    if request.status != "open" or request.hidden_at is not None:
+        raise RequestError("state")
     response = db.scalar(
         select(JobResponse)
         .where(JobResponse.id == response_id, JobResponse.request_id == request.id)
         .with_for_update()
         .execution_options(populate_existing=True)
     )
-    if request.status != "open":
-        raise RequestError("state")
     if response is None:
         raise RequestError("not_found")
     if response.withdrawn_at is not None:
@@ -552,7 +553,7 @@ def responses_for_client(db: Session, user: User, request_id: int) -> list[Clien
     ).all()
     storage = get_storage()
     active = is_active(user)
-    can_choose = request.status == "open" and active
+    can_choose = request.status == "open" and request.hidden_at is None and active
     return [
         ClientResponseCard(
             response_id=response.id,
@@ -604,5 +605,6 @@ def client_contact_for_master(db: Session, user: User, request_id: int) -> Clien
     if row is None:
         return None
     request, client = row
-    assert request.client_phone is not None  # noqa: S101  (ck_requests_client_phone_when_chosen)
+    if request.client_phone is None:  # ck_requests_client_phone_when_chosen rules this out
+        return None
     return ClientContactView(name=client.name, phone=request.client_phone)
