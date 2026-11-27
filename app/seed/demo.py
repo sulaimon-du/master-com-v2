@@ -390,22 +390,54 @@ class _Photos:
     def candidates(self, topic: str) -> list[dict]:
         return [e for e in self.manifest.get(topic, []) if e["url"] not in self.failed]
 
-    def next(self, topic: str) -> tuple[bytes, bool]:
-        """(image bytes, is it a real photo)."""
+    def next(self, topic: str) -> tuple[bytes, str | None]:
+        """(image bytes, URL of the real photo or None for a generated one)."""
         n = self.turn.get(topic, 0)
         self.turn[topic] = n + 1
         options = self.candidates(topic)
         if options:
             entry = options[n % len(options)]
             try:
-                return self.download(entry["url"]), True
+                return self.download(entry["url"]), entry["url"]
             except Exception:  # any failure means "use the fallback"
                 self.failed.add(entry["url"])
-        return demo_photos.generated_photo(topic, n), False
+        return demo_photos.generated_photo(topic, n), None
+
+    def reject(self, url: str) -> None:
+        """The pipeline refused these bytes: never use the URL again, drop its cached file."""
+        self.failed.add(url)
+        forget = getattr(self.download, "forget", None)
+        if forget is not None:
+            forget(url)
 
 
 def _ids_by_slug(db: Session, model, slugs) -> dict[str, int]:  # type: ignore[no-untyped-def]
     return dict(db.execute(select(model.slug, model.id).where(model.slug.in_(set(slugs)))).all())
+
+
+NOT_SEEDED = "the catalog or places are not seeded; run `python -m app.seed` first"
+
+
+def _place(db: Session, city: str, district: str | None) -> tuple[int, int | None]:
+    """(city id, district id) by slug; a missing one is a friendly error, not a traceback."""
+    city_id = _ids_by_slug(db, City, [city]).get(city)
+    if city_id is None:
+        raise DemoError(NOT_SEEDED)
+    if district is None:
+        return city_id, None
+    district_id = db.scalar(
+        select(District.id).where(District.slug == district, District.city_id == city_id)
+    )
+    if district_id is None:
+        raise DemoError(NOT_SEEDED)
+    return city_id, district_id
+
+
+def _specialty_ids(db: Session, slugs: tuple[str, ...]) -> list[int]:
+    found = _ids_by_slug(db, Specialty, slugs)
+    if set(found) != set(slugs):
+        raise DemoError(NOT_SEEDED)
+    return [found[s] for s in slugs]
 
 
 def _initials(name: str) -> str:
@@ -465,25 +497,13 @@ def _seed_master(
     master = masters.create_profile(db, user, data)
     masters.update_basics(db, master, data, bio=spec.bio)
 
-    specialty_ids = _ids_by_slug(db, Specialty, spec.specialties)
-    if set(specialty_ids) != set(spec.specialties):
-        raise DemoError("the catalog is not seeded; run `python -m app.seed` first")
-    ordered = [specialty_ids[s] for s in spec.specialties]
+    ordered = _specialty_ids(db, spec.specialties)
     masters.set_specialties(db, master, ordered, ordered[:1])
-
-    city_id = _ids_by_slug(db, City, [spec.city]).get(spec.city)
-    if city_id is None:
-        raise DemoError("the places are not seeded; run `python -m app.seed` first")
-    district_ids = []
-    if spec.district is not None:
-        district_ids = [
-            db.scalars(
-                select(District.id).where(
-                    District.slug == spec.district, District.city_id == city_id
-                )
-            ).one()
-        ]
-    masters.set_areas(db, master, [] if district_ids else [city_id], district_ids)
+    city_id, district_id = _place(db, spec.city, spec.district)
+    if district_id is None:
+        masters.set_areas(db, master, [city_id], [])
+    else:
+        masters.set_areas(db, master, [], [district_id])
 
     avatar = process_avatar(demo_photos.avatar(_initials(spec.name), n))
     key = new_key("a")
@@ -493,15 +513,17 @@ def _seed_master(
     for work in spec.works:
         collection = portfolio.create_collection(db, master, work.title, work.description)
         for _ in range(work.photos):
-            data_bytes, real = photos.next(work.topic)
+            data_bytes, url = photos.next(work.topic)
             try:
                 portfolio.add_photo(db, storage, master, collection.id, data_bytes)
             except ImageError:
-                if not real:
+                if url is None:
                     raise
                 # A real photo the pipeline refuses: the generated picture takes its place.
-                data_bytes, real = demo_photos.generated_photo(work.topic, stats.photos), False
+                photos.reject(url)
+                data_bytes, url = demo_photos.generated_photo(work.topic, stats.photos), None
                 portfolio.add_photo(db, storage, master, collection.id, data_bytes)
+            real = url is not None
             stats.photos += 1
             stats.real_photos += real
             stats.generated_photos += not real
@@ -512,18 +534,13 @@ def _seed_master(
 
 def _seed_client(db: Session, n: int, spec: DemoClient, password_hash: str) -> None:
     user = _new_user(db, client_email(n), spec.name, password_hash, None)
-    city_id = _ids_by_slug(db, City, [spec.city])[spec.city]
-    district_id = None
-    if spec.district is not None:
-        district_id = db.scalars(
-            select(District.id).where(District.slug == spec.district, District.city_id == city_id)
-        ).one()
-    specialty_ids = _ids_by_slug(db, Specialty, spec.specialties)
+    city_id, district_id = _place(db, spec.city, spec.district)
+    specialty_ids = _specialty_ids(db, spec.specialties)
     request = requests.create_request(
         db,
         user,
         RequestInput(
-            specialty_ids=[specialty_ids[s] for s in spec.specialties],
+            specialty_ids=specialty_ids,
             city_id=city_id,
             district_id=district_id,
             description=spec.description,
@@ -582,8 +599,13 @@ def seed(
 # --- remove -----------------------------------------------------------------------------------
 
 
+# A real request in these states needs its chosen master; `demo remove` refuses (R-027).
+BLOCKING_STATUSES = ("master_chosen", "completed")
+
+
 @dataclass
 class RemoveStats:
+    unlinked: int = 0  # closed or cancelled real requests whose chosen demo master was cleared
     users: int = 0
     masters: int = 0
     photos: int = 0
@@ -603,28 +625,39 @@ def remove(db: Session) -> RemoveStats:
     )
     request_ids = list(db.scalars(select(JobRequest.id).where(JobRequest.client_id.in_(user_ids))))
 
-    # A real client's request that chose a demo master (or a real review of one) would lose its
-    # master: refuse rather than touch real data. The owner closes those requests first.
-    blocking = (
-        db.scalar(
-            select(func.count()).where(
-                JobRequest.chosen_master_id.in_(master_ids), JobRequest.client_id.not_in(user_ids)
-            )
+    # A real request still running with a demo master (chosen or completed), or a real review of
+    # one, would lose its master: refuse rather than break real data, and name the ids.
+    real_requests = JobRequest.client_id.not_in(user_ids)
+    chosen_by_real = JobRequest.chosen_master_id.in_(master_ids) & real_requests
+    blocked_requests = list(
+        db.scalars(
+            select(JobRequest.id)
+            .where(chosen_by_real, JobRequest.status.in_(BLOCKING_STATUSES))
+            .order_by(JobRequest.id)
         )
-        or 0
     )
-    blocking += (
-        db.scalar(
-            select(func.count()).where(
-                Review.master_id.in_(master_ids), Review.author_id.not_in(user_ids)
-            )
+    blocked_reviews = list(
+        db.scalars(
+            select(Review.id)
+            .where(Review.master_id.in_(master_ids), Review.author_id.not_in(user_ids))
+            .order_by(Review.id)
         )
-        or 0
     )
-    if blocking:
+    if blocked_requests or blocked_reviews:
         raise DemoError(
-            f"{blocking} real request(s) or review(s) point at a demo master; nothing was removed"
+            "real data points at a demo master; nothing was removed. "
+            f"Requests (status master_chosen/completed): {blocked_requests or 'none'}; "
+            f"reviews: {blocked_reviews or 'none'}"
         )
+    # Closed or cancelled real requests keep their status; only the demo master link goes.
+    stats.unlinked = (
+        db.execute(
+            update(JobRequest)
+            .where(chosen_by_real, JobRequest.status.in_(("closed", "cancelled")))
+            .values(chosen_master_id=None, master_chosen_at=None)
+        ).rowcount
+        or 0
+    )
 
     # Responses by demo masters on real requests: keep those requests' counters right.
     response_rows = db.execute(

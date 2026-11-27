@@ -11,12 +11,15 @@ import hashlib
 import io
 import json
 import logging
+import os
 import random
+import tempfile
 import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 from PIL import Image, ImageDraw, ImageFont
@@ -26,7 +29,8 @@ from app.services.images import MAX_UPLOAD_BYTES
 log = logging.getLogger("app.seed.demo")
 
 MANIFEST = Path(__file__).resolve().parent / "data" / "demo_photos.json"
-ALLOWED_LICENSES = frozenset({"pd", "cc0"})
+# The licence code and the recorded licence text must agree (Commons' LicenseShortName).
+LICENSES = {"pd": "Public domain", "cc0": "CC0"}
 # Commons serves originals from upload. and standard-size thumbnails from thumb.
 ALLOWED_HOSTS = frozenset({"upload.wikimedia.org", "thumb.wikimedia.org"})
 USER_AGENT = "UstoiMan-demo-seed/1.0"
@@ -36,20 +40,25 @@ RETRY_WAIT = 15.0
 SIZE = (1200, 900)
 
 # Takes a URL, returns the file's bytes; raises on any failure. Tests inject a fake one.
+# A downloader may also have `forget(url)`, called when the pipeline refuses the bytes.
 Downloader = Callable[[str], bytes]
+# Opens a request with a timeout; returns a response (`read`, `geturl`, context manager).
+Opener = Callable[[urllib.request.Request, float], Any]
 
 
 # --- manifest ---------------------------------------------------------------------------------
 
 
+def url_ok(url: str) -> bool:
+    """https on one of Commons' own file hosts, nothing else."""
+    parts = urlsplit(url)
+    return parts.scheme == "https" and parts.hostname in ALLOWED_HOSTS
+
+
 def license_ok(entry: dict) -> bool:
-    """Only public domain or CC0, from Commons' own file hosts, over https."""
-    url = urlsplit(str(entry.get("url", "")))
-    return (
-        str(entry.get("license_code", "")).lower() in ALLOWED_LICENSES
-        and url.scheme == "https"
-        and url.hostname in ALLOWED_HOSTS
-    )
+    """Public domain or CC0 only (code and recorded text agree), from a Commons file host."""
+    code = str(entry.get("license_code", ""))
+    return LICENSES.get(code) == entry.get("license") and url_ok(str(entry.get("url", "")))
 
 
 def load_manifest(path: Path = MANIFEST) -> dict[str, list[dict]]:
@@ -67,40 +76,83 @@ def load_manifest(path: Path = MANIFEST) -> dict[str, list[dict]]:
 # --- download ---------------------------------------------------------------------------------
 
 
-def cached_downloader(
-    cache_dir: Path, *, pause: float = 2.0, sleep: Callable[[float], None] = time.sleep
-) -> Downloader:
+class _CommonsOnlyRedirects(urllib.request.HTTPRedirectHandler):
+    """Follow a redirect only to https on a Commons file host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
+        if not url_ok(newurl):
+            raise urllib.error.HTTPError(newurl, code, "redirect off Commons refused", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _open(request: urllib.request.Request, timeout: float) -> Any:
+    opener = urllib.request.build_opener(_CommonsOnlyRedirects())
+    return opener.open(request, timeout=timeout)
+
+
+class CachedDownloader:
     """Download with a generic User-Agent and a timeout; keep each file in `cache_dir`.
 
     Commons throttles bursts (HTTP 429), so network fetches are spaced by `pause` seconds and a
     429 is retried twice after waiting; any other failure is left to the caller's fallback.
+    Redirects are followed only to Commons file hosts, and the final URL is checked again.
     """
 
-    def fetch(url: str) -> bytes:
-        if not license_ok({"url": url, "license_code": "pd"}):  # host and scheme check only
-            raise ValueError("demo photo URL is not on a Commons file host")
-        name = hashlib.sha256(url.encode()).hexdigest()
-        cached = cache_dir / name
-        if cached.is_file():
-            return cached.read_bytes()
+    def __init__(
+        self,
+        cache_dir: Path,
+        *,
+        pause: float = 2.0,
+        sleep: Callable[[float], None] = time.sleep,
+        opener: Opener = _open,
+    ) -> None:
+        self.cache_dir, self.pause, self.sleep, self.opener = cache_dir, pause, sleep, opener
+
+    def path(self, url: str) -> Path:
+        return self.cache_dir / hashlib.sha256(url.encode()).hexdigest()
+
+    def forget(self, url: str) -> None:
+        self.path(url).unlink(missing_ok=True)
+
+    def _download(self, url: str) -> bytes:
         request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})  # noqa: S310
         for attempt in range(RETRIES + 1):
-            sleep(pause)
+            self.sleep(self.pause)
             try:
-                with urllib.request.urlopen(request, timeout=TIMEOUT) as response:  # noqa: S310
-                    data = response.read(MAX_UPLOAD_BYTES + 1)
-                break
+                with self.opener(request, TIMEOUT) as response:
+                    if not url_ok(response.geturl()):
+                        raise ValueError("demo photo was served from outside Commons")
+                    return response.read(MAX_UPLOAD_BYTES + 1)
             except urllib.error.HTTPError as exc:
                 if exc.code != 429 or attempt == RETRIES:
                     raise
-                sleep(RETRY_WAIT * (attempt + 1))
+                self.sleep(RETRY_WAIT * (attempt + 1))
+        raise AssertionError("unreachable")  # pragma: no cover
+
+    def __call__(self, url: str) -> bytes:
+        if not url_ok(url):
+            raise ValueError("demo photo URL is not on a Commons file host")
+        cached = self.path(url)
+        if cached.is_file():
+            return cached.read_bytes()
+        data = self._download(url)
         if len(data) > MAX_UPLOAD_BYTES:
             raise ValueError("demo photo too large")
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        cached.write_bytes(data)
+        # Write next to the target, then rename: a crash never leaves half a file in the cache.
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=self.cache_dir, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(data)
+            os.replace(tmp, cached)
+        except BaseException:
+            Path(tmp).unlink(missing_ok=True)
+            raise
         return data
 
-    return fetch
+
+def cached_downloader(cache_dir: Path, **kwargs: Any) -> CachedDownloader:
+    return CachedDownloader(cache_dir, **kwargs)
 
 
 # --- generated pictures -----------------------------------------------------------------------

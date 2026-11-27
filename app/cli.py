@@ -18,16 +18,33 @@ On staging (no shell on Render free) the same decision is one statement in the N
 import argparse
 import sys
 
-from app.core.config import get_settings
+from sqlalchemy.engine import make_url
+
+from app.core.config import Settings, get_settings
 from app.core.db import get_sessionmaker
 from app.models.user import User
-from app.seed import demo
 from app.services import auth, search_index
 from app.services.storage import get_storage
+
+DEMO_COUNT = 10  # app.seed.demo.MASTERS; a literal so other commands never import demo code
+
+
+def demo_target(settings: Settings) -> str:
+    """Where the demo command writes: environment, database host and name, storage.
+
+    Never the database user or password.
+    """
+    url = make_url(str(settings.database_url))
+    return (
+        f"target: APP_ENV={settings.app_env}, database={url.host or 'local socket'}/"
+        f"{url.database or ''}, storage={'R2' if settings.r2_enabled else 'disk'}"
+    )
 
 
 def run_demo(args: argparse.Namespace) -> int:
     """Seed or remove the demo accounts. Prints counts only, never the password."""
+    from app.seed import demo  # lazy: the deploy-time `search rebuild` never loads demo code
+
     settings = get_settings()
     if settings.app_env == "production":
         print("demo accounts are never created or removed in production", file=sys.stderr)
@@ -37,7 +54,7 @@ def run_demo(args: argparse.Namespace) -> int:
         print("staging needs the R2 settings for demo photos; nothing was done", file=sys.stderr)
         return 2
     storage = get_storage()
-    print(f"target: APP_ENV={settings.app_env}, storage={'R2' if settings.r2_enabled else 'disk'}")
+    print(demo_target(settings))
     with get_sessionmaker()() as db:
         if args.action == "seed":
             written: list[str] = []
@@ -71,6 +88,7 @@ def run_demo(args: argparse.Namespace) -> int:
         print(
             f"removed {removed.users} demo users, {removed.masters} masters, "
             f"{removed.photos} portfolio photos, {removed.requests} requests; "
+            f"{removed.unlinked} closed real requests unlinked from a demo master; "
             f"{len(removed.keys) - failed} files deleted, {failed} failed"
         )
         return 0
@@ -88,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
     search.add_subparsers(dest="action", required=True).add_parser("rebuild")
     demo_cmd = groups.add_parser("demo", help="Demo master accounts for staging (R-027)")
     demo_actions = demo_cmd.add_subparsers(dest="action", required=True)
-    demo_actions.add_parser("seed").add_argument("--count", type=int, default=len(demo.MASTERS))
+    demo_actions.add_parser("seed").add_argument("--count", type=int, default=DEMO_COUNT)
     demo_actions.add_parser("remove")
     args = parser.parse_args(argv)
     if args.group == "demo":

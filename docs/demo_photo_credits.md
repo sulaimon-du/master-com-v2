@@ -1,6 +1,6 @@
 # Demo photo credits (R-027)
 
-Portfolio photos of the demo master accounts on staging come from Wikimedia Commons. Every file below is in the public domain or under CC0, so no attribution is required; it is given anyway. Licences were checked through the Commons API on 2026-11-27 and are checked again by the seed (`app/seed/demo_photos.py`). The demo accounts and these photos are removed with `python -m app.cli demo remove` before any real launch.
+Portfolio photos of the demo master accounts on staging come from Wikimedia Commons. Every file below is in the public domain or under CC0, so no attribution is required; it is given anyway. Licences were checked through the Commons API on 2026-11-27 when this list was built; at seed time `app/seed/demo_photos.py` checks each entry against the manifest (licence code and recorded licence text must both say public domain or CC0). The demo accounts and these photos are removed with `python -m app.cli demo remove` before any real launch.
 
 | Topic | File | Author | Licence |
 |---|---|---|---|
