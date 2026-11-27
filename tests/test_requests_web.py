@@ -247,7 +247,6 @@ def test_create_flow_with_prefill_and_listing(client: TestClient) -> None:
 def test_create_validation_errors_are_422_with_a_message(client: TestClient) -> None:
     _signed_in(client)
     ids = _ids()
-    soon = (local_today() + timedelta(days=2)).isoformat()
     cases: list[dict[str, object]] = [
         {"description": "коротко"},
         {"specialty": []},
@@ -259,7 +258,6 @@ def test_create_validation_errors_are_422_with_a_message(client: TestClient) -> 
         {"timing": "date", "timing_date": (local_today() - timedelta(days=1)).isoformat()},
         {"timing": "later"},
         {"address": "x" * 301},
-        {"timing": "urgent", "timing_date": soon},
     ]
     for kw in cases:
         r = _post(client, "/requests/new", _form(**kw))
@@ -735,3 +733,45 @@ def test_guest_prefill_survives_sign_in(client: TestClient) -> None:
     page = client.get(nxt).text
     assert re.search(rf'<option value="{city_id}"[^>]*selected', page)
     assert re.search(rf'value="{spec_id}"[^>]*checked', page)
+
+
+# --- whole-branch review fixes ----------------------------------------------------------------
+
+
+def test_leftover_date_is_ignored_unless_timing_is_date(client: TestClient) -> None:
+    _signed_in(client)
+    leftover = (local_today() + timedelta(days=3)).isoformat()
+    for timing in ("urgent", "flexible"):
+        rid = _create(client, timing=timing, timing_date=leftover)
+        assert _row(rid).timing == timing and _row(rid).timing_date is None
+    rid = _create(client, timing="date", timing_date=leftover)
+    assert _row(rid).timing_date is not None
+    r = _post(client, f"/requests/{rid}/edit", _form(timing="urgent", timing_date=leftover))
+    assert r.status_code == 303
+    assert _row(rid).timing == "urgent" and _row(rid).timing_date is None
+
+
+def test_crlf_description_is_accepted_and_stored_with_lf(client: TestClient) -> None:
+    _signed_in(client)
+    text = "\r\n".join(["x" * 39] * 50)  # 1999 chars with LF, 2048 with CRLF
+    assert len(text.replace("\r\n", "\n")) <= 2000 < len(text)
+    rid = _create(client, description=text)
+    assert _row(rid).description == text.replace("\r\n", "\n")
+
+
+@pytest.mark.parametrize("raw", ["1 000", "1\u00a0000", "1\u202f000", "1000,5", "1 000,5"])
+def test_budget_accepts_spaces_and_comma(client: TestClient, raw: str) -> None:
+    _signed_in(client)
+    rid = _create(client, budget_amount=raw, budget_unit="fixed")
+    assert float(_row(rid).budget_amount) in (1000.0, 1000.5)
+    assert ("," in raw) == (float(_row(rid).budget_amount) == 1000.5)
+
+
+def test_created_at_is_shown_in_local_time(client: TestClient) -> None:
+    from datetime import UTC, datetime
+
+    _signed_in(client)
+    rid = _create(client)
+    _update(rid, created_at=datetime(2026, 1, 1, 20, 0, tzinfo=UTC))
+    assert "02.01.2026" in client.get(f"/requests/{rid}").text
+    assert "02.01.2026" in client.get("/requests/mine").text

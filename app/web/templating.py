@@ -1,7 +1,9 @@
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi.templating import Jinja2Templates
 
+from app.core.time import LOCAL_TZ
 from app.models.common import PRICE_UNITS
 from app.models.request import CLOSE_REASONS, REQUEST_STATUSES, TIMINGS
 
@@ -22,3 +24,13 @@ templates.env.globals["request_keys"] = {
     "timing": {k: f"requests.timing.{k}" for k in TIMINGS},
     "done": {d: f"requests.done.{d}" for d in REQUEST_DONE_CODES},
 }
+
+
+def local_date(value: datetime) -> str:
+    """A stored UTC timestamp as the client's calendar date (Asia/Dushanbe), dd.mm.yyyy."""
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(LOCAL_TZ).strftime("%d.%m.%Y")
+
+
+templates.env.filters["local_date"] = local_date

@@ -14,7 +14,7 @@
         {% if c.thumb_url %}<img src="{{ c.thumb_url }}" alt="" width="64" height="64" loading="lazy" class="size-16 shrink-0 rounded-lg object-cover">{% endif %}
         <span class="grid gap-1">
           <strong>{{ c.specialties | join(', ') }}</strong>
-          <span class="text-sm text-muted">{{ c.place }} · {{ c.created_at.strftime('%d.%m.%Y') }}</span>
+          <span class="text-sm text-muted">{{ c.place }} · {{ c.created_at|local_date }}</span>
           <span class="text-sm"><span class="pill">{{ t(request_keys.status[c.status]) }}</span> {{ t('requests.responses', n=c.responses_count) }}</span>
         </span>
       </a>

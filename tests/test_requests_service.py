@@ -169,6 +169,16 @@ def test_inactive_specialty_refused(db: Session) -> None:
     )
 
 
+def test_specialty_under_an_inactive_category_refused(db: Session) -> None:
+    spec = db.get(Specialty, _specs(db)[0])
+    spec.category.is_active = False
+    db.flush()
+    assert (
+        _code(db, svc.create_request, db, _user(db), _input(db, specialty_ids=[spec.id]))
+        == "specialty"
+    )
+
+
 def test_place_rules(db: Session) -> None:
     user = _user(db)
     with_d, without_d = _city_with_districts(db), _city_without_districts(db)
@@ -484,6 +494,25 @@ def test_photos_locked_after_a_response(db: Session, tmp_path) -> None:
     assert _code(db, svc.add_request_photos, db, storage, user, request.id, [_png()]) == "locked"
     photo = _photos(db, request)[0]
     assert _code(db, svc.delete_request_photo, db, user, request.id, photo.id) == "locked"
+
+
+@pytest.mark.parametrize("closed", [False, True])
+def test_locked_or_closed_request_skips_image_processing(
+    db: Session, tmp_path, monkeypatch, closed: bool
+) -> None:
+    storage = _disk(tmp_path)
+    user, request = _make(db)
+    if closed:
+        svc.close_request(db, user, request.id, "closed")
+    else:
+        _respond(db, request)
+
+    def boom(data):  # type: ignore[no-untyped-def]
+        raise AssertionError("process_portfolio must not run")
+
+    monkeypatch.setattr(svc, "process_portfolio", boom)
+    code = _code(db, svc.add_request_photos, db, storage, user, request.id, [_png()])
+    assert code == ("state" if closed else "locked")
 
 
 def test_photo_db_failure_cleans_storage(db: Session, tmp_path, monkeypatch) -> None:

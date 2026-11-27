@@ -13,7 +13,7 @@
   <div class="card grid gap-2">
     <p><span class="pill">{{ t(request_keys.status[view.status]) }}</span>
       {% if view.close_reason %}<span class="text-sm text-muted">{{ t(request_keys.close_reason[view.close_reason]) }}</span>{% endif %}</p>
-    <p class="text-sm text-muted">{{ view.place }} · {{ view.created_at.strftime('%d.%m.%Y') }} · {{ t('requests.responses', n=view.responses_count) }}</p>
+    <p class="text-sm text-muted">{{ view.place }} · {{ view.created_at|local_date }} · {{ t('requests.responses', n=view.responses_count) }}</p>
     <p class="whitespace-pre-line">{{ view.description }}</p>
     <dl class="grid gap-1 text-sm">
       {% if view.budget_amount is not none %}

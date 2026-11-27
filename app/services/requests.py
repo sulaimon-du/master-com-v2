@@ -94,7 +94,13 @@ def _check_specialties(db: Session, ids: list[int]) -> list[int]:
     ids = list(dict.fromkeys(ids))
     if not 1 <= len(ids) <= MAX_SPECIALTIES:
         raise RequestError("specialty")
-    found = set(db.scalars(select(Specialty.id).where(Specialty.id.in_(ids), Specialty.is_active)))
+    found = set(
+        db.scalars(
+            select(Specialty.id)
+            .join(Category, Category.id == Specialty.category_id)
+            .where(Specialty.id.in_(ids), Specialty.is_active, Category.is_active)
+        )
+    )
     if found != set(ids):
         raise RequestError("specialty")
     return ids
@@ -215,7 +221,7 @@ def add_request_photos(
     A storage or database failure removes every file written by this call and propagates.
     """
     _require_active(user)
-    _request(db, user, request_id)  # cheap ownership check before heavy work
+    _require_editable(_request(db, user, request_id))  # cheap checks before heavy work
     errors: list[tuple[int, str]] = []
     processed: list[tuple[int, ProcessedImage, ProcessedImage]] = []
     for number, data in enumerate(files, start=1):

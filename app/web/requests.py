@@ -74,6 +74,18 @@ def _err(code: str) -> str:
 # --- the form: strings in, a validated RequestInput out ---------------------------------------
 
 
+def _text(raw: str) -> str:
+    """Free text from a textarea: browsers send CRLF; store and count LF. NULs are dropped."""
+    return raw.replace("\x00", "").replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _budget(raw: str) -> str | None:
+    """ "1 000", "1 000" (NBSP / narrow NBSP) and "1,5" are what people type."""
+    for space in (" ", "\u00a0", "\u202f"):
+        raw = raw.replace(space, "")
+    return raw.replace(",", ".").strip() or None
+
+
 def request_form(
     specialty: Annotated[list[str], Form()] = [],  # noqa: B006  (FastAPI reads the default)
     city: Annotated[str, Form()] = "",
@@ -89,12 +101,12 @@ def request_form(
         specialty=specialty[:MAX_FORM_SPECIALTIES],
         city=city,
         district=district,
-        description=description.replace("\x00", ""),
+        description=_text(description),
         budget_amount=budget_amount,
         budget_unit=budget_unit,
         timing=timing,
         timing_date=timing_date,
-        address=address.replace("\x00", ""),
+        address=_text(address),
     )
 
 
@@ -119,8 +131,6 @@ _FIELD_CODE: dict[str, RequestCode] = {
 
 def _to_input(values: FormValues) -> RequestInput:
     """Parse the typed strings; anything unparseable is a RequestError, never a 500."""
-    if len(values.specialty) > MAX_FORM_SPECIALTIES:
-        raise RequestError("specialty")
     specialty_ids = [_id(s, "specialty") for s in values.specialty]
     city_id = _id(values.city, "place")
     district_id = _id(values.district, "place") if values.district.strip() else None
@@ -130,10 +140,11 @@ def _to_input(values: FormValues) -> RequestInput:
             city_id=city_id,
             district_id=district_id,
             description=values.description,
-            budget_amount=values.budget_amount.strip() or None,  # type: ignore[arg-type]
+            budget_amount=_budget(values.budget_amount),  # type: ignore[arg-type]
             budget_unit=values.budget_unit.strip() or None,
             timing=values.timing,
-            timing_date=values.timing_date.strip() or None,  # type: ignore[arg-type]
+            # The date input is always submitted; only "date" timing uses it.
+            timing_date=(values.timing_date.strip() or None) if values.timing == "date" else None,  # type: ignore[arg-type]
             address=values.address,
         )
     except ValidationError as exc:
