@@ -159,6 +159,17 @@ def test_guests_never_see_masters_contacts(client: TestClient, scene: dict) -> N
     assert MASTER_TG not in r.text and DESCRIPTION not in r.text
 
 
+# --- the header -------------------------------------------------------------------------------
+
+
+def test_header_links_to_the_feed_for_masters_only(client: TestClient, scene: dict) -> None:
+    page = scene["ali"].get("/").text
+    assert 'href="/feed"' in page and 'href="/responses/mine"' in page
+    for browser in (scene["plain"], scene["ana"], client):
+        page = browser.get("/").text
+        assert 'href="/feed"' not in page and 'href="/responses/mine"' not in page
+
+
 # --- the feed ---------------------------------------------------------------------------------
 
 
@@ -282,10 +293,11 @@ def test_someone_else_cannot_respond_to_a_request_outside_their_feed(
 ) -> None:
     other, other_id = _browser(client, "other@example.com")
     _make_master(other_id, specs=("elektrik",))
-    for browser in (other, scene["plain"]):
-        r = _respond(browser, scene["rid"])
-        assert r.status_code in (404, 409)
-        assert DESCRIPTION not in r.text
+    r = _respond(other, scene["rid"])  # a master the request does not match: "not found"
+    assert r.status_code == 404 and DESCRIPTION not in r.text
+    r = _respond(scene["plain"], scene["rid"])  # not a master at all
+    assert r.status_code == 409 and "Откликаться могут мастера" in r.text
+    assert DESCRIPTION not in r.text
     assert _row(scene["rid"]).responses_count == 0
 
 
@@ -300,7 +312,7 @@ def test_withdraw_then_request_is_back_in_the_feed(scene: dict) -> None:
     assert "Отклик отозван" in scene["ali"].get(r.headers["location"]).text
     assert _row(rid).responses_count == 0
     again = _post(scene["ali"], f"/requests/{rid}/withdraw")  # stale double click
-    assert again.status_code in (404, 409) and again.status_code != 500
+    assert again.status_code == 409 and "Отклик уже отозван" in again.text
     assert f'action="/requests/{rid}/respond"' in scene["ali"].get(f"/requests/{rid}").text
 
 
@@ -337,6 +349,28 @@ def test_unpublished_responder_card_has_no_profile_link(scene: dict) -> None:
     page = scene["ana"].get(f"/requests/{rid}").text
     assert f"Мастер {scene['ali_id']}" in page
     assert f'href="/m/{slug}"' not in page
+
+
+@pytest.mark.parametrize("how", ["blocked", "hidden"])
+def test_chosen_master_no_longer_available_keeps_a_card_without_contacts(
+    scene: dict, how: str
+) -> None:
+    rid = scene["rid"]
+    assert _respond(scene["ali"], rid).status_code == 303
+    resp = _response_id(rid, scene["ali_profile"])
+    r = _post(
+        scene["ana"], f"/requests/{rid}/choose", {"response_id": str(resp), "phone": CLIENT_PHONE}
+    )
+    assert r.status_code == 303
+    with get_sessionmaker()() as db:
+        slug = db.get(MasterProfile, scene["ali_profile"]).slug
+    if how == "blocked":
+        _update(User, scene["ali_id"], blocked_at=utcnow())
+    else:
+        _update(MasterProfile, scene["ali_profile"], hidden_at=utcnow())
+    page = scene["ana"].get(f"/requests/{rid}").text
+    assert f"Мастер {scene['ali_id']}" in page and "Мастер больше недоступен" in page
+    assert MASTER_TG not in page and f'href="/m/{slug}"' not in page
 
 
 def test_choose_needs_a_phone(scene: dict) -> None:
@@ -495,9 +529,10 @@ def test_responder_sees_no_longer_available_others_404(
     for browser in (boris, scene["plain"]):
         r = browser.get(f"/requests/{rid}")
         assert r.status_code == 404 and DESCRIPTION not in r.text
-    # Acting on it is refused without details.
+    # The responder may still withdraw; nothing about the request leaks on the way.
     r = _post(scene["ali"], f"/requests/{rid}/withdraw")
-    assert r.status_code in (303, 409) and DESCRIPTION not in r.text
+    assert r.status_code == 303 and r.headers["location"] == "/responses/mine?done=withdrawn"
+    assert DESCRIPTION not in r.text
 
 
 def test_chosen_master_loses_contact_when_request_is_hidden(scene: dict) -> None:

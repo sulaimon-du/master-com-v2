@@ -59,6 +59,7 @@
           </div>
           {% if r.chosen %}<span class="pill ms-auto">{{ t('requests.chosen') }}</span>{% endif %}
         </div>
+        {% if not r.available %}<p class="text-sm text-muted">{{ t('requests.master_unavailable') }}</p>{% endif %}
         {% if r.message %}<p class="whitespace-pre-line">{{ r.message }}</p>{% endif %}
         {% if r.price_amount is not none %}<p class="text-sm">{{ t('feed.price') }}: {{ rq.money(r.price_amount, r.price_unit) }}</p>{% endif %}
         {% if r.contacts %}

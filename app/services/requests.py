@@ -11,7 +11,7 @@ from datetime import timedelta
 from decimal import Decimal
 from typing import Any, Literal
 
-from sqlalchemy import Select, delete, select
+from sqlalchemy import Select, and_, delete, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.time import local_today, utcnow
@@ -214,6 +214,10 @@ def create_request(db: Session, user: User, data: RequestInput) -> JobRequest:
     db.flush()
     db.add_all(RequestSpecialty(request_id=request.id, specialty_id=i) for i in specialty_ids)
     db.flush()
+    # Ids only: the handler re-reads the request and re-checks who may still see it (spec D6).
+    jobs.enqueue(
+        db, "new_request", {"request_id": request.id}, dedupe_key=f"new_request:{request.id}"
+    )
     return request
 
 
@@ -318,22 +322,25 @@ def delete_request_photo(db: Session, user: User, request_id: int, photo_id: int
 _CLOSE = {"closed": ("closed", "client_closed"), "cancelled": ("cancelled", "client_cancelled")}
 
 
-def _shown_master(stmt: Select[Any]) -> Select[Any]:
-    """Active responses the client may see and choose (spec D10.5).
-
-    The master's profile is not hidden by moderation and its owner is active right now.
-    A master who merely unpublished stays: existing responses are kept.
-    """
+def _with_master(stmt: Select[Any]) -> Select[Any]:
+    """Active (not withdrawn) responses joined to the master's profile and its owner."""
     return (
         stmt.join(MasterProfile, MasterProfile.id == JobResponse.master_id)
         .join(User, User.id == MasterProfile.user_id)
-        .where(
-            JobResponse.withdrawn_at.is_(None),
-            MasterProfile.hidden_at.is_(None),
-            User.blocked_at.is_(None),
-            User.deleted_at.is_(None),
-        )
+        .where(JobResponse.withdrawn_at.is_(None))
     )
+
+
+# The master's profile is not hidden by moderation and its owner is active right now.
+# A master who merely unpublished stays available: existing responses are kept.
+_MASTER_AVAILABLE = and_(
+    MasterProfile.hidden_at.is_(None), User.blocked_at.is_(None), User.deleted_at.is_(None)
+)
+
+
+def _shown_master(stmt: Select[Any]) -> Select[Any]:
+    """Active responses the client may see and choose (spec D10.5)."""
+    return _with_master(stmt).where(_MASTER_AVAILABLE)
 
 
 def contact_phone_prefill(user: User) -> str | None:
@@ -429,6 +436,7 @@ def reopen_feed(db: Session, user: User, request_id: int) -> JobRequest:
     request.opened_at = utcnow()
     request.expiry_reminded_at = None  # the reminder is due again +27 days from now
     db.flush()
+    # Not a new request: masters are not told again (R-026), so no "new_request" job here.
     return request
 
 
@@ -543,12 +551,19 @@ def responses_for_client(db: Session, user: User, request_id: int) -> list[Clien
     """Active responses on the client's own request, newest (re)response first.
 
     Withdrawn responses and masters who are blocked, deleted or hidden by moderation are left
-    out. The client sees each master's contacts, as on a profile for a signed-in user (D4).
+    out, except the chosen master: the client keeps that card, marked unavailable, without
+    contacts and without a profile link. The client sees each available master's contacts, as
+    on a profile for a signed-in user (D4).
     """
     request = _request(db, user, request_id)
+    listed = (
+        _MASTER_AVAILABLE
+        if request.chosen_master_id is None
+        else or_(_MASTER_AVAILABLE, JobResponse.master_id == request.chosen_master_id)
+    )
     rows = db.execute(
-        _shown_master(select(JobResponse, MasterProfile))
-        .where(JobResponse.request_id == request.id)
+        _with_master(select(JobResponse, MasterProfile, _MASTER_AVAILABLE.label("available")))
+        .where(JobResponse.request_id == request.id, listed)
         .order_by(JobResponse.updated_at.desc(), JobResponse.id.desc())
     ).all()
     storage = get_storage()
@@ -561,7 +576,8 @@ def responses_for_client(db: Session, user: User, request_id: int) -> list[Clien
             display_name=profile.display_name,
             avatar_url=storage.url(profile.avatar_key) if profile.avatar_key else None,
             headline=profile.headline,
-            published=profile.published_at is not None,
+            published=available and profile.published_at is not None,
+            available=available,
             responded_at=response.updated_at,
             message=response.message,
             price_amount=response.price_amount,
@@ -572,12 +588,12 @@ def responses_for_client(db: Session, user: User, request_id: int) -> list[Clien
                 whatsapp=profile.contact_whatsapp,
                 instagram=profile.contact_instagram,
             )
-            if active
+            if active and available
             else None,
             chosen=request.chosen_master_id == profile.id,
-            choosable=can_choose,
+            choosable=can_choose and available,
         )
-        for response, profile in rows
+        for response, profile, available in rows
     ]
 
 

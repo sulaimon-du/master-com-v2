@@ -60,7 +60,7 @@ def _respond(db: Session, request: JobRequest) -> tuple[User, MasterProfile, Job
 
 
 def _events(queued: list[tuple]) -> list[tuple]:
-    return [q for q in queued if q[0] != "new_response"]
+    return [q for q in queued if q[0] not in ("new_request", "new_response")]
 
 
 # --- choose -----------------------------------------------------------------------------------
@@ -342,6 +342,36 @@ def test_responses_for_client_hide_withdrawn_blocked_and_hidden(db: Session) -> 
     hidden.hidden_at = utcnow()
     db.flush()
     assert [c.response_id for c in svc.responses_for_client(db, client, request.id)] == [kept.id]
+
+
+@pytest.mark.parametrize("how", ["blocked", "deleted", "hidden"])
+def test_chosen_master_stays_listed_when_no_longer_available(db: Session, how: str) -> None:
+    """The client keeps the card of the master they chose, without contacts or a profile link."""
+    client, request, owner, profile, chosen = _setup(db)
+    other_owner, _, other = _respond(db, request)
+    profile.contact_phone = "+992907654321"
+    db.flush()
+    svc.choose_master(db, client, request.id, chosen.id, PHONE)
+    if how == "blocked":
+        owner.blocked_at = other_owner.blocked_at = utcnow()
+    elif how == "deleted":
+        owner.deleted_at = other_owner.deleted_at = utcnow()
+    else:
+        profile.hidden_at = utcnow()
+        db.get(MasterProfile, other.master_id).hidden_at = utcnow()
+    db.flush()
+    (card,) = svc.responses_for_client(db, client, request.id)  # the other responder stays out
+    assert card.response_id == chosen.id and card.chosen is True
+    assert card.available is False and card.contacts is None
+    assert card.published is False and card.choosable is False
+    assert "+992907654321" not in card.model_dump_json()
+
+
+def test_available_masters_are_marked_available(db: Session) -> None:
+    client, request, _, _, response = _setup(db)
+    svc.choose_master(db, client, request.id, response.id, PHONE)
+    (card,) = svc.responses_for_client(db, client, request.id)
+    assert card.available is True and card.contacts is not None and card.published is True
 
 
 def test_responses_for_client_newest_first_and_chosen(db: Session) -> None:

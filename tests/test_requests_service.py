@@ -20,6 +20,7 @@ from app.models import (
     User,
 )
 from app.schemas.requests import RequestInput
+from app.services import jobs
 from app.services import requests as svc
 from app.services.masters import BasicsInput, create_profile
 from app.services.requests import RequestError
@@ -413,6 +414,38 @@ def test_reopen_feed_math_and_clock(db: Session) -> None:
     assert result.responses_count == 15
     # a second click: nothing to reopen any more
     assert _code(db, svc.reopen_feed, db, user, request.id) == "state"
+
+
+@pytest.fixture
+def queued(monkeypatch: pytest.MonkeyPatch) -> list[tuple]:
+    """Every job the services enqueue, instead of the (no-op) queue."""
+    calls: list[tuple] = []
+
+    def record(db, kind, payload, *, dedupe_key=None, run_at=None):  # type: ignore[no-untyped-def]
+        calls.append((kind, payload, dedupe_key, run_at))
+
+    monkeypatch.setattr(jobs, "enqueue", record)
+    return calls
+
+
+def _new_request_jobs(queued: list[tuple]) -> list[tuple]:
+    return [q for q in queued if q[0] == "new_request"]
+
+
+def test_create_request_queues_one_new_request_job(db: Session, queued: list[tuple]) -> None:
+    _, request = _make(db)
+    assert _new_request_jobs(queued) == [
+        ("new_request", {"request_id": request.id}, f"new_request:{request.id}", None)
+    ]
+
+
+def test_reopen_feed_does_not_notify_masters_again(db: Session, queued: list[tuple]) -> None:
+    user, request = _make(db)
+    request.feed_paused_at = utcnow()
+    db.flush()
+    queued.clear()
+    svc.reopen_feed(db, user, request.id)
+    assert _new_request_jobs(queued) == []
 
 
 def test_reopen_needs_open_and_paused(db: Session) -> None:

@@ -8,8 +8,8 @@ Every rule lives in the feed and responses services; a request id a master may n
 from decimal import Decimal, InvalidOperation
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, Path, Query, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi import APIRouter, Depends, Form, Query, Request
+from fastapi.responses import HTMLResponse, Response
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
@@ -19,41 +19,29 @@ from app.models.user import User
 from app.schemas.requests import ResponseInput
 from app.services import feed, responses
 from app.services.responses import MAX_MESSAGE, ResponseError
+from app.web._common import (
+    DONE,
+    RequestId,
+    not_found_page,
+    request_url,
+    see_other,
+    signin_redirect,
+)
 from app.web.auth import notice_page
 from app.web.csrf import CSRFProtected
 from app.web.deps import current_lang, current_user
 from app.web.render import render
-from app.web.templating import REQUEST_DONE_CODES
 
 router = APIRouter(include_in_schema=False)
 
 CurrentUser = Annotated[User | None, Depends(current_user)]
-# 32-bit ids: a bigger number can never be a row, and the database would refuse it.
-RequestId = Annotated[int, Path(ge=1, le=2_147_483_647)]
 
 FEED = "/feed"
 MY_RESPONSES = "/responses/mine"
-DONE = set(REQUEST_DONE_CODES)
 MAX_PRICE_CHARS = 32  # the field allows 16; a forged longer value is simply "not a price"
 
 # A rule broken by the typed values is the form's 422; a state that moved is a 409.
 _FORM_CODES = {"message", "price"}
-
-
-def _url(request_id: int, query: str = "") -> str:
-    return f"/requests/{request_id}{query}"
-
-
-def _signin(path: str) -> RedirectResponse:
-    return RedirectResponse(f"/signin?next={path}", status_code=303)
-
-
-def _redirect(url: str) -> RedirectResponse:
-    return RedirectResponse(url, status_code=303)
-
-
-def _not_found(request: Request, user: User | None) -> HTMLResponse:
-    return notice_page(request, user, status=404, title="error.not_found", text="error.not_found")
 
 
 def _err(code: str) -> str:
@@ -156,7 +144,7 @@ def feed_page(
     after: Annotated[str | None, Query(max_length=64)] = None,
 ) -> Response:
     if user is None:
-        return _signin(FEED)
+        return signin_redirect(FEED)
     page = feed.feed(db, user, after, lang=current_lang(request))
     return render(request, "pages/feed.html", user=user, page=page, first=after is None)
 
@@ -164,7 +152,7 @@ def feed_page(
 @router.get(MY_RESPONSES, name="responses_mine")
 def responses_mine(request: Request, db: DbSession, user: CurrentUser) -> Response:
     if user is None:
-        return _signin(MY_RESPONSES)
+        return signin_redirect(MY_RESPONSES)
     cards = responses.my_responses(db, user, lang=current_lang(request))
     return render(
         request, "pages/requests/my_responses.html", user=user, cards=cards, done=_done(request)
@@ -198,16 +186,16 @@ def request_respond(
     values: ResponseForm,
 ) -> Response:
     if user is None:
-        return _signin(_url(request_id))
+        return signin_redirect(request_url(request_id))
     try:
         responses.respond(db, user, request_id, _to_input(values))
     except ResponseError as exc:
         db.rollback()
         if exc.code in ("not_found", "inactive"):
-            return _not_found(request, user)
+            return not_found_page(request, user)
         kept = values if exc.code in _FORM_CODES else None
         return _stale(request, db, user, request_id, exc.code, values=kept)
-    return _redirect(_url(request_id, "?done=responded"))
+    return see_other(request_url(request_id, "?done=responded"))
 
 
 @router.post(
@@ -217,12 +205,12 @@ def request_withdraw(
     request: Request, db: DbSession, user: CurrentUser, request_id: RequestId
 ) -> Response:
     if user is None:
-        return _signin(_url(request_id))
+        return signin_redirect(request_url(request_id))
     try:
         responses.withdraw(db, user, request_id)
     except ResponseError as exc:
         db.rollback()
         if exc.code in ("not_found", "inactive"):
-            return _not_found(request, user)
+            return not_found_page(request, user)
         return _stale(request, db, user, request_id, exc.code)
-    return _redirect(f"{MY_RESPONSES}?done=withdrawn")
+    return see_other(f"{MY_RESPONSES}?done=withdrawn")

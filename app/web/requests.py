@@ -8,11 +8,11 @@ to the client and otherwise the master's view (`app.web.feed`), or a 404 (spec D
 
 import logging
 from typing import Annotated
-from urllib.parse import quote, urlencode
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, File, Form, Path, Query, Request
 from fastapi.datastructures import UploadFile
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, Response
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -26,12 +26,18 @@ from app.services import request_options, requests
 from app.services.images import ImageError, read_limited
 from app.services.requests import DESCRIPTION_RANGE, MAX_ADDRESS, RequestCode, RequestError
 from app.services.storage import Storage, StorageError, get_storage
-from app.web.auth import notice_page
+from app.web._common import (
+    DONE,
+    RequestId,
+    not_found_page,
+    request_url,
+    see_other,
+    signin_redirect,
+)
 from app.web.csrf import CSRFProtected
 from app.web.deps import current_lang, current_user
 from app.web.feed import master_request_page
 from app.web.render import render
-from app.web.templating import REQUEST_DONE_CODES
 
 log = logging.getLogger(__name__)
 router = APIRouter(include_in_schema=False)
@@ -39,34 +45,13 @@ router = APIRouter(include_in_schema=False)
 CurrentUser = Annotated[User | None, Depends(current_user)]
 Uploads = Annotated[list[UploadFile] | None, File()]
 
-# Banners after a redirect; anything else in the query is ignored.
-DONE = set(REQUEST_DONE_CODES)
-
 NEW = "/requests/new"
 MINE = "/requests/mine"
 MAX_FORM_SPECIALTIES = 20  # more than the 3 the service accepts; keeps a forged form cheap
 MAX_ID_DIGITS = 9  # ids are 32-bit; longer digit strings can never match a row
 FileError = tuple[int, str]
 # 32-bit ids: a bigger number can never be a row, and the database would refuse it.
-RequestId = Annotated[int, Path(ge=1, le=2_147_483_647)]
 PhotoId = Annotated[int, Path(ge=1, le=2_147_483_647)]
-
-
-def _url(request_id: int, query: str = "") -> str:
-    return f"/requests/{request_id}{query}"
-
-
-def _signin(path: str) -> RedirectResponse:
-    # The path may carry a query (the prefill); encode it so it stays inside `next`.
-    return RedirectResponse(f"/signin?next={quote(path, safe='/')}", status_code=303)
-
-
-def _redirect(url: str) -> RedirectResponse:
-    return RedirectResponse(url, status_code=303)
-
-
-def _not_found(request: Request, user: User | None) -> HTMLResponse:
-    return notice_page(request, user, status=404, title="error.not_found", text="error.not_found")
 
 
 def _err(code: str) -> str:
@@ -253,7 +238,7 @@ def request_new(
     if user is None:
         # Keep only the slugs that resolved, so the form is prefilled after sign-in.
         kept = {k: v for k, v, ok in (("c", c, values.city), ("s", s, values.specialty)) if ok}
-        return _signin(NEW + (f"?{urlencode(kept)}" if kept else ""))
+        return signin_redirect(NEW + (f"?{urlencode(kept)}" if kept else ""))
     return _new_page(request, db, user, values)
 
 
@@ -262,21 +247,21 @@ def request_create(
     request: Request, db: DbSession, user: CurrentUser, values: FormData
 ) -> Response:
     if user is None:
-        return _signin(NEW)
+        return signin_redirect(NEW)
     try:
         created = requests.create_request(db, user, _to_input(values))
     except RequestError as exc:
         db.rollback()
         if exc.code in ("not_found", "inactive"):
-            return _not_found(request, user)
+            return not_found_page(request, user)
         return _new_page(request, db, user, values, status=422, error=_err(exc.code))
-    return _redirect(_url(created.id, "?done=created"))
+    return see_other(request_url(created.id, "?done=created"))
 
 
 @router.get(MINE, name="requests_mine")
 def requests_mine(request: Request, db: DbSession, user: CurrentUser) -> Response:
     if user is None:
-        return _signin(MINE)
+        return signin_redirect(MINE)
     cards = requests.client_requests(db, user, lang=current_lang(request))
     return render(request, "pages/requests/mine.html", user=user, cards=cards)
 
@@ -286,13 +271,13 @@ def request_detail(
     request: Request, db: DbSession, user: CurrentUser, request_id: RequestId
 ) -> Response:
     if user is None:
-        return _signin(_url(request_id))
+        return signin_redirect(request_url(request_id))
     try:
         return _detail_page(request, db, user, request_id)
     except RequestError:
         pass  # not this user's request: maybe a master's
     page = master_request_page(request, db, user, request_id)
-    return page if page is not None else _not_found(request, user)
+    return page if page is not None else not_found_page(request, user)
 
 
 # --- edit -------------------------------------------------------------------------------------
@@ -303,13 +288,13 @@ def request_edit(
     request: Request, db: DbSession, user: CurrentUser, request_id: RequestId, values: FormData
 ) -> Response:
     if user is None:
-        return _signin(_url(request_id))
+        return signin_redirect(request_url(request_id))
     try:
         requests.update_request(db, user, request_id, _to_input(values))
     except RequestError as exc:
         db.rollback()
         if exc.code in ("not_found", "inactive"):
-            return _not_found(request, user)
+            return not_found_page(request, user)
         # A rule broken by the typed values is the form's 422; a state that moved is a 409.
         stale = exc.code in ("locked", "state")
         try:
@@ -321,8 +306,8 @@ def request_edit(
                 values=None if stale else values,
             )  # fmt: skip
         except RequestError:
-            return _not_found(request, user)
-    return _redirect(_url(request_id, "?done=saved"))
+            return not_found_page(request, user)
+    return see_other(request_url(request_id, "?done=saved"))
 
 
 # --- photos -----------------------------------------------------------------------------------
@@ -380,20 +365,20 @@ def request_photos(
     photos: Uploads = None,
 ) -> Response:
     if not get_settings().uploads_enabled:
-        return _not_found(request, user)
+        return not_found_page(request, user)
     if user is None:
-        return _signin(_url(request_id))
+        return signin_redirect(request_url(request_id))
 
     def again(status: int, **kw: object) -> Response:
         try:
             return _detail_page(request, db, user, request_id, status=status, **kw)  # type: ignore[arg-type]
         except RequestError:
-            return _not_found(request, user)
+            return not_found_page(request, user)
 
     try:
         requests.request_for_client(db, user, request_id)  # ownership first: foreign id is 404
     except RequestError:
-        return _not_found(request, user)
+        return not_found_page(request, user)
     files = [u for u in photos or [] if u.filename]
     if len(files) > MAX_REQUEST_PHOTOS:
         return again(422, error="requests.err.too_many")
@@ -407,7 +392,7 @@ def request_photos(
     except RequestError as exc:
         db.rollback()
         if exc.code in ("not_found", "inactive"):
-            return _not_found(request, user)
+            return not_found_page(request, user)
         return again(409, error=_err(exc.code))
     except (StorageError, OSError, IntegrityError):  # the service already removed its files
         db.rollback()
@@ -429,7 +414,7 @@ def request_photos(
     errors.sort()
     if errors:
         return again(200 if storage.written else 422, file_errors=errors)
-    return _redirect(_url(request_id, "?done=photos"))
+    return see_other(request_url(request_id, "?done=photos"))
 
 
 @router.post(
@@ -441,17 +426,17 @@ def request_photo_delete(
     request: Request, db: DbSession, user: CurrentUser, request_id: RequestId, photo_id: PhotoId
 ) -> Response:
     if user is None:
-        return _signin(_url(request_id))
+        return signin_redirect(request_url(request_id))
     try:
         keys = requests.delete_request_photo(db, user, request_id, photo_id)
     except RequestError as exc:
         db.rollback()
         if exc.code in ("not_found", "inactive"):
-            return _not_found(request, user)
+            return not_found_page(request, user)
         try:
             return _detail_page(request, db, user, request_id, status=409, error=_err(exc.code))
         except RequestError:
-            return _not_found(request, user)
+            return not_found_page(request, user)
     try:
         db.commit()
     except SQLAlchemyError:
@@ -462,9 +447,9 @@ def request_photo_delete(
                 request, db, user, request_id, status=422, error="requests.err.save"
             )
         except RequestError:
-            return _not_found(request, user)
+            return not_found_page(request, user)
     _delete_files(get_storage(), keys)  # only now: a failed commit never loses a file
-    return _redirect(_url(request_id))
+    return see_other(request_url(request_id))
 
 
 # --- close, cancel, reopen --------------------------------------------------------------------
@@ -474,7 +459,7 @@ def _lifecycle(
     request: Request, db: Session, user: User | None, request_id: int, action: str
 ) -> Response:
     if user is None:
-        return _signin(_url(request_id))
+        return signin_redirect(request_url(request_id))
     try:
         if action == "reopen":
             requests.reopen_feed(db, user, request_id)
@@ -486,12 +471,12 @@ def _lifecycle(
     except RequestError as exc:
         db.rollback()
         if exc.code in ("not_found", "inactive"):
-            return _not_found(request, user)
+            return not_found_page(request, user)
         try:  # a stale double click: say so, change nothing
             return _detail_page(request, db, user, request_id, status=409, error=_err(exc.code))
         except RequestError:
-            return _not_found(request, user)
-    return _redirect(_url(request_id, f"?done={done}"))
+            return not_found_page(request, user)
+    return see_other(request_url(request_id, f"?done={done}"))
 
 
 @router.post("/requests/{request_id}/close", name="request_close", dependencies=[CSRFProtected])
@@ -530,7 +515,7 @@ def request_choose(
     phone: Annotated[str, Form()] = "",
 ) -> Response:
     if user is None:
-        return _signin(_url(request_id))
+        return signin_redirect(request_url(request_id))
     if len(phone) > MAX_PHONE_CHARS:
         phone = ""  # never a phone; refused below without echoing a forged value back
     chosen = 0
@@ -540,7 +525,7 @@ def request_choose(
     except RequestError as exc:
         db.rollback()
         if exc.code == "inactive":
-            return _not_found(request, user)
+            return not_found_page(request, user)
         # On the client's own request, a response that is gone is a stale page, not a 404.
         code = "response_gone" if exc.code == "not_found" else exc.code
         try:
@@ -552,8 +537,8 @@ def request_choose(
                 choose=again,
             )  # fmt: skip
         except RequestError:
-            return _not_found(request, user)
-    return _redirect(_url(request_id, "?done=chosen"))
+            return not_found_page(request, user)
+    return see_other(request_url(request_id, "?done=chosen"))
 
 
 @router.post(
@@ -563,15 +548,15 @@ def request_complete(
     request: Request, db: DbSession, user: CurrentUser, request_id: RequestId
 ) -> Response:
     if user is None:
-        return _signin(_url(request_id))
+        return signin_redirect(request_url(request_id))
     try:
         requests.complete_request(db, user, request_id)
     except RequestError as exc:
         db.rollback()
         if exc.code in ("not_found", "inactive"):
-            return _not_found(request, user)
+            return not_found_page(request, user)
         try:
             return _detail_page(request, db, user, request_id, status=409, error=_err(exc.code))
         except RequestError:
-            return _not_found(request, user)
-    return _redirect(_url(request_id, "?done=completed"))
+            return not_found_page(request, user)
+    return see_other(request_url(request_id, "?done=completed"))

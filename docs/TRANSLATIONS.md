@@ -8,7 +8,7 @@ is stale.
 checked. To approve, tell Claude which keys are fine (or send corrections); they are recorded in
 `app/locales/tg_approved.json`.
 
-**492 texts, 396 drafts to check.**
+**496 texts, 400 drafts to check.**
 
 | Key | Русский | Тоҷикӣ | Status |
 |---|---|---|---|
@@ -239,6 +239,9 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `master.whatsapp_hint` | Номер, например +992 90 123 45 67 | Рақам, масалан +992 90 123 45 67 | draft |
 | `master.whole_city` | весь город | тамоми шаҳр | draft |
 | `nav.account` | Аккаунт | Ҳисоб | approved |
+| `nav.feed` | Лента | Лента | draft |
+| `nav.menu` | Меню | Меню | draft |
+| `nav.responses` | Отклики | Посухҳо | draft |
 | `nav.signin` | Войти | Ворид шудан | approved |
 | `nav.skip` | Перейти к содержимому | Ба мундариҷа гузаштан | approved |
 | `portfolio.back` | К портфолио | Ба портфолио | draft |
@@ -373,6 +376,7 @@ checked. To approve, tell Claude which keys are fine (or send corrections); they
 | `requests.err.timing` | Срок: «срочно», «не срочно» или дата не раньше сегодня и не позже чем через 180 дней. | Мӯҳлат: «фаврӣ», «фаврӣ нест» ё санае, ки аз имрӯз барвақттар ва аз 180 рӯз дертар набошад. | draft |
 | `requests.err.too_many` | Не больше 4 файлов за раз. | Дар як вақт на бештар аз 4 файл. | draft |
 | `requests.err.withdrawn` | Мастер отозвал этот отклик. Выберите другого. | Усто ин посухро бозпас гирифт. Дигареро интихоб кунед. | draft |
+| `requests.master_unavailable` | Мастер больше недоступен. | Уста дигар дастрас нест. | draft |
 | `requests.mine_empty` | Заявок пока нет. | Ҳоло дархост нест. | draft |
 | `requests.mine_title` | Мои заявки | Дархостҳои ман | draft |
 | `requests.new_lead` | Опишите работу: подходящие мастера увидят заявку и откликнутся. | Кореро тасвир кунед: усторони мувофиқ дархостро мебинанд ва ҷавоб медиҳанд. | draft |

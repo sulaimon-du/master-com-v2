@@ -158,6 +158,8 @@ class ClientResponseCard(BaseModel):
     The client is signed in, so they get the same contacts as on the master's profile (D4);
     `contacts` is None for an inactive (blocked or deleted) viewer, as on profiles.
     `published` False means the master unpublished: no profile link, but still choosable.
+    `available` False (only ever the chosen master: blocked, deleted or hidden by moderation
+    after being chosen) means no contacts and no profile link, with a short note instead.
     """
 
     response_id: int
@@ -166,6 +168,7 @@ class ClientResponseCard(BaseModel):
     avatar_url: str | None
     headline: str | None
     published: bool
+    available: bool
     responded_at: datetime
     message: str | None
     price_amount: Decimal | None
